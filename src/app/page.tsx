@@ -13,10 +13,27 @@ export default function HomePage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [lyzrStatus, setLyzrStatus] = useState<'checking' | 'connected' | 'error'>('checking');
 
   useEffect(() => {
     loadDashboardData();
+    checkLyzrStatus();
   }, []);
+
+  const checkLyzrStatus = async () => {
+    try {
+      // Test Lyzr connection
+      const response = await fetch('/api/lyzr-status');
+      if (response.ok) {
+        setLyzrStatus('connected');
+      } else {
+        setLyzrStatus('error');
+      }
+    } catch (error) {
+      console.error('Error checking Lyzr status:', error);
+      setLyzrStatus('error');
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -98,9 +115,22 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <FileText className="w-8 h-8 text-blue-600 mr-3" />
-              <h1 className="text-xl font-semibold text-gray-900">SPC Claims Carrier Network</h1>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">SPC Claims Carrier Network</h1>
+                <p className="text-sm text-blue-600">Powered by Lyzr AI Orchestrator</p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  lyzrStatus === 'connected' ? 'bg-green-500' : 
+                  lyzrStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
+                }`}></div>
+                <span className="text-sm text-gray-500">
+                  {lyzrStatus === 'connected' ? 'Lyzr Connected' : 
+                   lyzrStatus === 'error' ? 'Lyzr Error' : 'Checking...'}
+                </span>
+              </div>
               <Settings className="w-5 h-5 text-gray-500" />
               <span className="text-sm text-gray-500">Admin</span>
             </div>

@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const pdfContent = Buffer.from(arrayBuffer);
     
-    const result = await orchestrator.processClaim(pdfContent, file.name);
+    // Use Lyzr orchestrator for processing
+    const result = await orchestrator.processClaimWithLyzr(pdfContent, file.name);
     
     return NextResponse.json({
       success: true,
