@@ -81,14 +81,24 @@ export class LyzrAPIService {
       };
 
       console.log('Sending PDF to Lyzr orchestrator for processing');
+      console.log('Request URL:', this.baseURL);
+      console.log('Request data:', {
+        ...requestData,
+        message: JSON.parse(requestData.message) // Log parsed message for debugging
+      });
       
       const response: AxiosResponse<LyzrAgentResponse> = await this.api.post('', requestData);
       
-      console.log('Lyzr PDF processing response:', response.data);
+      console.log('Lyzr PDF processing response status:', response.status);
+      console.log('Lyzr PDF processing response data:', response.data);
       
       return response.data;
     } catch (error) {
       console.error('Error processing PDF with Lyzr orchestrator:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       throw new Error(`Lyzr PDF processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

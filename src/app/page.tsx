@@ -14,6 +14,8 @@ export default function HomePage() {
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [lyzrStatus, setLyzrStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [processingResult, setProcessingResult] = useState<any>(null);
+  const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -61,23 +63,41 @@ export default function HomePage() {
     setUploadedFile(file);
     setIsProcessing(true);
     setProcessingStatus('Uploading file...');
+    setShowResults(false);
+    setProcessingResult(null);
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfContent = Buffer.from(arrayBuffer);
+      const formData = new FormData();
+      formData.append('file', file);
       
-      setProcessingStatus('Processing claim...');
-      const result = await orchestrator.processClaim(pdfContent, file.name);
+      setProcessingStatus('Sending to Lyzr orchestrator...');
       
-      setProcessingStatus('Processing completed!');
-      console.log('Processing result:', result);
+      const response = await fetch('/api/process-claim', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
       
-      // Refresh dashboard data
-      await loadDashboardData();
+      if (result.success) {
+        setProcessingStatus('Processing completed!');
+        setProcessingResult(result.data);
+        setShowResults(true);
+        console.log('Processing result:', result.data);
+        
+        // Refresh dashboard data
+        await loadDashboardData();
+      } else {
+        throw new Error(result.error || 'Processing failed');
+      }
       
     } catch (error) {
       console.error('Error processing claim:', error);
-      setProcessingStatus('Error processing claim');
+      setProcessingStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -248,6 +268,142 @@ export default function HomePage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Processing Efficiency</h3>
               <p className="text-3xl font-bold text-purple-600">{formatPercentage(dashboardStats.successRate / 100)}</p>
               <p className="text-sm text-gray-500 mt-2">Successful claim processing rate</p>
+            </div>
+          </div>
+        )}
+
+        {/* Processing Results */}
+        {showResults && processingResult && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Processing Results</h2>
+            <div className="space-y-6">
+              {/* Claim Information */}
+              <div className="border rounded-lg p-4">
+                <h3 className="text-md font-semibold text-gray-800 mb-3">Claim Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Claim ID</p>
+                    <p className="font-medium">{processingResult.claim.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">File Name</p>
+                    <p className="font-medium">{processingResult.claim.fileName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Property Address</p>
+                    <p className="font-medium">{processingResult.claim.extractedData.propertyInfo.address}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Total Claim Value</p>
+                    <p className="font-medium text-green-600">{formatCurrency(processingResult.claim.extractedData.totals.total)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SPC Quote */}
+              <div className="border rounded-lg p-4">
+                <h3 className="text-md font-semibold text-gray-800 mb-3">SPC Quote</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Quote ID</p>
+                    <p className="font-medium">{processingResult.spcQuote.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Trust Score</p>
+                    <p className="font-medium text-blue-600">{formatPercentage(processingResult.spcQuote.trustScore)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Compliance Score</p>
+                    <p className="font-medium text-green-600">{formatPercentage(processingResult.spcQuote.validationResults.complianceScore)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Carrier Fit */}
+              <div className="border rounded-lg p-4">
+                <h3 className="text-md font-semibold text-gray-800 mb-3">Carrier Fit Analysis</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Recommended Carrier</p>
+                    <p className="font-medium">{processingResult.spcQuote.carrierFit.carrierName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Fit Score</p>
+                    <p className="font-medium text-purple-600">{formatPercentage(processingResult.spcQuote.carrierFit.fitScore)}</p>
+                  </div>
+                </div>
+                {processingResult.spcQuote.carrierFit.recommendations.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm text-gray-600 mb-2">Recommendations</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {processingResult.spcQuote.carrierFit.recommendations.map((rec: string, index: number) => (
+                        <li key={index} className="text-sm text-gray-700">{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Line Items */}
+              <div className="border rounded-lg p-4">
+                <h3 className="text-md font-semibold text-gray-800 mb-3">Line Items</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {processingResult.claim.extractedData.lineItems.map((item: any, index: number) => (
+                        <tr key={index}>
+                          <td className="px-3 py-2 text-sm text-gray-900">{item.description}</td>
+                          <td className="px-3 py-2 text-sm text-gray-900">{item.quantity} {item.unit}</td>
+                          <td className="px-3 py-2 text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
+                          <td className="px-3 py-2 text-sm font-medium text-gray-900">{formatCurrency(item.totalPrice)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Lyzr Response */}
+              <div className="border rounded-lg p-4">
+                <h3 className="text-md font-semibold text-gray-800 mb-3">Lyzr Orchestrator Response</h3>
+                <div className="bg-gray-50 rounded p-3">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
+                    {JSON.stringify(processingResult.lyzrResponse, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setShowResults(false)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Close Results
+                </button>
+                <button
+                  onClick={() => {
+                    const dataStr = JSON.stringify(processingResult, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `spc-claim-${processingResult.claim.id}.json`;
+                    link.click();
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Download Results
+                </button>
+              </div>
             </div>
           </div>
         )}
