@@ -137,7 +137,8 @@ export default function HomePage() {
               <FileText className="w-8 h-8 text-blue-600 mr-3" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">SPC Claims Carrier Network</h1>
-                <p className="text-sm text-blue-600">Powered by Lyzr AI Orchestrator</p>
+                <p className="text-sm text-blue-600">Powered by Lyzr Orchestrator Agent</p>
+                <p className="text-xs text-gray-500">Coordinating 6 specialized agents for complete workflow</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -147,8 +148,8 @@ export default function HomePage() {
                   lyzrStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
                 }`}></div>
                 <span className="text-sm text-gray-500">
-                  {lyzrStatus === 'connected' ? 'Lyzr Connected' : 
-                   lyzrStatus === 'error' ? 'Lyzr Error' : 'Checking...'}
+                  {lyzrStatus === 'connected' ? 'Orchestrator Ready' : 
+                   lyzrStatus === 'error' ? 'Orchestrator Error' : 'Checking...'}
                 </span>
               </div>
               <Settings className="w-5 h-5 text-gray-500" />
