@@ -212,3 +212,4 @@ export interface RegenerationResponse {
   success: boolean;
   processingTime: number;
 }
+

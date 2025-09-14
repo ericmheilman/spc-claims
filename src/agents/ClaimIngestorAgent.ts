@@ -113,3 +113,4 @@ export class ClaimIngestorAgent {
     return Math.min(confidence, 1.0);
   }
 }
+

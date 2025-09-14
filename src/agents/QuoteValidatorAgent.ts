@@ -200,3 +200,4 @@ export class QuoteValidatorAgent {
     return Math.max(score, 0);
   }
 }
+
