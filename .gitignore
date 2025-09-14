@@ -89,3 +89,11 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+# Test files and build artifacts
+AGENT_TESTING_README.md
+SPC_ingestor.py
+agent_testing_framework*.py
+structured_output.*
+test_outputs/
+venv/
+.venv/
