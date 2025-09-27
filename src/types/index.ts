@@ -9,6 +9,15 @@ export interface XactimateClaim {
   processingStatus: ProcessingStatus;
 }
 
+export interface RoofReport {
+  id: string;
+  fileName: string;
+  uploadDate: Date;
+  rawContent: string;
+  extractedData: ExtractedRoofReportData;
+  processingStatus: ProcessingStatus;
+}
+
 export interface ExtractedClaimData {
   propertyInfo: PropertyInfo;
   claimDetails: ClaimDetails;
@@ -64,11 +73,103 @@ export interface ClaimMetadata {
   extractedAt: Date;
 }
 
+export interface ExtractedRoofReportData {
+  propertyInfo: PropertyInfo;
+  roofMeasurements: RoofMeasurements;
+  roofGeometry: RoofGeometry;
+  materialSpecifications: MaterialSpecifications;
+  metadata: ClaimMetadata;
+}
+
+export interface RoofMeasurements {
+  totalArea: number;
+  netArea: number;
+  grossArea: number;
+  wastePercentage: number;
+  predominantPitch: string;
+  eaveLength: number;
+  rakeLength: number;
+  ridgeLength: number;
+  hipLength: number;
+  valleyLength: number;
+  facetCount: number;
+  atticSquareFootage: number;
+}
+
+export interface RoofGeometry {
+  facets: RoofFacet[];
+  penetrations: RoofPenetration[];
+  valleys: RoofValley[];
+  ridges: RoofRidge[];
+  hips: RoofHip[];
+}
+
+export interface RoofFacet {
+  id: string;
+  area: number;
+  pitch: string;
+  slope: number;
+  dimensions: {
+    length: number;
+    width: number;
+    height?: number;
+  };
+}
+
+export interface RoofPenetration {
+  id: string;
+  type: 'vent' | 'pipe' | 'chimney' | 'skylight' | 'other';
+  size: string;
+  location: string;
+  perimeter: number;
+  area: number;
+}
+
+export interface RoofValley {
+  id: string;
+  length: number;
+  type: 'open' | 'closed' | 'woven';
+  width: number;
+}
+
+export interface RoofRidge {
+  id: string;
+  length: number;
+  height: number;
+}
+
+export interface RoofHip {
+  id: string;
+  length: number;
+  height: number;
+}
+
+export interface MaterialSpecifications {
+  shingleType: string;
+  underlaymentType: string;
+  iceWaterShield: boolean;
+  starterStrip: boolean;
+  dripEdge: boolean;
+  ventilation: VentilationSpecs;
+}
+
+export interface VentilationSpecs {
+  ridgeVents: number;
+  turtleVents: number;
+  turbineVents: number;
+  powerVents: number;
+  soffitVents: number;
+  totalNFA: number;
+  codeCompliant: boolean;
+}
+
 export interface SPCQuote {
   id: string;
   claimId: string;
+  roofReportId?: string;
   generatedAt: Date;
   quoteData: QuoteData;
+  roofReportData?: ExtractedRoofReportData;
   validationResults: ValidationResults;
   carrierFit: CarrierFit;
   trustScore: number;
@@ -211,5 +312,60 @@ export interface RegenerationResponse {
   spcQuote: SPCQuote;
   success: boolean;
   processingTime: number;
+}
+
+// Combined processing result for dual PDF uploads
+export interface DualProcessingResult {
+  claim: XactimateClaim;
+  roofReport: RoofReport;
+  spcQuote: SPCQuote;
+  processingStatus: ProcessingStatus;
+  agentResponses: AgentResponse[];
+  roofAnalysis?: RoofAnalysis;
+}
+
+export interface RoofAnalysis {
+  areaDiscrepancies: AreaDiscrepancy[];
+  materialRecommendations: MaterialRecommendation[];
+  codeComplianceIssues: CodeComplianceIssue[];
+  ventilationAnalysis: VentilationAnalysis;
+  suggestedAdjustments: SuggestedAdjustment[];
+}
+
+export interface AreaDiscrepancy {
+  type: 'total' | 'net' | 'gross';
+  estimatedValue: number;
+  measuredValue: number;
+  variance: number;
+  recommendation: string;
+}
+
+export interface MaterialRecommendation {
+  category: string;
+  currentSpec: string;
+  recommendedSpec: string;
+  reasoning: string;
+  costImpact: number;
+}
+
+export interface CodeComplianceIssue {
+  rule: string;
+  description: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  recommendation: string;
+}
+
+export interface VentilationAnalysis {
+  currentNFA: number;
+  requiredNFA: number;
+  compliance: boolean;
+  recommendations: string[];
+}
+
+export interface SuggestedAdjustment {
+  ruleNumber: string;
+  description: string;
+  adjustment: number;
+  reasoning: string;
 }
 

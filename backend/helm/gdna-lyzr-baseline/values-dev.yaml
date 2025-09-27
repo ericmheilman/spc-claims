@@ -1,0 +1,219 @@
+# Development Environment Configuration
+# This file overrides the main values.yaml for development deployments
+
+global:
+  environment: development
+  domain: localhost
+  storageClass: "standard"
+
+# Backend service configuration for development
+backend:
+  enabled: true
+  replicaCount: 1
+  debug: true
+  maxWorkers: 2
+  timeout: 30
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Reduce resource usage for development
+lyzrService:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  autoscaling:
+    enabled: false
+
+workerServices:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  autoscaling:
+    enabled: false
+
+# Use minimal database resources
+postgresql:
+  primary:
+    persistence:
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  readReplicas:
+    persistence:
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+mongodb:
+  replicaCount: 1
+  persistence:
+    size: 10Gi
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+rabbitmq:
+  replicaCount: 1
+  persistence:
+    size: 5Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+redis:
+  master:
+    persistence:
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+  replica:
+    replicaCount: 1
+    persistence:
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 250m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+opensearch:
+  master:
+    replicaCount: 1
+    persistence:
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  data:
+    replicaCount: 1
+    persistence:
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  ingest:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+# Operators configuration for development
+operators:
+  enabled: true
+  
+  # Pinecone Vector Database (disabled by default in dev)
+  pinecone:
+    enabled: false
+  
+  # Neo4j Graph Database (disabled by default in dev)
+  neo4j:
+    enabled: false
+  
+  # Weaviate Vector Database (disabled by default in dev)
+  weaviate:
+    enabled: false
+  
+  # Qdrant Vector Database (disabled by default in dev)
+  qdrant:
+    enabled: false
+  
+  # ArangoDB Multi-Model Database (disabled by default in dev)
+  arangodb:
+    enabled: false
+  
+  # Milvus Vector Database (disabled by default in dev)
+  milvus:
+    enabled: false
+
+minio:
+  replicaCount: 1
+  persistence:
+    size: 10Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# Disable monitoring in development
+monitoring:
+  enabled: false
+
+# Disable cert-manager in development
+cert-manager:
+  enabled: false
+
+# Disable ingress in development
+ingress:
+  enabled: false
+
+# Disable network policies in development
+networkPolicies:
+  enabled: false
+
+# Disable resource quotas in development
+resourceQuotas:
+  enabled: false
+
+# Disable security context in development
+securityContext:
+  enabled: false
+
+# Disable pod security standards in development
+podSecurityStandards:
+  enabled: false

@@ -1,0 +1,61 @@
+{{- if and .Values.hpa.enabled .Values.lyzrService.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" . }}-lyzr-hpa
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" . | nindent 4 }}
+    app.kubernetes.io/component: lyzr-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "gdna-lyzr-baseline.fullname" . }}-lyzr
+  minReplicas: {{ .Values.lyzrService.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.lyzrService.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.lyzrService.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+{{- end }}
+
+{{- if and .Values.hpa.enabled .Values.workerServices.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" . }}-worker-hpa
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "gdna-lyzr-baseline.fullname" . }}-worker
+  minReplicas: {{ .Values.workerServices.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.workerServices.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.workerServices.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+{{- end }}

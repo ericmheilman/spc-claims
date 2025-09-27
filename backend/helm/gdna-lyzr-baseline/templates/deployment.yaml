@@ -1,0 +1,178 @@
+{{- if .Values.lyzrService.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" . }}-lyzr
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" . | nindent 4 }}
+    app.kubernetes.io/component: lyzr-service
+spec:
+  replicas: {{ .Values.lyzrService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gdna-lyzr-baseline.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: lyzr-service
+  template:
+    metadata:
+      labels:
+        {{- include "gdna-lyzr-baseline.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: lyzr-service
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.serviceAccounts.create }}
+      serviceAccountName: {{ include "gdna-lyzr-baseline.serviceAccountName" . }}
+      {{- end }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: lyzr-service
+          image: "{{ .Values.global.imageRegistry }}{{ .Values.lyzrService.image.repository }}:{{ .Values.lyzrService.image.tag }}"
+          imagePullPolicy: {{ .Values.lyzrService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.lyzrService.service.port }}
+              protocol: TCP
+          env:
+            {{- toYaml .Values.lyzrService.env | nindent 12 }}
+          resources:
+            {{- toYaml .Values.lyzrService.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "gdna-lyzr-baseline.fullname" . }}-config
+        - name: tmp
+          emptyDir: {}
+{{- end }}
+
+{{- if .Values.workerServices.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" . }}-worker
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker-service
+spec:
+  replicas: {{ .Values.workerServices.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gdna-lyzr-baseline.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker-service
+  template:
+    metadata:
+      labels:
+        {{- include "gdna-lyzr-baseline.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker-service
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.serviceAccounts.create }}
+      serviceAccountName: {{ include "gdna-lyzr-baseline.serviceAccountName" . }}
+      {{- end }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker-service
+          image: "{{ .Values.global.imageRegistry }}{{ .Values.workerServices.image.repository }}:{{ .Values.workerServices.image.tag }}"
+          imagePullPolicy: {{ .Values.workerServices.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.workerServices.service.port }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: url
+            - name: MONGODB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: url
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: url
+            - name: MINIO_ENDPOINT
+              value: "minio-service:9000"
+            - name: OPENSEARCH_URL
+              value: "http://opensearch-master:9200"
+          resources:
+            {{- toYaml .Values.workerServices.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "gdna-lyzr-baseline.fullname" . }}-config
+        - name: tmp
+          emptyDir: {}
+{{- end }}

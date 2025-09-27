@@ -1,0 +1,121 @@
+{{- if .Values.operators.enabled }}
+# Operator Deployments
+# This template dynamically creates deployments for enabled operators
+
+{{- range $operatorName, $operatorConfig := .Values.operators }}
+{{- if and (ne $operatorName "enabled") $operatorConfig.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" $ }}-{{ $operatorName }}-operator
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $operatorName }}-operator
+    operator.type: {{ $operatorConfig.type }}
+spec:
+  replicas: {{ $operatorConfig.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "gdna-lyzr-baseline.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $operatorName }}-operator
+  template:
+    metadata:
+      labels:
+        {{- include "gdna-lyzr-baseline.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $operatorName }}-operator
+        operator.type: {{ $operatorConfig.type }}
+    spec:
+      {{- if $.Values.serviceAccounts.create }}
+      serviceAccountName: {{ include "gdna-lyzr-baseline.serviceAccountName" $ }}
+      {{- end }}
+      {{- if $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml $.Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      {{- if $.Values.securityContext.enabled }}
+      securityContext:
+        {{- toYaml $.Values.securityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $operatorName }}-operator
+          image: "{{ $.Values.global.imageRegistry }}{{ $operatorConfig.image.repository }}:{{ $operatorConfig.image.tag }}"
+          imagePullPolicy: {{ $operatorConfig.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: {{ $operatorConfig.service.port | default 8080 }}
+              protocol: TCP
+            {{- if $operatorConfig.metrics }}
+            - name: metrics
+              containerPort: {{ $operatorConfig.metrics.port | default 9090 }}
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: OPERATOR_NAME
+              value: "{{ $operatorName }}"
+            - name: OPERATOR_TYPE
+              value: "{{ $operatorConfig.type }}"
+            {{- range $key, $value := $operatorConfig.config }}
+            - name: {{ $key | upper | replace "-" "_" }}
+              value: "{{ $value }}"
+            {{- end }}
+            {{- if $operatorConfig.secrets }}
+            {{- range $secretName, $secretConfig := $operatorConfig.secrets }}
+            - name: {{ $secretName | upper | replace "-" "_" }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretConfig.name }}
+                  key: {{ $secretConfig.key }}
+            {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml $operatorConfig.resources | nindent 12 }}
+          {{- if $operatorConfig.livenessProbe }}
+          livenessProbe:
+            {{- toYaml $operatorConfig.livenessProbe | nindent 12 }}
+          {{- else }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- end }}
+          {{- if $operatorConfig.readinessProbe }}
+          readinessProbe:
+            {{- toYaml $operatorConfig.readinessProbe | nindent 12 }}
+          {{- else }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          {{- end }}
+          {{- if $operatorConfig.volumeMounts }}
+          volumeMounts:
+            {{- toYaml $operatorConfig.volumeMounts | nindent 12 }}
+          {{- end }}
+          {{- if $operatorConfig.command }}
+          command:
+            {{- toYaml $operatorConfig.command | nindent 12 }}
+          {{- end }}
+          {{- if $operatorConfig.args }}
+          args:
+            {{- toYaml $operatorConfig.args | nindent 12 }}
+          {{- end }}
+      {{- if $operatorConfig.volumes }}
+      volumes:
+        {{- toYaml $operatorConfig.volumes | nindent 8 }}
+      {{- end }}
+      {{- if $operatorConfig.initContainers }}
+      initContainers:
+        {{- toYaml $operatorConfig.initContainers | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -122,6 +122,84 @@ Please coordinate all six agents to process this claim and provide a comprehensi
     }
   }
 
+  async processDualPDFs(
+    claimPdfContent: Buffer, 
+    claimFileName: string,
+    roofReportPdfContent: Buffer,
+    roofReportFileName: string
+  ): Promise<LyzrAgentResponse> {
+    try {
+      const sessionId = `${this.agentId}-${Date.now()}`;
+      
+      // Convert both PDFs to base64 for transmission
+      const claimBase64Content = claimPdfContent.toString('base64');
+      const roofReportBase64Content = roofReportPdfContent.toString('base64');
+      
+      // Create the orchestrator workflow message for dual PDF processing
+      const workflowMessage = `Process these dual PDFs through the complete SPC Claims workflow with roof analysis:
+
+1. @ClaimIngestorAgent - Extract and convert claim PDF data into structured formats
+2. @QuoteValidatorAgent - Apply SPC rules and flag format/coverage issues  
+3. @BundleLogicAgent - Suggest logical groupings and optimizations
+4. @TrustLayerAgent - Apply audit and risk assessment
+5. @CarrierFitAgent - Filter based on carrier preferences
+6. @RegenerationAgent - Generate final SPC-style quote PDF
+
+ADDITIONAL ROOF ANALYSIS:
+- Compare insurance claim measurements with roof report measurements
+- Identify area discrepancies and suggest adjustments per SPC rules
+- Analyze roof geometry (facets, penetrations, valleys, ridges)
+- Check ventilation compliance (IRC R806.2)
+- Validate material specifications against roof report
+- Apply roof-specific rules from the master macro database
+
+CLAIM PDF File: ${claimFileName}
+Claim PDF Content (base64): ${claimBase64Content}
+
+ROOF REPORT PDF File: ${roofReportFileName}
+Roof Report PDF Content (base64): ${roofReportBase64Content}
+
+Please coordinate all agents to process both documents and provide:
+1. Standard SPC quote analysis
+2. Comprehensive roof analysis comparing claim vs. measurement report
+3. Area discrepancy adjustments
+4. Material specification recommendations
+5. Code compliance validation
+6. Ventilation adequacy assessment
+
+Include detailed analysis results for both the insurance claim and roof measurement report.`;
+      
+      const requestData: LyzrAgentRequest = {
+        user_id: this.userId,
+        agent_id: this.agentId,
+        session_id: sessionId,
+        message: workflowMessage
+      };
+
+      console.log('Sending dual PDFs to Lyzr Orchestrator Agent for workflow processing');
+      console.log('Request URL:', this.baseURL);
+      console.log('Agent ID:', this.agentId);
+      console.log('Session ID:', sessionId);
+      console.log('Claim file:', claimFileName);
+      console.log('Roof report file:', roofReportFileName);
+      console.log('Message length:', workflowMessage.length);
+      
+      const response: AxiosResponse<LyzrAgentResponse> = await this.api.post('', requestData);
+      
+      console.log('Lyzr Orchestrator dual PDF response status:', response.status);
+      console.log('Lyzr Orchestrator dual PDF response data:', response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error processing dual PDFs with Lyzr Orchestrator:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      throw new Error(`Lyzr Orchestrator dual PDF processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async getAgentStatus(): Promise<boolean> {
     try {
       const sessionId = `${this.agentId}-${Date.now()}`;

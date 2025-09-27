@@ -1,0 +1,225 @@
+# Example Custom Operator Configuration
+# This file demonstrates how to add a custom operator to the gdna-lyzr-baseline infrastructure
+
+# Copy this configuration to your values file or create a new one
+# Example: values-custom.yaml
+
+operators:
+  enabled: true
+  
+  # Example: Custom AI Model Service
+  ai-model-service:
+    enabled: true
+    type: "ai-model-service"
+    image:
+      repository: "your-registry/ai-model-service"
+      tag: "latest"
+      pullPolicy: "Always"
+    replicaCount: 3
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    config:
+      model_type: "gpt-4"
+      max_tokens: 4096
+      temperature: 0.7
+      api_version: "v1"
+      feature_flags:
+        - "streaming"
+        - "function_calling"
+        - "fine_tuning"
+    service:
+      port: 8080
+      type: ClusterIP
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    secrets:
+      openai_api_key:
+        name: "ai-model-secrets"
+        key: "openai-api-key"
+      anthropic_api_key:
+        name: "ai-model-secrets"
+        key: "anthropic-api-key"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    volumeMounts:
+      - name: models
+        mountPath: /app/models
+        readOnly: true
+      - name: cache
+        mountPath: /app/cache
+      - name: config
+        mountPath: /app/config
+        readOnly: true
+    volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: "ai-models-pvc"
+      - name: cache
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: "ai-model-config"
+    initContainers:
+      - name: download-models
+        image: "busybox:1.35"
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Downloading AI models..."
+            # Add your model download logic here
+            echo "Models downloaded successfully"
+        volumeMounts:
+          - name: models
+            mountPath: /app/models
+      - name: validate-config
+        image: "busybox:1.35"
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Validating configuration..."
+            # Add your config validation logic here
+            echo "Configuration validated successfully"
+        volumeMounts:
+          - name: config
+            mountPath: /app/config
+            readOnly: true
+
+  # Example: Custom Document Processing Service
+  document-processor:
+    enabled: true
+    type: "document-processor"
+    image:
+      repository: "your-registry/document-processor"
+      tag: "latest"
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    config:
+      supported_formats:
+        - "pdf"
+        - "docx"
+        - "txt"
+        - "html"
+      max_file_size: "100MB"
+      processing_timeout: "300s"
+    service:
+      port: 8080
+      type: ClusterIP
+    secrets:
+      api_key:
+        name: "document-processor-secrets"
+        key: "api-key"
+    volumeMounts:
+      - name: temp-storage
+        mountPath: /tmp/processing
+    volumes:
+      - name: temp-storage
+        emptyDir: {}
+
+  # Example: Custom Analytics Service
+  analytics-service:
+    enabled: true
+    type: "analytics-service"
+    image:
+      repository: "your-registry/analytics-service"
+      tag: "latest"
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: 1500m
+        memory: 3Gi
+      requests:
+        cpu: 750m
+        memory: 1.5Gi
+    config:
+      batch_size: 1000
+      processing_interval: "5m"
+      retention_days: 90
+    service:
+      port: 8080
+      type: ClusterIP
+      additionalPorts:
+        metrics:
+          port: 9090
+          targetPort: 9090
+          protocol: TCP
+    secrets:
+      database_url:
+        name: "analytics-secrets"
+        key: "database-url"
+    volumeMounts:
+      - name: analytics-data
+        mountPath: /app/data
+    volumes:
+      - name: analytics-data
+        persistentVolumeClaim:
+          claimName: "analytics-data-pvc"
+
+# Example: Custom Storage Class for AI Models
+# Uncomment and customize as needed
+# storageClasses:
+#   ai-models:
+#     enabled: true
+#     type: "gp3"
+#     size: "500Gi"
+#     iops: 3000
+#     throughput: 125
+
+# Example: Custom Network Policies for AI Services
+# Uncomment and customize as needed
+# networkPolicies:
+#   ai-services:
+#     enabled: true
+#     ingress:
+#       - from:
+#           - namespaceSelector:
+#               matchLabels:
+#                 name: "gdna-system"
+#         ports:
+#           - protocol: TCP
+#             port: 8080
+#     egress:
+#       - to:
+#           - namespaceSelector:
+#               matchLabels:
+#                 name: "kube-system"
+#         ports:
+#           - protocol: TCP
+#             port: 53
+#       - to:
+#           - namespaceSelector:
+#               matchLabels:
+#                 name: "gdna-system"
+#         ports:
+#           - protocol: TCP
+#             port: 5432  # PostgreSQL
+#           - protocol: TCP
+#             port: 27017 # MongoDB
+#           - protocol: TCP
+#             port: 9200  # OpenSearch

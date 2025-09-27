@@ -1,0 +1,707 @@
+# Global configuration
+global:
+  environment: production
+  domain: gdna.example.com
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "gp2"
+  annotations: {}
+  labels: {}
+
+# Backend service configuration
+backend:
+  enabled: true
+  replicaCount: 1
+  apiVersion: "1.0.0"
+  debug: false
+  maxWorkers: 4
+  timeout: 30
+  
+  image:
+    repository: "gdna-lyzr-baseline-backend"
+    tag: "latest"
+    pullPolicy: "IfNotPresent"
+  
+  service:
+    type: "ClusterIP"
+    port: 8080
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: api.gdna.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: admin.gdna.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: monitoring.gdna.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: gdna-tls
+      hosts:
+        - api.gdna.example.com
+        - admin.gdna.example.com
+        - monitoring.gdna.example.com
+
+# API Gateway configuration
+apiGateway:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: kong
+    tag: "3.4"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  service:
+    type: ClusterIP
+    port: 8000
+  config:
+    database: "off"
+    nginx_worker_processes: "auto"
+    nginx_worker_connections: "auto"
+    nginx_daemon: "off"
+    plugins: "bundled"
+    log_level: "info"
+
+# lyzr Service configuration
+lyzrService:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: gdna/lyzr-service
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 70
+  service:
+    type: ClusterIP
+    port: 8080
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: LOG_LEVEL
+      value: "info"
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgresql-credentials
+          key: url
+    - name: MONGODB_URL
+      valueFrom:
+        secretKeyRef:
+          name: mongodb-credentials
+          key: url
+    - name: RABBITMQ_URL
+      valueFrom:
+        secretKeyRef:
+          name: rabbitmq-credentials
+          key: url
+    - name: REDIS_URL
+      valueFrom:
+        secretKeyRef:
+          name: redis-credentials
+          key: url
+    - name: MINIO_ENDPOINT
+      value: "minio-service:9000"
+    - name: OPENSEARCH_URL
+      value: "http://opensearch-master:9200"
+
+# Worker Services configuration
+workerServices:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: gdna/worker-service
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  service:
+    type: ClusterIP
+    port: 8080
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "postgres-password"
+    database: "gdna"
+    username: "gdna_user"
+    password: "gdna-password"
+  primary:
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  readReplicas:
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  architecture: "replication"
+  postgresql:
+    maxConnections: 200
+    sharedBuffers: "1GB"
+    effectiveCacheSize: "3GB"
+    maintenanceWorkMem: "256MB"
+    checkpointCompletionTarget: 0.9
+    walBuffers: "16MB"
+    defaultStatisticsTarget: 100
+    randomPageCost: 1.1
+    effectiveIoConcurrency: 200
+    workMem: "4MB"
+    minWalSize: "1GB"
+    maxWalSize: "4GB"
+
+# MongoDB configuration
+mongodb:
+  enabled: true
+  auth:
+    rootPassword: "root-password"
+    database: "gdna"
+    username: "gdna_user"
+    password: "gdna-password"
+  architecture: "replicaset"
+  replicaCount: 3
+  persistence:
+    enabled: true
+    storageClass: "gp2"
+    size: 100Gi
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  mongodb:
+    maxConnections: 1000
+    maxInMemoryConnections: 1000
+
+# RabbitMQ configuration
+rabbitmq:
+  enabled: true
+  auth:
+    password: "rabbitmq-password"
+    erlangCookie: "SWQOKODSQALRPCLNMEQG"
+  replicaCount: 3
+  persistence:
+    enabled: true
+    storageClass: "gp2"
+    size: 50Gi
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  clustering:
+    enabled: true
+  management:
+    enabled: true
+    service:
+      type: ClusterIP
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Redis configuration
+redis:
+  enabled: true
+  architecture: "replication"
+  auth:
+    password: "redis-password"
+  master:
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  replica:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# OpenSearch configuration
+opensearch:
+  enabled: true
+  auth:
+    enabled: true
+    tls:
+      enabled: true
+    opensearchPassword: "opensearch-password"
+  master:
+    replicaCount: 3
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  data:
+    replicaCount: 3
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  ingest:
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Extensible Operator Pattern Configuration
+operators:
+  enabled: true
+  
+  # Pinecone Vector Database
+  pinecone:
+    enabled: false
+    type: "vector-database"
+    image:
+      repository: pinecone/pinecone-client
+      tag: "latest"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    config:
+      environment: "us-west1-gcp"
+      api_key: "${PINECONE_API_KEY}"
+      index_name: "gdna-vectors"
+  
+  # Neo4j Graph Database
+  neo4j:
+    enabled: false
+    type: "graph-database"
+    image:
+      repository: neo4j
+      tag: "5.11-community"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 50Gi
+    config:
+      password: "neo4j-password"
+      apoc_enabled: true
+      plugins: "apoc"
+  
+  # Weaviate Vector Database
+  weaviate:
+    enabled: false
+    type: "vector-database"
+    image:
+      repository: semitechnologies/weaviate
+      tag: "1.22.4"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 50Gi
+    config:
+      auth_anonymous_access_enabled: false
+      default_vectorizer_module: "text2vec-transformers"
+  
+  # Qdrant Vector Database
+  qdrant:
+    enabled: false
+    type: "vector-database"
+    image:
+      repository: qdrant/qdrant
+      tag: "v1.7.0"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 50Gi
+    config:
+      service:
+        http_port: 6333
+        grpc_port: 6334
+  
+  # ArangoDB Multi-Model Database
+  arangodb:
+    enabled: false
+    type: "multi-model-database"
+    image:
+      repository: arangodb
+      tag: "3.11.2"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 50Gi
+    config:
+      password: "arangodb-password"
+      mode: "cluster"
+      coordinator:
+        replicas: 3
+      dbserver:
+        replicas: 3
+  
+  # Milvus Vector Database
+  milvus:
+    enabled: false
+    type: "vector-database"
+    image:
+      repository: milvusdb/milvus
+      tag: "v2.3.3"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    persistence:
+      enabled: true
+      storageClass: "gp2"
+      size: 100Gi
+    config:
+      mode: "cluster"
+      etcd:
+        replicas: 3
+      minio:
+        replicas: 3
+      datanode:
+        replicas: 3
+      querynode:
+        replicas: 3
+      indexnode:
+        replicas: 3
+  
+  # Custom Operator Template
+  custom:
+    enabled: false
+    type: "custom-operator"
+    image:
+      repository: "your-registry/custom-operator"
+      tag: "latest"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+    config:
+      # Add your custom configuration here
+      custom_param: "value"
+
+# MinIO configuration
+minio:
+  enabled: true
+  auth:
+    rootUser: "minioadmin"
+    rootPassword: "minio-password"
+  mode: "distributed"
+  replicaCount: 4
+  persistence:
+    enabled: true
+    storageClass: "gp2"
+    size: 100Gi
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  service:
+    type: ClusterIP
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  buckets:
+    - name: "gdna-documents"
+      policy: "public"
+    - name: "gdna-uploads"
+      policy: "private"
+    - name: "gdna-exports"
+      policy: "private"
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    prometheusSpec:
+      retention: 30d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp2
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+    alertmanager:
+      alertmanagerSpec:
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp2
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 10Gi
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+  grafana:
+    adminPassword: "grafana-password"
+    persistence:
+      enabled: true
+      storageClassName: gp2
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/default
+    dashboards:
+      default:
+        gdna-overview:
+          json: |
+            {
+              "dashboard": {
+                "title": "GDNA System Overview",
+                "panels": []
+              }
+            }
+
+# Cert-manager configuration
+cert-manager:
+  enabled: true
+  installCRDs: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# Network policies
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+  allowNamespaces:
+    - kube-system
+    - monitoring
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Horizontal Pod Autoscaler
+hpa:
+  enabled: true
+  default:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# Resource quotas
+resourceQuotas:
+  enabled: true
+  limits:
+    requests.cpu: "8"
+    requests.memory: "16Gi"
+    limits.cpu: "16"
+    limits.memory: "32Gi"
+    persistentvolumeclaims: "20"
+    services: "20"
+    services.loadbalancers: "5"
+
+# Security context
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Service accounts
+serviceAccounts:
+  create: true
+  annotations: {}
+  automountServiceAccountToken: false
+
+# RBAC
+rbac:
+  create: true
+  rules: []
+
+# Pod security standards
+podSecurityStandards:
+  enabled: true
+  level: "restricted"
+  version: "latest"

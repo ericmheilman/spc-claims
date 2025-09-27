@@ -1,0 +1,41 @@
+{{- if .Values.lyzrService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" . }}-lyzr
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" . | nindent 4 }}
+    app.kubernetes.io/component: lyzr-service
+spec:
+  type: {{ .Values.lyzrService.service.type }}
+  ports:
+    - port: {{ .Values.lyzrService.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "gdna-lyzr-baseline.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: lyzr-service
+{{- end }}
+
+{{- if .Values.workerServices.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" . }}-worker
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker-service
+spec:
+  type: {{ .Values.workerServices.service.type }}
+  ports:
+    - port: {{ .Values.workerServices.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "gdna-lyzr-baseline.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: worker-service
+{{- end }}

@@ -1,0 +1,46 @@
+{{- if .Values.operators.enabled }}
+# Operator Services
+# This template dynamically creates services for enabled operators
+
+{{- range $operatorName, $operatorConfig := .Values.operators }}
+{{- if and (ne $operatorName "enabled") $operatorConfig.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gdna-lyzr-baseline.fullname" $ }}-{{ $operatorName }}-operator
+  labels:
+    {{- include "gdna-lyzr-baseline.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $operatorName }}-operator
+    operator.type: {{ $operatorConfig.type }}
+spec:
+  type: {{ $operatorConfig.service.type | default "ClusterIP" }}
+  ports:
+    - port: {{ $operatorConfig.service.port | default 8080 }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    {{- if $operatorConfig.metrics }}
+    - port: {{ $operatorConfig.metrics.port | default 9090 }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+    {{- end }}
+    {{- if $operatorConfig.service.additionalPorts }}
+    {{- range $portName, $portConfig := $operatorConfig.service.additionalPorts }}
+    - port: {{ $portConfig.port }}
+      targetPort: {{ $portConfig.targetPort | default $portConfig.port }}
+      protocol: {{ $portConfig.protocol | default "TCP" }}
+      name: {{ $portName }}
+    {{- end }}
+    {{- end }}
+  selector:
+    {{- include "gdna-lyzr-baseline.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $operatorName }}-operator
+  {{- if $operatorConfig.service.annotations }}
+  annotations:
+    {{- toYaml $operatorConfig.service.annotations | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

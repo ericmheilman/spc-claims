@@ -1,0 +1,560 @@
+# Production Environment Configuration
+# This file overrides the main values.yaml for production deployments
+
+global:
+  environment: production
+  domain: gdna.production.com
+  storageClass: "gp3"
+  annotations:
+    environment: "production"
+    cost-center: "gdna-backend"
+  labels:
+    environment: "production"
+    tier: "production"
+
+# Backend service configuration for production
+backend:
+  enabled: true
+  replicaCount: 3
+  debug: false
+  maxWorkers: 8
+  timeout: 30
+  
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Production-grade service configuration
+lyzrService:
+  replicaCount: 5
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 5
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+
+workerServices:
+  replicaCount: 5
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 5
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 60
+
+# High-availability database configuration
+postgresql:
+  primary:
+    persistence:
+      size: 500Gi
+      storageClass: "gp3"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+  readReplicas:
+    persistence:
+      size: 500Gi
+      storageClass: "gp3"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  postgresql:
+    maxConnections: 500
+    sharedBuffers: "2GB"
+    effectiveCacheSize: "6GB"
+    maintenanceWorkMem: "512MB"
+    checkpointCompletionTarget: 0.9
+    walBuffers: "32MB"
+    defaultStatisticsTarget: 200
+    randomPageCost: 1.1
+    effectiveIoConcurrency: 400
+    workMem: "8MB"
+    minWalSize: "2GB"
+    maxWalSize: "8GB"
+
+mongodb:
+  replicaCount: 5
+  persistence:
+    size: 500Gi
+    storageClass: "gp3"
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 2000m
+      memory: 4Gi
+  mongodb:
+    maxConnections: 2000
+    maxInMemoryConnections: 2000
+
+rabbitmq:
+  replicaCount: 5
+  persistence:
+    size: 100Gi
+    storageClass: "gp3"
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  clustering:
+    enabled: true
+  management:
+    enabled: true
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+redis:
+  master:
+    persistence:
+      size: 100Gi
+      storageClass: "gp3"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  replica:
+    replicaCount: 3
+    persistence:
+      size: 100Gi
+      storageClass: "gp3"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+opensearch:
+  master:
+    replicaCount: 5
+    persistence:
+      size: 500Gi
+      storageClass: "gp3"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+  data:
+    replicaCount: 5
+    persistence:
+      size: 500Gi
+      storageClass: "gp3"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+  ingest:
+    replicaCount: 3
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Production Operators Configuration
+operators:
+  enabled: true
+  
+  # Pinecone Vector Database
+  pinecone:
+    enabled: true
+    type: "vector-database"
+    image:
+      repository: pinecone/pinecone-client
+      tag: "latest"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    config:
+      environment: "us-west1-gcp"
+      api_key: "${PINECONE_API_KEY}"
+      index_name: "gdna-vectors"
+  
+  # Neo4j Graph Database
+  neo4j:
+    enabled: true
+    type: "graph-database"
+    image:
+      repository: neo4j
+      tag: "5.11-community"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+    persistence:
+      enabled: true
+      storageClass: "gp3"
+      size: 100Gi
+    config:
+      password: "neo4j-password"
+      apoc_enabled: true
+      plugins: "apoc"
+  
+  # Weaviate Vector Database
+  weaviate:
+    enabled: true
+    type: "vector-database"
+    image:
+      repository: semitechnologies/weaviate
+      tag: "1.22.4"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+    persistence:
+      enabled: true
+      storageClass: "gp3"
+      size: 100Gi
+    config:
+      auth_anonymous_access_enabled: false
+      default_vectorizer_module: "text2vec-transformers"
+  
+  # Qdrant Vector Database
+  qdrant:
+    enabled: false  # Disabled by default, enable as needed
+    type: "vector-database"
+    image:
+      repository: qdrant/qdrant
+      tag: "v1.7.0"
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    persistence:
+      enabled: true
+      storageClass: "gp3"
+      size: 100Gi
+    config:
+      service:
+        http_port: 6333
+        grpc_port: 6334
+  
+  # ArangoDB Multi-Model Database
+  arangodb:
+    enabled: false  # Disabled by default, enable as needed
+    type: "multi-model-database"
+    image:
+      repository: arangodb
+      tag: "3.11.2"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+    persistence:
+      enabled: true
+      storageClass: "gp3"
+      size: 100Gi
+    config:
+      password: "arangodb-password"
+      mode: "cluster"
+      coordinator:
+        replicas: 3
+      dbserver:
+        replicas: 3
+  
+  # Milvus Vector Database
+  milvus:
+    enabled: false  # Disabled by default, enable as needed
+    type: "vector-database"
+    image:
+      repository: milvusdb/milvus
+      tag: "v2.3.3"
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+    persistence:
+      enabled: true
+      storageClass: "gp3"
+      size: 200Gi
+    config:
+      mode: "cluster"
+      etcd:
+        replicas: 3
+      minio:
+        replicas: 3
+      datanode:
+        replicas: 3
+      querynode:
+        replicas: 3
+      indexnode:
+        replicas: 3
+
+minio:
+  replicaCount: 6
+  persistence:
+    size: 500Gi
+    storageClass: "gp3"
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Production monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    prometheusSpec:
+      retention: 90d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 200Gi
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+    alertmanager:
+      alertmanagerSpec:
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp3
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 50Gi
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+  grafana:
+    adminPassword: "{{ .Values.grafana.adminPassword }}"
+    persistence:
+      enabled: true
+      storageClassName: gp3
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+# Production security configuration
+cert-manager:
+  enabled: true
+  installCRDs: true
+  replicaCount: 3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# Production ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "100"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "100"
+    nginx.ingress.kubernetes.io/rate-limit-rpm: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-requests: "1000"
+
+# Production network policies
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+  allowNamespaces:
+    - kube-system
+    - monitoring
+    - backup
+
+# Production pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Production horizontal pod autoscaler
+hpa:
+  enabled: true
+  default:
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+
+# Production resource quotas
+resourceQuotas:
+  enabled: true
+  limits:
+    requests.cpu: "32"
+    requests.memory: "64Gi"
+    limits.cpu: "64"
+    limits.memory: "128Gi"
+    persistentvolumeclaims: "50"
+    services: "50"
+    services.loadbalancers: "10"
+
+# Production security context
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Production service accounts
+serviceAccounts:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{{ .Values.global.awsAccountId }}:role/gdna-lyzr-service-role"
+  automountServiceAccountToken: false
+
+# Production RBAC
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "services", "endpoints"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["configmaps", "secrets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["deployments", "replicasets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["networking.k8s.io"]
+      resources: ["ingresses", "networkpolicies"]
+      verbs: ["get", "list", "watch"]
+
+# Production pod security standards
+podSecurityStandards:
+  enabled: true
+  level: "restricted"
+  version: "latest"
+
+# Production backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30
+  storage:
+    type: "s3"
+    bucket: "gdna-backups"
+    region: "us-west-2"
+    prefix: "production"
+
+# Production alerting configuration
+alerting:
+  enabled: true
+  slack:
+    webhook: "{{ .Values.alerting.slack.webhook }}"
+    channel: "#gdna-alerts"
+  email:
+    smtp:
+      host: "{{ .Values.alerting.email.smtp.host }}"
+      port: 587
+      username: "{{ .Values.alerting.email.smtp.username }}"
+      password: "{{ .Values.alerting.email.smtp.password }}"
+    recipients:
+      - "ops@gdna.io"
+      - "oncall@gdna.io"
