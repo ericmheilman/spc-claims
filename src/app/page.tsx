@@ -16,13 +16,18 @@ export default function HomePage() {
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadedClaimFile, setUploadedClaimFile] = useState<File | null>(null);
   const [uploadedRoofReportFile, setUploadedRoofReportFile] = useState<File | null>(null);
-  const [uploadedTestRoofFile, setUploadedTestRoofFile] = useState<File | null>(null);
   const [lyzrStatus, setLyzrStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [processingResult, setProcessingResult] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
-  const [testRoofResponse, setTestRoofResponse] = useState<any>(null);
-  const [isTestingRoof, setIsTestingRoof] = useState(false);
-  const [testRoofStatus, setTestRoofStatus] = useState<string>('');
+  const [claimOcrResponse, setClaimOcrResponse] = useState<any>(null);
+  const [isExtractingClaimOcr, setIsExtractingClaimOcr] = useState(false);
+  const [claimOcrStatus, setClaimOcrStatus] = useState<string>('');
+  const [roofOcrResponse, setRoofOcrResponse] = useState<any>(null);
+  const [isExtractingRoofOcr, setIsExtractingRoofOcr] = useState(false);
+  const [roofOcrStatus, setRoofOcrStatus] = useState<string>('');
+  const [roofAgentResponse, setRoofAgentResponse] = useState<any>(null);
+  const [isProcessingRoofAgent, setIsProcessingRoofAgent] = useState(false);
+  const [roofAgentStatus, setRoofAgentStatus] = useState<string>('');
 
   useEffect(() => {
     loadDashboardData();
@@ -68,6 +73,40 @@ export default function HomePage() {
     }
 
     setUploadedClaimFile(file);
+    
+    // Automatically extract OCR for claim file
+    setIsExtractingClaimOcr(true);
+    setClaimOcrStatus('Uploading claim PDF to OCR service...');
+    setClaimOcrResponse(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      setClaimOcrStatus('Extracting text from claim PDF...');
+
+      const response = await fetch('https://lyzr-ocr.lyzr.app/extract?api_key=sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`OCR extraction failed: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      setClaimOcrStatus('✅ Claim OCR extraction completed!');
+      setClaimOcrResponse(result);
+      console.log('Claim OCR extraction result:', result);
+      
+    } catch (error) {
+      console.error('Error extracting text from claim PDF:', error);
+      setClaimOcrStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExtractingClaimOcr(false);
+    }
   };
 
   const handleRoofReportFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,67 +119,94 @@ export default function HomePage() {
     }
 
     setUploadedRoofReportFile(file);
-  };
-
-  const handleTestRoofFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      alert('Please upload a PDF file');
-      return;
-    }
-
-    setUploadedTestRoofFile(file);
-  };
-
-  const handleTestRoofMeasurementAgent = async () => {
-    if (!uploadedTestRoofFile) {
-      alert('Please upload a PDF file to test');
-      return;
-    }
-
-    setIsTestingRoof(true);
-    setTestRoofStatus('Uploading PDF to RAG training system...');
-    setTestRoofResponse(null);
+    
+    // Automatically extract OCR for roof report file
+    setIsExtractingRoofOcr(true);
+    setRoofOcrStatus('Uploading roof report PDF to OCR service...');
+    setRoofOcrResponse(null);
+    setRoofAgentResponse(null);
 
     try {
-      // Create FormData for multipart/form-data request
       const formData = new FormData();
-      formData.append('data_parser', 'llmsherpa');
-      formData.append('extra_info', '{}');
-      formData.append('file', uploadedTestRoofFile);
+      formData.append('file', file);
 
-      setTestRoofStatus('Sending PDF to RAG training endpoint...');
+      setRoofOcrStatus('Extracting text from roof report PDF...');
 
-      // Call the RAG training API directly
-      const response = await fetch('https://rag-prod.studio.lyzr.ai/v3/train/pdf/?rag_id=68d6bfd61b693edb7cee5f65', {
+      const response = await fetch('https://lyzr-ocr.lyzr.app/extract?api_key=sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K', {
         method: 'POST',
-        headers: {
-          'x-api-key': 'sk-default-umuEtNZJCnYbBCmy448B42Neb90nTx5W'
-          // Note: Don't set Content-Type header - let browser set it with boundary for multipart/form-data
-        },
         body: formData
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        const errorData = await response.json();
+        throw new Error(`OCR extraction failed: ${errorData.error || response.statusText}`);
       }
 
-      const result = await response.json();
+      const ocrResult = await response.json();
       
-      setTestRoofStatus('PDF uploaded to RAG training system successfully!');
-      setTestRoofResponse(result);
-      console.log('RAG training response:', result);
+      setRoofOcrStatus('✅ Roof report OCR extraction completed!');
+      setRoofOcrResponse(ocrResult);
+      console.log('Roof report OCR extraction result:', ocrResult);
+      
+      // Send OCR results to Lyzr agent
+      setIsProcessingRoofAgent(true);
+      setRoofAgentStatus('Sending OCR results to Lyzr agent...');
+      
+      try {
+        const sessionId = `68e53a30a387fd7879a96bea-${Date.now()}`;
+        
+        // Format the OCR data as a message
+        let ocrMessage = 'Roof Report OCR Extraction Results:\n\n';
+        if (ocrResult.data) {
+          Object.entries(ocrResult.data).forEach(([key, value]: [string, any]) => {
+            if (value && value.content) {
+              ocrMessage += `Page ${value.page}:\n${value.content}\n\n`;
+            }
+          });
+        } else {
+          ocrMessage += JSON.stringify(ocrResult, null, 2);
+        }
+
+        const agentResponse = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+          },
+          body: JSON.stringify({
+            user_id: 'gdnaaccount@lyzr.ai',
+            agent_id: '68e53a30a387fd7879a96bea',
+            session_id: sessionId,
+            message: ocrMessage
+          })
+        });
+
+        if (!agentResponse.ok) {
+          const errorData = await agentResponse.json();
+          throw new Error(`Agent processing failed: ${errorData.error || agentResponse.statusText}`);
+        }
+
+        const agentResult = await agentResponse.json();
+        
+        setRoofAgentStatus('✅ Agent processing completed!');
+        setRoofAgentResponse(agentResult);
+        console.log('Roof agent response:', agentResult);
+        
+      } catch (agentError) {
+        console.error('Error processing with agent:', agentError);
+        setRoofAgentStatus(`❌ Agent Error: ${agentError instanceof Error ? agentError.message : 'Unknown error'}`);
+      } finally {
+        setIsProcessingRoofAgent(false);
+      }
       
     } catch (error) {
-      console.error('Error uploading PDF to RAG training:', error);
-      setTestRoofStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error extracting text from roof report PDF:', error);
+      setRoofOcrStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsTestingRoof(false);
+      setIsExtractingRoofOcr(false);
     }
   };
+
 
   const handleProcessFiles = async () => {
     if (!uploadedClaimFile || !uploadedRoofReportFile) {
@@ -264,13 +330,13 @@ export default function HomePage() {
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-gray-900">Insurance Claim PDF</h3>
                 <p className="text-xs text-gray-600">
-                  Upload your Xactimate claim PDF
+                  Upload your Xactimate claim PDF (auto OCR extraction)
                 </p>
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={handleClaimFileUpload}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isExtractingClaimOcr}
                   className="hidden"
                   id="claim-file-upload"
                 />
@@ -278,12 +344,17 @@ export default function HomePage() {
                   htmlFor="claim-file-upload"
                   className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  Choose Claim File
+                  {isExtractingClaimOcr ? 'Extracting OCR...' : 'Choose Claim File'}
                 </label>
               </div>
               {uploadedClaimFile && (
                 <p className="text-xs text-green-600 mt-2">
                   ✓ {uploadedClaimFile.name}
+                </p>
+              )}
+              {claimOcrStatus && (
+                <p className="text-xs text-blue-600 mt-2">
+                  {claimOcrStatus}
                 </p>
               )}
             </div>
@@ -294,13 +365,13 @@ export default function HomePage() {
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-gray-900">Roof Report PDF</h3>
                 <p className="text-xs text-gray-600">
-                  Upload your roof measurement report
+                  Upload your roof measurement report (auto OCR + Agent processing)
                 </p>
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={handleRoofReportFileUpload}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isExtractingRoofOcr || isProcessingRoofAgent}
                   className="hidden"
                   id="roof-report-file-upload"
                 />
@@ -308,12 +379,22 @@ export default function HomePage() {
                   htmlFor="roof-report-file-upload"
                   className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  Choose Roof Report
+                  {isExtractingRoofOcr ? 'Extracting OCR...' : isProcessingRoofAgent ? 'Processing Agent...' : 'Choose Roof Report'}
                 </label>
               </div>
               {uploadedRoofReportFile && (
                 <p className="text-xs text-green-600 mt-2">
                   ✓ {uploadedRoofReportFile.name}
+                </p>
+              )}
+              {roofOcrStatus && (
+                <p className="text-xs text-blue-600 mt-2">
+                  {roofOcrStatus}
+                </p>
+              )}
+              {roofAgentStatus && (
+                <p className="text-xs text-purple-600 mt-2">
+                  {roofAgentStatus}
                 </p>
               )}
             </div>
@@ -337,90 +418,228 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Upload Roof Measurement Report to RAG Section */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Upload Roof Measurement Report to RAG</h2>
-          
-          <div className="border-2 border-dashed border-orange-300 rounded-lg p-6 text-center mb-6">
-            <Upload className="w-10 h-10 text-orange-400 mx-auto mb-3" />
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-gray-900">PDF Upload</h3>
-              <p className="text-xs text-gray-600">
-                Upload a roof measurement report PDF to train the RAG system
-              </p>
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={handleTestRoofFileUpload}
-                disabled={isTestingRoof}
-                className="hidden"
-                id="test-roof-file-upload"
-              />
-                <label
-                  htmlFor="test-roof-file-upload"
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  Choose PDF
-                </label>
+        {/* Claim OCR Debug Window */}
+        {claimOcrResponse && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🔍 Insurance Claim PDF OCR Results (Debug)</h2>
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded p-4 border border-blue-200">
+              <div className="mb-4">
+                <span className="text-sm font-medium text-gray-700">Status: </span>
+                <span className="text-sm text-green-600 font-semibold">{claimOcrResponse.status}</span>
+                {claimOcrResponse.total_actions && (
+                  <>
+                    <span className="text-sm text-gray-500 ml-4">Total Pages: </span>
+                    <span className="text-sm font-medium text-gray-900">{claimOcrResponse.total_actions}</span>
+                  </>
+                )}
+              </div>
+              
+              {/* Extracted Text Display */}
+              {claimOcrResponse.data && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📄 Extracted Text by Page:</h3>
+                  <div className="space-y-4">
+                    {Object.entries(claimOcrResponse.data).map(([key, value]: [string, any]) => (
+                      <div key={key} className="bg-white rounded p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-blue-600">Page {value.page}</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(value.content || '');
+                              alert('Page content copied to clipboard!');
+                            }}
+                            className="text-xs text-blue-500 hover:text-blue-700"
+                          >
+                            Copy Text
+                          </button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200">
+                          <p className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
+                            {value.content || 'No content'}
+                          </p>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Characters: {value.content ? value.content.length : 0}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Full JSON Response */}
+              <div className="mt-4">
+                <details className="cursor-pointer">
+                  <summary className="text-sm font-semibold text-gray-700 mb-2 hover:text-blue-600">
+                    🔧 Full JSON Response (Click to expand)
+                  </summary>
+                  <div className="max-h-96 overflow-y-auto bg-white p-3 rounded border border-gray-200 mt-2">
+                    <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                      {JSON.stringify(claimOcrResponse, null, 2)}
+                    </pre>
+                  </div>
+                </details>
+              </div>
             </div>
-            {uploadedTestRoofFile && (
-              <p className="text-xs text-green-600 mt-2">
-                ✓ {uploadedTestRoofFile.name}
-              </p>
-            )}
+            <div className="mt-4 flex space-x-4">
+              <button
+                onClick={() => setClaimOcrResponse(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Clear Results
+              </button>
+              <button
+                onClick={() => {
+                  const dataStr = JSON.stringify(claimOcrResponse, null, 2);
+                  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                  const url = URL.createObjectURL(dataBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `claim-ocr-${Date.now()}.json`;
+                  link.click();
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Download JSON
+              </button>
+              <button
+                onClick={() => {
+                  let allText = 'Insurance Claim OCR Extraction\n\n';
+                  if (claimOcrResponse.data) {
+                    Object.entries(claimOcrResponse.data).forEach(([key, value]: [string, any]) => {
+                      if (value && value.content) {
+                        allText += `=== Page ${value.page} ===\n${value.content}\n\n`;
+                      }
+                    });
+                  }
+                  const textBlob = new Blob([allText], {type: 'text/plain'});
+                  const url = URL.createObjectURL(textBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `claim-ocr-text-${Date.now()}.txt`;
+                  link.click();
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+              >
+                Download Text
+              </button>
+            </div>
           </div>
+        )}
 
-          {/* Test Button */}
-          <div className="text-center">
-            <button
-              onClick={handleTestRoofMeasurementAgent}
-              disabled={isTestingRoof || !uploadedTestRoofFile}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isTestingRoof ? 'Uploading...' : 'Upload to RAG Training System'}
-            </button>
-          </div>
-
-          {testRoofStatus && (
-            <p className="text-sm text-orange-600 mt-4 text-center">
-              {testRoofStatus}
-            </p>
-          )}
-
-          {/* RAG Training Response Display */}
-          {testRoofResponse && (
-            <div className="mt-6 border rounded-lg p-4">
-              <h3 className="text-md font-semibold text-gray-800 mb-3">RAG Training Response (Debug Output)</h3>
-              <div className="bg-gray-50 rounded p-3">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
-                  {JSON.stringify(testRoofResponse, null, 2)}
+        {/* Roof Report OCR Debug Window */}
+        {roofOcrResponse && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🔍 Roof Report PDF OCR Results (Debug)</h2>
+            <div className="bg-gray-50 rounded p-4 border border-gray-200">
+              <div className="mb-3">
+                <span className="text-sm font-medium text-gray-700">Status: </span>
+                <span className="text-sm text-green-600">{roofOcrResponse.status}</span>
+                {roofOcrResponse.total_actions && (
+                  <>
+                    <span className="text-sm text-gray-500 ml-4">Total Pages: </span>
+                    <span className="text-sm font-medium text-gray-900">{roofOcrResponse.total_actions}</span>
+                  </>
+                )}
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                  {JSON.stringify(roofOcrResponse, null, 2)}
                 </pre>
               </div>
-              <div className="mt-4 flex space-x-4">
-                <button
-                  onClick={() => setTestRoofResponse(null)}
-                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-                >
-                  Clear Response
-                </button>
-                <button
-                  onClick={() => {
-                    const dataStr = JSON.stringify(testRoofResponse, null, 2);
-                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
-                    const url = URL.createObjectURL(dataBlob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `rag-training-response-${Date.now()}.json`;
-                    link.click();
-                  }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Download Response
-                </button>
+            </div>
+            <div className="mt-4 flex space-x-4">
+              <button
+                onClick={() => setRoofOcrResponse(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Clear Results
+              </button>
+              <button
+                onClick={() => {
+                  const dataStr = JSON.stringify(roofOcrResponse, null, 2);
+                  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                  const url = URL.createObjectURL(dataBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `roof-report-ocr-${Date.now()}.json`;
+                  link.click();
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Download JSON
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Roof Agent Processing Status */}
+        {roofAgentStatus && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🤖 Roof Report Agent Processing</h2>
+            <div className="bg-blue-50 rounded p-4 border border-blue-200">
+              <p className="text-sm text-blue-800">
+                {roofAgentStatus}
+              </p>
+              {isProcessingRoofAgent && (
+                <div className="mt-3">
+                  <div className="animate-pulse flex space-x-2">
+                    <div className="h-2 bg-blue-400 rounded w-1/4"></div>
+                    <div className="h-2 bg-blue-400 rounded w-1/4"></div>
+                    <div className="h-2 bg-blue-400 rounded w-1/4"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Roof Agent Response Debug Window */}
+        {roofAgentResponse && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🤖 Roof Report Agent Response (Debug)</h2>
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded p-4 border border-purple-200">
+              <div className="mb-3">
+                <span className="text-sm font-medium text-gray-700">Agent ID: </span>
+                <span className="text-sm font-mono text-purple-600">68e53a30a387fd7879a96bea</span>
+              </div>
+              {roofAgentResponse.response && (
+                <div className="mb-4 p-3 bg-white rounded border border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Agent Response:</h3>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{roofAgentResponse.response}</p>
+                </div>
+              )}
+              <div className="max-h-96 overflow-y-auto">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Full Response JSON:</h3>
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                  {JSON.stringify(roofAgentResponse, null, 2)}
+                </pre>
               </div>
             </div>
-          )}
-        </div>
+            <div className="mt-4 flex space-x-4">
+              <button
+                onClick={() => setRoofAgentResponse(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Clear Response
+              </button>
+              <button
+                onClick={() => {
+                  const dataStr = JSON.stringify(roofAgentResponse, null, 2);
+                  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                  const url = URL.createObjectURL(dataBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `roof-agent-response-${Date.now()}.json`;
+                  link.click();
+                }}
+                className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+              >
+                Download JSON
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dashboard Stats */}
         {dashboardStats && (

@@ -18,9 +18,9 @@ export interface LyzrAgentRequest {
 export class LyzrAPIService {
   private api: AxiosInstance;
   private baseURL = 'https://agent-prod.studio.lyzr.ai/v3/inference/chat/';
-  private apiKey = 'sk-default-umuEtNZJCnYbBCmy448B42Neb90nTx5W';
-  private agentId = '68c1758c3256c310278a7814';
-  private userId = 'max@gdna.io';
+  private apiKey = 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K';
+  private agentId = '68de85dca3e9701820177801';
+  private userId = 'gdnaaccount@lyzr.ai';
   
   // Managed agents from the orchestrator configuration
   private managedAgents = {
