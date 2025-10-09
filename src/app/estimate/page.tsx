@@ -586,6 +586,84 @@ export default function EstimatePage() {
               );
             })()}
 
+            {/* Roof Measurement Report Agent Output */}
+            {rawAgentData?.roofAgentResponse && (
+              <div className="bg-white rounded-lg shadow-sm border-2 border-green-300 p-6 mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                  🏠 Roof Measurement Report Analysis
+                </h2>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded p-4 border border-green-200">
+                  <div className="mb-3">
+                    <span className="text-sm font-medium text-gray-700">Agent ID: </span>
+                    <span className="text-sm font-mono text-green-600">68e53a30a387fd7879a96bea</span>
+                    <span className="text-xs text-gray-500 ml-2">(Roof Measurement Analyzer)</span>
+                  </div>
+                  <div className="mb-3">
+                    <span className="text-sm font-medium text-gray-700">Source File: </span>
+                    <span className="text-sm text-gray-800">{rawAgentData.uploadedRoofFileName}</span>
+                  </div>
+                  
+                  {rawAgentData.roofAgentResponse.response && (
+                    <div className="mb-4 p-4 bg-white rounded border border-green-200">
+                      <h3 className="text-lg font-semibold text-gray-700 mb-3">📐 Roof Measurement Analysis:</h3>
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                        {rawAgentData.roofAgentResponse.response}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-4">
+                    <details className="cursor-pointer">
+                      <summary className="text-sm font-semibold text-gray-700 mb-2 hover:text-green-600">
+                        🔧 Full Roof Agent Response JSON (Click to expand)
+                      </summary>
+                      <div className="mt-2">
+                        <pre className="text-xs text-gray-700 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200 max-h-96 overflow-y-auto">
+                          {JSON.stringify(rawAgentData.roofAgentResponse, null, 2)}
+                        </pre>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex space-x-4">
+                  <button
+                    onClick={() => {
+                      const dataStr = JSON.stringify(rawAgentData.roofAgentResponse, null, 2);
+                      const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                      const url = URL.createObjectURL(dataBlob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `roof-agent-response-${Date.now()}.json`;
+                      link.click();
+                    }}
+                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  >
+                    Download JSON
+                  </button>
+                  <button
+                    onClick={() => {
+                      let textContent = 'Roof Measurement Report Analysis\n\n';
+                      if (rawAgentData.roofAgentResponse.response) {
+                        textContent += rawAgentData.roofAgentResponse.response;
+                      } else {
+                        textContent += JSON.stringify(rawAgentData.roofAgentResponse, null, 2);
+                      }
+                      const textBlob = new Blob([textContent], {type: 'text/plain'});
+                      const url = URL.createObjectURL(textBlob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `roof-analysis-${Date.now()}.txt`;
+                      link.click();
+                    }}
+                    className="px-4 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600"
+                  >
+                    Download Text
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Raw Agent Data Debug Section */}
             {rawAgentData && (
               <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
