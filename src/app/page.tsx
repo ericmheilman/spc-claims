@@ -22,6 +22,9 @@ export default function HomePage() {
   const [claimOcrResponse, setClaimOcrResponse] = useState<any>(null);
   const [isExtractingClaimOcr, setIsExtractingClaimOcr] = useState(false);
   const [claimOcrStatus, setClaimOcrStatus] = useState<string>('');
+  const [claimAgentResponse, setClaimAgentResponse] = useState<any>(null);
+  const [isProcessingClaimAgent, setIsProcessingClaimAgent] = useState(false);
+  const [claimAgentStatus, setClaimAgentStatus] = useState<string>('');
   const [roofOcrResponse, setRoofOcrResponse] = useState<any>(null);
   const [isExtractingRoofOcr, setIsExtractingRoofOcr] = useState(false);
   const [roofOcrStatus, setRoofOcrStatus] = useState<string>('');
@@ -78,6 +81,7 @@ export default function HomePage() {
     setIsExtractingClaimOcr(true);
     setClaimOcrStatus('Uploading claim PDF to OCR service...');
     setClaimOcrResponse(null);
+    setClaimAgentResponse(null);
 
     try {
       const formData = new FormData();
@@ -95,11 +99,62 @@ export default function HomePage() {
         throw new Error(`OCR extraction failed: ${errorData.error || response.statusText}`);
       }
 
-      const result = await response.json();
+      const ocrResult = await response.json();
       
       setClaimOcrStatus('✅ Claim OCR extraction completed!');
-      setClaimOcrResponse(result);
-      console.log('Claim OCR extraction result:', result);
+      setClaimOcrResponse(ocrResult);
+      console.log('Claim OCR extraction result:', ocrResult);
+      
+      // Send OCR results to line items extraction agent
+      setIsProcessingClaimAgent(true);
+      setClaimAgentStatus('Sending OCR results to line items extraction agent...');
+      
+      try {
+        const sessionId = `68e559ebdc57add4679b89dd-${Date.now()}`;
+        
+        // Format the OCR data as a message
+        let ocrMessage = 'Insurance Claim OCR Extraction Results:\n\n';
+        if (ocrResult.data) {
+          Object.entries(ocrResult.data).forEach(([key, value]: [string, any]) => {
+            if (value && value.content) {
+              ocrMessage += `Page ${value.page}:\n${value.content}\n\n`;
+            }
+          });
+        } else {
+          ocrMessage += JSON.stringify(ocrResult, null, 2);
+        }
+
+        const agentResponse = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+          },
+          body: JSON.stringify({
+            user_id: 'gdnaaccount@lyzr.ai',
+            agent_id: '68e559ebdc57add4679b89dd',
+            session_id: sessionId,
+            message: ocrMessage
+          })
+        });
+
+        if (!agentResponse.ok) {
+          const errorData = await agentResponse.json();
+          throw new Error(`Agent processing failed: ${errorData.error || agentResponse.statusText}`);
+        }
+
+        const agentResult = await agentResponse.json();
+        
+        setClaimAgentStatus('✅ Line items extraction completed!');
+        setClaimAgentResponse(agentResult);
+        console.log('Claim agent response:', agentResult);
+        
+      } catch (agentError) {
+        console.error('Error processing with line items agent:', agentError);
+        setClaimAgentStatus(`❌ Agent Error: ${agentError instanceof Error ? agentError.message : 'Unknown error'}`);
+      } finally {
+        setIsProcessingClaimAgent(false);
+      }
       
     } catch (error) {
       console.error('Error extracting text from claim PDF:', error);
@@ -330,13 +385,13 @@ export default function HomePage() {
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-gray-900">Insurance Claim PDF</h3>
                 <p className="text-xs text-gray-600">
-                  Upload your Xactimate claim PDF (auto OCR extraction)
+                  Upload your Xactimate claim PDF (auto OCR + Line Items extraction)
                 </p>
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={handleClaimFileUpload}
-                  disabled={isProcessing || isExtractingClaimOcr}
+                  disabled={isProcessing || isExtractingClaimOcr || isProcessingClaimAgent}
                   className="hidden"
                   id="claim-file-upload"
                 />
@@ -344,7 +399,7 @@ export default function HomePage() {
                   htmlFor="claim-file-upload"
                   className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {isExtractingClaimOcr ? 'Extracting OCR...' : 'Choose Claim File'}
+                  {isExtractingClaimOcr ? 'Extracting OCR...' : isProcessingClaimAgent ? 'Processing Agent...' : 'Choose Claim File'}
                 </label>
               </div>
               {uploadedClaimFile && (
@@ -355,6 +410,11 @@ export default function HomePage() {
               {claimOcrStatus && (
                 <p className="text-xs text-blue-600 mt-2">
                   {claimOcrStatus}
+                </p>
+              )}
+              {claimAgentStatus && (
+                <p className="text-xs text-purple-600 mt-2">
+                  {claimAgentStatus}
                 </p>
               )}
             </div>
@@ -517,6 +577,102 @@ export default function HomePage() {
                   const link = document.createElement('a');
                   link.href = url;
                   link.download = `claim-ocr-text-${Date.now()}.txt`;
+                  link.click();
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+              >
+                Download Text
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Claim Agent Processing Status */}
+        {claimAgentStatus && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🤖 Insurance Claim Line Items Agent Processing</h2>
+            <div className="bg-blue-50 rounded p-4 border border-blue-200">
+              <p className="text-sm text-blue-800">
+                {claimAgentStatus}
+              </p>
+              {isProcessingClaimAgent && (
+                <div className="mt-3">
+                  <div className="animate-pulse flex space-x-2">
+                    <div className="h-2 bg-blue-400 rounded w-1/4"></div>
+                    <div className="h-2 bg-blue-400 rounded w-1/4"></div>
+                    <div className="h-2 bg-blue-400 rounded w-1/4"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Claim Agent Response Debug Window */}
+        {claimAgentResponse && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🤖 Insurance Claim Line Items Extraction (Debug)</h2>
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded p-4 border border-blue-200">
+              <div className="mb-3">
+                <span className="text-sm font-medium text-gray-700">Agent ID: </span>
+                <span className="text-sm font-mono text-blue-600">68e559ebdc57add4679b89dd</span>
+                <span className="text-xs text-gray-500 ml-2">(Line Items Extractor)</span>
+              </div>
+              {claimAgentResponse.response && (
+                <div className="mb-4 p-4 bg-white rounded border border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📋 Extracted Line Items:</h3>
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {claimAgentResponse.response}
+                  </div>
+                </div>
+              )}
+              <div className="max-h-96 overflow-y-auto">
+                <details className="cursor-pointer">
+                  <summary className="text-sm font-semibold text-gray-700 mb-2 hover:text-blue-600">
+                    🔧 Full Agent Response JSON (Click to expand)
+                  </summary>
+                  <div className="mt-2">
+                    <pre className="text-xs text-gray-700 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                      {JSON.stringify(claimAgentResponse, null, 2)}
+                    </pre>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <div className="mt-4 flex space-x-4">
+              <button
+                onClick={() => setClaimAgentResponse(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Clear Response
+              </button>
+              <button
+                onClick={() => {
+                  const dataStr = JSON.stringify(claimAgentResponse, null, 2);
+                  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                  const url = URL.createObjectURL(dataBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `claim-line-items-${Date.now()}.json`;
+                  link.click();
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Download JSON
+              </button>
+              <button
+                onClick={() => {
+                  let textContent = 'Insurance Claim Line Items Extraction\n\n';
+                  if (claimAgentResponse.response) {
+                    textContent += claimAgentResponse.response;
+                  } else {
+                    textContent += JSON.stringify(claimAgentResponse, null, 2);
+                  }
+                  const textBlob = new Blob([textContent], {type: 'text/plain'});
+                  const url = URL.createObjectURL(textBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `claim-line-items-${Date.now()}.txt`;
                   link.click();
                 }}
                 className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
