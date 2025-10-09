@@ -269,45 +269,37 @@ export default function HomePage() {
       return;
     }
 
+    // Check if we have the claim agent response with line items
+    if (!claimAgentResponse) {
+      alert('Please wait for the insurance claim to be processed by the line items extraction agent');
+      return;
+    }
+
     setIsProcessing(true);
-    setProcessingStatus('Uploading files...');
+    setProcessingStatus('Preparing line items data...');
     setShowResults(false);
-    setProcessingResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append('claimFile', uploadedClaimFile);
-      formData.append('roofReportFile', uploadedRoofReportFile);
+      // Store the extracted line items in localStorage for the estimate page
+      const lineItemsData = {
+        claimAgentResponse,
+        roofAgentResponse,
+        claimOcrResponse,
+        roofOcrResponse,
+        uploadedClaimFileName: uploadedClaimFile.name,
+        uploadedRoofFileName: uploadedRoofReportFile.name,
+        timestamp: Date.now()
+      };
       
-      setProcessingStatus('Sending to Lyzr orchestrator...');
+      localStorage.setItem('extractedClaimData', JSON.stringify(lineItemsData));
       
-      const response = await fetch('/api/process-claim', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      setProcessingStatus('Processing completed! Redirecting to estimate...');
+      console.log('Stored line items data:', lineItemsData);
       
-      if (result.success) {
-        setProcessingStatus('Processing completed! Redirecting to estimate...');
-        setProcessingResult(result.data);
-        setShowResults(true);
-        console.log('Processing result:', result.data);
-        
-        // Refresh dashboard data
-        await loadDashboardData();
-        
-        // Redirect to estimate page after a short delay
-        setTimeout(() => {
-          router.push('/estimate');
-        }, 3000);
-      } else {
-        throw new Error(result.error || 'Processing failed');
-      }
+      // Redirect to estimate page
+      setTimeout(() => {
+        router.push('/estimate');
+      }, 1500);
       
     } catch (error) {
       console.error('Error processing claim:', error);
@@ -464,11 +456,16 @@ export default function HomePage() {
           <div className="text-center">
             <button
               onClick={handleProcessFiles}
-              disabled={isProcessing || !uploadedClaimFile || !uploadedRoofReportFile}
+              disabled={isProcessing || !uploadedClaimFile || !uploadedRoofReportFile || !claimAgentResponse}
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessing ? 'Processing...' : 'Process Both Documents'}
+              {isProcessing ? 'Processing...' : claimAgentResponse ? '✅ Ready - View Extracted Claim' : 'Waiting for Agent Processing...'}
             </button>
+            {!claimAgentResponse && uploadedClaimFile && (
+              <p className="text-xs text-gray-500 mt-2">
+                Please wait for the line items extraction agent to finish processing
+              </p>
+            )}
           </div>
 
           {processingStatus && (

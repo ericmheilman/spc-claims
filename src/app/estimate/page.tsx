@@ -20,13 +20,20 @@ import {
 } from 'lucide-react';
 
 interface LineItem {
+  line_number: string;
   description: string;
-  quantity: string;
-  unitPrice: number;
-  tax: number;
-  rcv: number;
-  depreciation: number;
-  acv: number;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  RCV: number;
+  age_life: string;
+  condition: string;
+  dep_percent: number | null;
+  depreciation_amount: number;
+  ACV: number;
+  location_room: string | null;
+  category: string;
+  page_number: number;
 }
 
 interface Category {
@@ -92,11 +99,75 @@ export default function EstimatePage() {
   const router = useRouter();
   const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [extractedLineItems, setExtractedLineItems] = useState<LineItem[]>([]);
+  const [rawAgentData, setRawAgentData] = useState<any>(null);
 
   useEffect(() => {
-    // In a real app, you'd fetch this from the API based on the claim ID
-    // For now, we'll use the sample data provided
-    const sampleData: EstimateData = {
+    console.log('=== ESTIMATE PAGE DEBUG START ===');
+    
+    // Load extracted claim data from localStorage
+    const storedData = localStorage.getItem('extractedClaimData');
+    
+    console.log('StoredData exists:', !!storedData);
+    console.log('StoredData length:', storedData?.length || 0);
+    
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        console.log('Parsed data structure:', {
+          hasClaimAgentResponse: !!parsedData.claimAgentResponse,
+          hasRoofAgentResponse: !!parsedData.roofAgentResponse,
+          hasClaimOcrResponse: !!parsedData.claimOcrResponse,
+          hasRoofOcrResponse: !!parsedData.roofOcrResponse,
+          uploadedClaimFileName: parsedData.uploadedClaimFileName,
+          uploadedRoofFileName: parsedData.uploadedRoofFileName,
+          timestamp: parsedData.timestamp
+        });
+        
+        setRawAgentData(parsedData);
+        
+        // Try to extract line items from the claim agent response
+        if (parsedData.claimAgentResponse && parsedData.claimAgentResponse.response) {
+          console.log('Claim agent response exists');
+          console.log('Response type:', typeof parsedData.claimAgentResponse.response);
+          console.log('Response preview (first 500 chars):', parsedData.claimAgentResponse.response.substring(0, 500));
+          
+          try {
+            // Try to parse as JSON array first
+            const responseText = parsedData.claimAgentResponse.response;
+            let lineItems: LineItem[] = [];
+            
+            // Check if response contains JSON array
+            const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+            console.log('JSON match found:', !!jsonMatch);
+            
+            if (jsonMatch) {
+              console.log('Matched JSON length:', jsonMatch[0].length);
+              lineItems = JSON.parse(jsonMatch[0]);
+              console.log('Successfully parsed line items count:', lineItems.length);
+              setExtractedLineItems(lineItems);
+              console.log('Parsed line items:', lineItems);
+            } else {
+              console.log('No JSON array pattern found in response');
+            }
+          } catch (parseError) {
+            console.error('Error parsing line items:', parseError);
+            console.error('Parse error details:', parseError instanceof Error ? parseError.message : 'Unknown error');
+          }
+        } else {
+          console.log('No claim agent response found in parsed data');
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading stored data:', error);
+        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+        setLoading(false);
+      }
+    } else {
+      console.log('No stored data found, using fallback sample data');
+      // Fallback to sample data if no stored data
+      const sampleData: EstimateData = {
       insured: {
         name: "EUNJEE SABLAN",
         phone: "(571) 228-8961",
@@ -215,10 +286,11 @@ export default function EstimatePage() {
       }
     };
 
-    setTimeout(() => {
-      setEstimateData(sampleData);
-      setLoading(false);
-    }, 1000);
+      setTimeout(() => {
+        setEstimateData(sampleData);
+        setLoading(false);
+      }, 1000);
+    }
   }, []);
 
   const formatCurrency = (amount: number) => {
@@ -247,19 +319,19 @@ export default function EstimatePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading adjusted estimate...</p>
+          <p className="text-gray-600">Loading extracted claim data...</p>
         </div>
       </div>
     );
   }
 
-  if (!estimateData) {
+  if (!estimateData && extractedLineItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Estimate Not Found</h2>
-          <p className="text-gray-600 mb-4">The requested estimate could not be found.</p>
+          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Claim Data Available</h2>
+          <p className="text-gray-600 mb-4">Please upload and process insurance claim documents first.</p>
           <button
             onClick={() => router.push('/')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -305,7 +377,244 @@ export default function EstimatePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Debug Information Panel */}
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 mb-8">
+          <h2 className="text-lg font-bold text-yellow-900 mb-4">🔍 Debug Information</h2>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-yellow-800">LocalStorage Data:</span>
+              <span className={`px-2 py-1 rounded ${localStorage.getItem('extractedClaimData') ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                {localStorage.getItem('extractedClaimData') ? '✓ Found' : '✗ Not Found'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-yellow-800">Raw Agent Data:</span>
+              <span className={`px-2 py-1 rounded ${rawAgentData ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                {rawAgentData ? '✓ Loaded' : '✗ Not Loaded'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-yellow-800">Extracted Line Items:</span>
+              <span className={`px-2 py-1 rounded ${extractedLineItems.length > 0 ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                {extractedLineItems.length > 0 ? `✓ ${extractedLineItems.length} items` : '✗ 0 items'}
+              </span>
+            </div>
+            {rawAgentData && (
+              <>
+                <div className="mt-3 pt-3 border-t border-yellow-300">
+                  <p className="font-semibold text-yellow-800 mb-2">Loaded Data Details:</p>
+                  <ul className="space-y-1 text-xs text-yellow-900 ml-4">
+                    <li>• Claim File: {rawAgentData.uploadedClaimFileName || 'N/A'}</li>
+                    <li>• Roof File: {rawAgentData.uploadedRoofFileName || 'N/A'}</li>
+                    <li>• Timestamp: {rawAgentData.timestamp ? new Date(rawAgentData.timestamp).toLocaleString() : 'N/A'}</li>
+                    <li>• Has Claim Agent Response: {rawAgentData.claimAgentResponse ? 'Yes' : 'No'}</li>
+                    <li>• Has Roof Agent Response: {rawAgentData.roofAgentResponse ? 'Yes' : 'No'}</li>
+                    {rawAgentData.claimAgentResponse && (
+                      <>
+                        <li>• Claim Agent Response Type: {typeof rawAgentData.claimAgentResponse.response}</li>
+                        <li>• Response Preview: {rawAgentData.claimAgentResponse.response ? rawAgentData.claimAgentResponse.response.substring(0, 100) + '...' : 'Empty'}</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+                <div className="mt-3 pt-3 border-t border-yellow-300">
+                  <details className="cursor-pointer">
+                    <summary className="font-semibold text-yellow-800 hover:text-yellow-900">
+                      View Full Raw Data (Click to expand)
+                    </summary>
+                    <div className="mt-2 bg-white rounded p-3 max-h-96 overflow-auto">
+                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                        {JSON.stringify(rawAgentData, null, 2)}
+                      </pre>
+                    </div>
+                  </details>
+                </div>
+              </>
+            )}
+            <div className="mt-3 pt-3 border-t border-yellow-300">
+              <p className="text-xs text-yellow-700">
+                💡 Check the browser console (F12) for detailed parsing logs
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Extracted Line Items from Agent */}
+        {extractedLineItems.length > 0 && (
+          <>
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-6 mb-8 shadow-lg">
+              <h2 className="text-2xl font-bold mb-2">🎯 Extracted Insurance Claim Line Items</h2>
+              <p className="text-blue-100">Automatically extracted from insurance claim PDF using AI Agent (68e559ebdc57add4679b89dd)</p>
+              <div className="mt-4 flex items-center space-x-6 text-sm">
+                <div className="flex items-center">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <span>{extractedLineItems.length} Line Items</span>
+                </div>
+                <div className="flex items-center">
+                  <FileText className="w-4 h-4 mr-2" />
+                  <span>{rawAgentData?.uploadedClaimFileName || 'Insurance Claim PDF'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Group line items by category */}
+            {(() => {
+              const categorizedItems: { [key: string]: LineItem[] } = {};
+              extractedLineItems.forEach(item => {
+                const cat = item.category || 'Other';
+                if (!categorizedItems[cat]) {
+                  categorizedItems[cat] = [];
+                }
+                categorizedItems[cat].push(item);
+              });
+
+              return Object.entries(categorizedItems).map(([categoryName, items]) => {
+                // Calculate category totals
+                const categoryTotals = items.reduce((acc, item) => ({
+                  rcv: acc.rcv + (item.RCV || 0),
+                  depreciation: acc.depreciation + (item.depreciation_amount || 0),
+                  acv: acc.acv + (item.ACV || 0)
+                }), { rcv: 0, depreciation: 0, acv: 0 });
+
+                return (
+                  <div key={categoryName} className="bg-white rounded-lg shadow-sm border mb-8">
+                    <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+                      <h3 className="text-xl font-bold text-gray-900">📂 {categoryName}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{items.length} items</p>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">RCV</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age/Life</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dep %</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depreciation</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ACV</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {items.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-500">{item.line_number}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900 max-w-md">{item.description}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900">{item.quantity}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{item.unit}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(item.unit_price)}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-green-600">{formatCurrency(item.RCV)}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{item.age_life}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{item.dep_percent !== null ? `${item.dep_percent}%` : '-'}</td>
+                              <td className="px-4 py-3 text-sm text-red-600">
+                                {item.depreciation_amount > 0 ? `(${formatCurrency(item.depreciation_amount)})` : formatCurrency(0)}
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium text-blue-600">{formatCurrency(item.ACV)}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{item.location_room || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                          <tr className="font-bold">
+                            <td className="px-4 py-4 text-sm text-gray-900" colSpan={5}>
+                              Category Total: {categoryName}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-green-700">
+                              {formatCurrency(categoryTotals.rcv)}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-900" colSpan={2}></td>
+                            <td className="px-4 py-4 text-sm text-red-700">
+                              ({formatCurrency(categoryTotals.depreciation)})
+                            </td>
+                            <td className="px-4 py-4 text-sm text-blue-700">
+                              {formatCurrency(categoryTotals.acv)}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-900"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+
+            {/* Overall Totals */}
+            {(() => {
+              const grandTotals = extractedLineItems.reduce((acc, item) => ({
+                rcv: acc.rcv + (item.RCV || 0),
+                depreciation: acc.depreciation + (item.depreciation_amount || 0),
+                acv: acc.acv + (item.ACV || 0)
+              }), { rcv: 0, depreciation: 0, acv: 0 });
+
+              return (
+                <div className="bg-white rounded-lg shadow-lg border-2 border-blue-300 p-8 mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <Calculator className="w-6 h-6 mr-2 text-green-600" />
+                    Grand Totals
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
+                      <p className="text-sm font-medium text-green-700 mb-2">Total RCV</p>
+                      <p className="text-3xl font-bold text-green-800">{formatCurrency(grandTotals.rcv)}</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6 border border-red-200">
+                      <p className="text-sm font-medium text-red-700 mb-2">Total Depreciation</p>
+                      <p className="text-3xl font-bold text-red-800">({formatCurrency(grandTotals.depreciation)})</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+                      <p className="text-sm font-medium text-blue-700 mb-2">Total ACV</p>
+                      <p className="text-3xl font-bold text-blue-800">{formatCurrency(grandTotals.acv)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm text-gray-600">
+                      <strong>Total Line Items:</strong> {extractedLineItems.length} | 
+                      <strong className="ml-4">Categories:</strong> {Object.keys(extractedLineItems.reduce((acc: any, item) => { acc[item.category || 'Other'] = true; return acc; }, {})).length}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Raw Agent Data Debug Section */}
+            {rawAgentData && (
+              <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+                <details>
+                  <summary className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-600">
+                    🔧 Raw Agent Data (Click to expand for debugging)
+                  </summary>
+                  <div className="mt-4 space-y-4">
+                    <div className="bg-gray-50 rounded p-4 border border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Files Processed:</h4>
+                      <p className="text-xs text-gray-600">Claim: {rawAgentData.uploadedClaimFileName}</p>
+                      <p className="text-xs text-gray-600">Roof: {rawAgentData.uploadedRoofFileName}</p>
+                      <p className="text-xs text-gray-600">Timestamp: {new Date(rawAgentData.timestamp).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-4 border border-gray-200 max-h-96 overflow-y-auto">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Full Agent Response:</h4>
+                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                        {JSON.stringify(rawAgentData, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Estimate Header */}
+        {!extractedLineItems.length && estimateData && (
         <div className="bg-white rounded-lg shadow-sm border p-8 mb-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Insured Information */}
@@ -431,8 +740,10 @@ export default function EstimatePage() {
             </div>
           </div>
         </div>
+        )}
 
-        {/* Adjustment Summary */}
+        {/* Adjustment Summary (Sample Data) */}
+        {!extractedLineItems.length && estimateData && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6 mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
@@ -442,9 +753,10 @@ export default function EstimatePage() {
             <p className="text-sm text-gray-700 leading-relaxed">{estimateData.description}</p>
           </div>
         </div>
+        )}
 
-        {/* Line Items by Category */}
-        {estimateData.categories.map((category, categoryIndex) => (
+        {/* Line Items by Category (Sample Data) */}
+        {!extractedLineItems.length && estimateData && estimateData.categories.map((category, categoryIndex) => (
           <div key={categoryIndex} className="bg-white rounded-lg shadow-sm border mb-8">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">{category.name}</h3>
@@ -525,7 +837,8 @@ export default function EstimatePage() {
           </div>
         ))}
 
-        {/* Financial Summary */}
+        {/* Financial Summary (Sample Data) */}
+        {!extractedLineItems.length && estimateData && (
         <div className="bg-white rounded-lg shadow-sm border p-8">
           <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
             <Calculator className="w-6 h-6 mr-2 text-green-600" />
@@ -641,6 +954,7 @@ export default function EstimatePage() {
             </div>
           </div>
         </div>
+        )}
       </main>
     </div>
   );
