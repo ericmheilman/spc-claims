@@ -89,17 +89,31 @@ export default function HomePage() {
 
       setClaimOcrStatus('Extracting text from claim PDF...');
 
+      console.log('Calling Lyzr OCR API for claim...');
       const response = await fetch('https://lyzr-ocr.lyzr.app/extract?api_key=sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K', {
         method: 'POST',
-        body: formData
+        body: formData,
+        mode: 'cors'
       });
 
+      console.log('OCR Response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`OCR extraction failed: ${errorData.error || response.statusText}`);
+        let errorMessage = `OCR extraction failed: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error('OCR Error data:', errorData);
+          if (errorData.error) {
+            errorMessage = `OCR extraction failed: ${errorData.error}`;
+          }
+        } catch (e) {
+          console.error('Could not parse error response');
+        }
+        throw new Error(errorMessage);
       }
 
       const ocrResult = await response.json();
+      console.log('OCR Result received:', ocrResult);
       
       setClaimOcrStatus('✅ Claim OCR extraction completed!');
       setClaimOcrResponse(ocrResult);
@@ -158,7 +172,16 @@ export default function HomePage() {
       
     } catch (error) {
       console.error('Error extracting text from claim PDF:', error);
-      setClaimOcrStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      let errorMessage = 'Unknown error';
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Network error - Could not reach OCR service. Please check your internet connection or try again later.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      setClaimOcrStatus(`❌ Error: ${errorMessage}`);
+      alert(`Failed to extract claim OCR:\n\n${errorMessage}\n\nPlease check the browser console (F12) for more details.`);
     } finally {
       setIsExtractingClaimOcr(false);
     }
@@ -187,14 +210,27 @@ export default function HomePage() {
 
       setRoofOcrStatus('Extracting text from roof report PDF...');
 
+      console.log('Calling Lyzr OCR API for roof report...');
       const response = await fetch('https://lyzr-ocr.lyzr.app/extract?api_key=sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K', {
         method: 'POST',
-        body: formData
+        body: formData,
+        mode: 'cors'
       });
 
+      console.log('Roof OCR Response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`OCR extraction failed: ${errorData.error || response.statusText}`);
+        let errorMessage = `OCR extraction failed: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error('Roof OCR Error data:', errorData);
+          if (errorData.error) {
+            errorMessage = `OCR extraction failed: ${errorData.error}`;
+          }
+        } catch (e) {
+          console.error('Could not parse error response');
+        }
+        throw new Error(errorMessage);
       }
 
       const ocrResult = await response.json();
@@ -256,7 +292,16 @@ export default function HomePage() {
       
     } catch (error) {
       console.error('Error extracting text from roof report PDF:', error);
-      setRoofOcrStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      let errorMessage = 'Unknown error';
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Network error - Could not reach OCR service. Please check your internet connection or try again later.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      setRoofOcrStatus(`❌ Error: ${errorMessage}`);
+      alert(`Failed to extract roof report OCR:\n\n${errorMessage}\n\nPlease check the browser console (F12) for more details.`);
     } finally {
       setIsExtractingRoofOcr(false);
     }
@@ -280,10 +325,46 @@ export default function HomePage() {
     setShowResults(false);
 
     try {
+      // Call the waste percentage agent with the roof OCR
+      let wastePercentResponse = null;
+      if (roofOcrResponse) {
+        try {
+          console.log('Calling waste percentage agent with roof OCR...');
+          setProcessingStatus('Calculating waste percentage...');
+          
+          const wasteResponse = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+            },
+            body: JSON.stringify({
+              user_id: 'gdnaaccount@lyzr.ai',
+              agent_id: '68eae0638be660f19f9164ea',
+              session_id: '68eae0638be660f19f9164ea-' + Date.now(),
+              message: roofOcrResponse
+            })
+          });
+
+          if (wasteResponse.ok) {
+            wastePercentResponse = await wasteResponse.json();
+            console.log('Waste percentage agent response:', wastePercentResponse);
+            setProcessingStatus('Waste percentage calculated ✓');
+          } else {
+            console.error('Waste percentage agent failed:', wasteResponse.status);
+            setProcessingStatus('Waste percentage calculation failed');
+          }
+        } catch (error) {
+          console.error('Error calling waste percentage agent:', error);
+          setProcessingStatus('Waste percentage calculation error');
+        }
+      }
+
       // Store the extracted line items in localStorage for the estimate page
       const lineItemsData = {
         claimAgentResponse,
         roofAgentResponse,
+        wastePercentResponse,
         claimOcrResponse,
         roofOcrResponse,
         uploadedClaimFileName: uploadedClaimFile.name,

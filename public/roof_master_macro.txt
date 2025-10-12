@@ -1,0 +1,1777 @@
+Insured: Master Roof Macro
+Property: 101 Roof St E-mail: IamMacro@roof.com
+Macroville, SC 10101
+
+Claim Number: Policy Number: Type of Loss:
+
+Date of Loss: Date Received:
+Date Inspected: Date Entered: 9/14/2025 12:46 AM
+
+Price List: SCCH8X SEP25
+Restoration/Service/Remodel
+Estimate: MASTER ROOF MACRO
+
+
+MASTER_ROOF_MACRO
+
+MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+1. Remove Laminated comp. shingle rfg. - w/out felt
+0.00 SQ
+67.40
+0.00
+0.00
+(0.00)
+0.00
+2. Laminated comp. shingle rfg. w/out felt
+0.00 SQ
+249.37
+0.00
+0.00
+(0.00)
+0.00
+3. Remove 3 tab- 25 yr. comp. shingle roofing - w/out
+0.00 SQ
+65.96
+0.00
+0.00
+(0.00)
+0.00
+felt
+4. 3 tab 25 yr. comp. shingle roofing - w/out felt
+0.00 SQ
+235.60
+0.00
+0.00
+(0.00)
+0.00
+5. Remove 3 tab 25 yr. composition shingle roofing -
+incl. felt
+0.00 SQ
+65.96
+0.00
+0.00
+(0.00)
+0.00
+6. 3 tab 25 yr. composition shingle roofing incl. felt
+0.00 SQ
+268.60
+0.00
+0.00
+(0.00)
+0.00
+7. Remove Laminated comp. shingle rfg. - w/ felt
+0.00 SQ
+67.40
+0.00
+0.00
+(0.00)
+0.00
+8. Laminated comp. shingle rfg. - w/ felt
+0.00 SQ
+284.64
+0.00
+0.00
+(0.00)
+0.00
+9. Tear off, haul and dispose of comp. shingles - 3 tab
+0.00 SQ
+65.96
+0.00
+0.00
+(0.00)
+0.00
+10. Remove 3 tab 25 yr. composition shingle roofing
+(per SHINGLE)
+1.00 EA
+6.89
+0.00
+6.89
+(0.00)
+6.89
+11. 3 tab 25 yr. composition shingle roofing (per
+SHINGLE)
+1.00 EA
+16.39
+0.22
+16.61
+(0.00)
+16.61
+12. Remove Laminated comp. shingle rfg (per
+1.00 EA
+6.89
+0.00
+6.89
+(0.00)
+6.89
+SHINGLE)
+13. Laminated comp. shingle rfg (per SHINGLE)
+1.00 EA
+16.56
+0.23
+16.79
+(0.00)
+16.79
+14. Tear off, haul and dispose of comp. shingles -
+0.00 SQ
+67.40
+0.00
+0.00
+(0.00)
+0.00
+Laminated
+15. Tear off composition shingles 3 tab (no haul off)
+0.00 SQ
+47.43
+0.00
+0.00
+(0.00)
+0.00
+16. Tear off composition shingles - Laminated (no haul
+off)
+0.00 SQ
+47.43
+0.00
+0.00
+(0.00)
+0.00
+17. Add. layer of comp. shingles, remove & disp. -
+Laminated
+0.00 SQ
+41.69
+0.00
+0.00
+(0.00)
+0.00
+18. Add. layer of comp. shingles, remove & disp. - 3 tab
+0.00 SQ
+40.25
+0.00
+0.00
+(0.00)
+0.00
+19. Additional layer of comp. shingles, remove (no haul
+0.00 SQ
+29.83
+0.00
+0.00
+(0.00)
+0.00
+off)
+20. Roofing felt - 15 lb.
+0.00 SQ
+34.68
+0.00
+0.00
+(0.00)
+0.00
+21. Roofing felt - 30 lb.
+0.00 SQ
+42.64
+0.00
+0.00
+(0.00)
+0.00
+22. Roofing felt - 15 lb. double coverage/low slope
+0.00 SQ
+61.44
+0.00
+0.00
+(0.00)
+0.00
+R905.2.2 Slope.
+A sphalt shingles shall be used only on roof slopes of two units vertical in 12 units horizontal (2:12) or greater. For roof slopes from two units
+vertical in 12 units horizontal (2:12) up to four units vertical in 12 units horizontal (4:12), double underlayment application is required in accordance
+with Section R905.1.1.
+R905.2.2 Slope.
+A sphalt shingles shall be used only on roof slopes of two units vertical in 12 units horizontal (2:12) or greater. For roof slopes from two units
+vertical in 12 units horizontal (2:12) up to four units vertical in 12 units horizontal (4:12), double underlayment application is required in accordance
+with Section R905.1.1.
+23. Roofing felt - 30 lb. double coverage/low slope
+0.00 SQ
+76.55
+0.00
+0.00
+(0.00)
+0.00
+24. Roofing felt synthetic underlayment - Standard
+0.00 SQ
+36.82
+0.00
+0.00
+(0.00)
+0.00
+grade
+25. Roofing felt synthetic underlayment
+0.00 SQ
+47.68
+0.00
+0.00
+(0.00)
+0.00
+26. Roofing felt-synthetic- Std. grade- dbl coverage/low
+0.00 SQ
+64.96
+0.00
+0.00
+(0.00)
+0.00
+slope
+27. Roofing felt synthetic und. double coverage/low
+slope
+0.00 SQ
+84.99
+0.00
+0.00
+(0.00)
+0.00
+28. Ice & water barrier
+0.00 SF
+1.63
+0.00
+0.00
+(0.00)
+0.00
+MASTER ROOF MACRO
+9/24/2025
+Page: 2
+
+
+CONTINUED - MASTER_ROOF_MACRO
+
+DESCRIPTION QUANTITY UNIT PRICE TAX RCV DEPREC. ACV
+--For open valleys (valley lining exposed) lined with metal, the valley lining shall be not less than 24 inches (610 mm) wide and of any of the
+corrosion-resistant metals from Table R905.1.1(3)
+--For closed valleys (valley covered with shingles), valley lining of one ply of smooth roll roofing complying with ASTM D6380 and not less than
+36 inches wide (914mm) or valley lining as described in Item 1 or 2 shall be permitted. Self-adhering polymer-modified bitumen underlayment
+complying with ASTM D1970 shall be permitted in lieu of the lining material.
+29. Ice & water barrier - High temp no material waste 0.00 SF 1.89 0.00 0.00 (0.00) 0.00
+incl.
+30. Ice & water barrier - High temp 0.00 SF 1.93 0.00 0.00 (0.00) 0.00
+31. Ice & water barrier no material waste included 0.00 SF 1.61 0.00 0.00 (0.00) 0.00
+32. Asphalt starter - universal starter course 0.00 LF 1.73 0.00 0.00 (0.00) 0.00
+33. Asphalt starter - peel and stick 0.00 LF 1.81 0.00 0.00 (0.00) 0.00
+34. Asphalt starter - laminated double layer starter 0.00 LF 4.25 0.00 0.00 (0.00) 0.00
+35. Add. layer of felt/underlayment, remove (no haul off) 0.00 SQ 7.43 0.00 0.00 (0.00) 0.00
+36. Add. layer of felt/underlayment, remove & disp. 0.00 SQ 8.89 0.00 0.00 (0.00) 0.00
+37a. Remove Gable comice return - 3 tab 1.00 EA 15.82 0.00 15.82 (0.00) 15.82
+37b. Gable cornice return 3 tab 1.00 ΕΑ 78.25 0.61 78.86 (0.00) 78.86
+38a. Remove Gable cornice return 3 tab 2 stories or 1.00 EA 17.25 0.00 17.25 (0.00) 17.25
+greater
+38b. Gable cornice return 3 tab 2 stories or greater 1.00 EA 95.92 0.61 96.53 (0.00) 96.53
+39a. Remove Gable cornice return - laminated 1.00 EA 15.82 0.00 15.82 (0.00) 15.82
+39b. Gable cornice return laminated 1.00 EA 78.87 0.66 79.53 (0.00) 79.53
+40a. Remove Gable cornice return - laminated - 2 stories 1.00 EA 17.25 0.00 17.25 (0.00) 17.25
+or greater
+40b. Gable cornice return laminated - 2 stories or 1.00 EA 96.54 0.66 97.20 (0.00) 97.20
+greater
+41a. Remove Gable cornice strip - 3 tab 0.00 LF 2.71 0.00 0.00 (0.00) 0.00
+41b. Gable comice strip - 3 tab 0.00 LF 12.60 0.00 0.00 (0.00) 0.00
+42a. Remove Gable cornice strip - 3 tab - 2 stories or 0.00 LF 3.16 0.00 0.00 (0.00) 0.00
+greater
+42b. Gable cornice strip 3 tab 2 stories or greater 0.00 LF 14.80 0.00 0.00 (0.00) 0.00
+43a. Remove Gable cornice strip - laminated 0.00 LF 2.71 0.00 0.00 (0.00) 0.00
+43b. Gable cornice strip - laminated 0.00 LF 13.29 0.00 0.00 (0.00) 0.00
+44a. Remove Gable cornice strip laminated 2 stories 0.00 LF 3.16 0.00 0.00 (0.00) 0.00
+or greater
+44b. Gable comice strip - laminated - 2 stories or greater 0.00 LF 15.49 0.00 0.00 (0.00) 0.00
+45a. Remove Hip / Ridge cap High profile - 0.00 LF 2.73 0.00 0.00 (0.00) 0.00
+composition shingles
+45b. Hip/Ridge cap High profile - composition 0.00 LF 6.47 0.00 0.00 (0.00) 0.00
+shingles
+46a. Remove Hip/ Ridge capcut from 3 tab- 0.00 LF 2.73 0.00 0.00 (0.00) 0.00
+composition shingles
+46b. Hip/Ridge cap cut from 3 tab composition 0.00 LF 4.47 0.00 0.00 (0.00) 0.00
+shingles
+47a. Remove Hip / Ridge cap - Standard profile - 0.00 LF 2.73 0.00 0.00 (0.00) 0.00
+composition shingles
+MASTER ROOF MACRO 9/24/2025 Page: 3
+
+
+CONTINUED - MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+47b. Hip/Ridge cap Standard profile - composition
+shingles
+0.00 LF
+5.57
+0.00
+0.00
+(0.00)
+0.00
+48. Continuous ridge vent - Detach & reset
+0.00 LF
+7.86
+0.00
+0.00
+(0.00)
+0.00
+49a. Remove Continuous ridge vent - shingle-over style
+0.00 LF
+1.07
+0.00
+0.00
+(0.00)
+0.00
+49b. Continuous ridge vent shingle-over style
+0.00 LF
+9.80
+0.00
+0.00
+(0.00)
+0.00
+50a. Remove Continuous ridge vent - aluminum
+0.00 LF
+1.07
+0.00
+0.00
+(0.00)
+0.00
+50b. Continuous ridge vent aluminum
+0.00 LF
+9.27
+0.00
+0.00
+(0.00)
+0.00
+51a. Remove Counterflashing - Apron flashing
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+51b. Counterflashing A pron flashing
+0.00 LF
+10.26
+0.00
+0.00
+(0.00)
+0.00
+The existing roof to wall flashing is punctured and damaged and cannot be reinstalled per code. If reinstalled, the sidewalls would not be water tight,
+would lead to leak hazards, and would void any current or future warranties. Reinstallation of Materials: Any existing flashings, edgings, outlets,
+vents or similar devices that are part of the assembly shall be replaced when rusted, damaged or deteriorated. (Reference: International Residential
+Code R907.5)
+52a. Remove Valley metal
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+52b. Valley metal
+0.00 LF
+6.07
+0.00
+0.00
+(0.00)
+0.00
+53a. Remove Valley metal (W) profile
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+53b. Valley metal - (W) profile
+0.00 LF
+6.86
+0.00
+0.00
+(0.00)
+0.00
+54a. Remove Flue cap
+0.00 EA
+21.09
+0.00
+0.00
+(0.00)
+0.00
+54b. Flue cap
+0.00 EA
+147.71
+0.00
+0.00
+(0.00)
+0.00
+55a. Remove Furnace vent - rain cap and storm collar, 6"
+0.00 EA
+13.55
+0.00
+0.00
+(0.00)
+0.00
+55b. Furnace vent - rain cap and storm collar, 6"
+0.00 EA
+102.61
+0.00
+0.00
+(0.00)
+0.00
+56. Roof vent turtle type Detach & reset
+1.00 EA
+57.07
+0.08
+57.15
+(0.00)
+57.15
+57a. Remove Roof vent - turtle type - Plastic
+1.00 EA
+11.36
+0.00
+11.36
+(0.00)
+11.36
+57b. Roof vent turtle type Plastic
+1.00 EA
+56.40
+1.13
+57.53
+(0.00)
+57.53
+58a. Remove Roof vent - turtle type - Metal
+1.00 EA
+11.36
+0.00
+11.36
+(0.00)
+11.36
+58b. Roof vent turtle type - Metal
+1.00 EA
+73.43
+2.49
+75.92
+(0.00)
+75.92
+59. Roof vent Detach & reset
+1.00 EA
+81.29
+0.08
+81.37
+(0.00)
+81.37
+60a. Remove Roof vent off ridge type-8'
+1.00 ΕΑ
+31.83
+0.00
+31.83
+(0.00)
+31.83
+60b. Roof vent off ridge type 8'
+1.00 EA
+228.69
+7.63
+236.32
+(0.00) 236.32
+61a. Remove Roof vent off ridge type 6'
+1.00 ΕΑ
+25.86
+0.00
+25.86
+(0.00)
+25.86
+61b. Roof vent off ridge type - 6'
+1.00 EA
+182.91
+6.34
+189.25
+(0.00)
+189.25
+62a. Remove Roof vent off ridge type 4'
+1.00 EA
+19.88
+0.00
+19.88
+(0.00)
+19.88
+62b. Roof vent off ridge type 4'
+1.00 ΕΑ
+131.00
+4.55
+135.55
+(0.00)
+135.55
+63a. Remove Roof vent off ridge type 2'
+1.00 EA
+12.42
+0.00
+12.42
+(0.00)
+12.42
+63b. Roof vent off ridge type 2'
+1.00 EA
+83.61
+2.98
+86.59
+(0.00)
+86.59
+64a. Remove Roof vent - dormer type - Metal
+1.00 EA
+11.85
+0.00
+11.85
+(0.00)
+11.85
+64b. Roof vent dormer type Metal
+1.00 EA
+82.02
+3.03
+85.05
+(0.00)
+85.05
+65a. Remove Roof vent - turbine type
+1.00 ΕΑ
+11.36
+0.00
+11.36
+(0.00)
+11.36
+65b. Roof vent turbine type
+1.00 EA
+153.77
+8.24
+162.01
+(0.00)
+162.01
+66. Roof mount power attic vent - Detach & reset
+1.00 ΕΑ
+168.26
+0.00
+168.26
+(0.00)
+168.26
+67a. Remove Roof mount power attic vent - Large
+1.00 EA
+31.62
+0.00
+31.62
+(0.00)
+31.62
+67b. Roof mount power attic vent - Large
+1.00 EA
+298.66
+15.17
+313.83
+(0.00)
+313.83
+MASTER_ROOF_MACRO
+9/24/2025
+Page: 4
+
+CONTINUED - MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+68a. Remove Roof mount power attic vent
+1.00 EA
+31.62
+0.00
+31.62
+(0.00)
+31.62
+68b. Roof mount power attic vent
+1.00 ΕΑ
+243.14
+10.73
+253.87
+(0.00)
+253.87
+69a. Remove Exhaust cap - through roof - up to 4"
+1.00 EA
+11.36
+0.00
+11.36
+(0.00)
+11.36
+69b. Exhaust cap through roof up to 4"
+1.00 EA
+90.62
+3.18
+93.80
+(0.00)
+93.80
+70a. Remove Exhaust cap - through roof - 6" to 8"
+1.00 ΕΑ
+11.36
+0.00
+11.36
+(0.00)
+11.36
+70b. Exhaust cap through roof - 6" to 8"
+1.00 EA
+102.27
+4.12
+106.39
+(0.00)
+106.39
+71a. Remove Flashing - rain diverter
+1.00 ΕΑ
+11.16
+0.00
+11.16
+(0.00)
+11.16
+71b. Flashing rain diverter
+1.00 EA
+44.54
+1.21
+45.75
+(0.00)
+45.75
+72a. Remove Flashing kick-out diverter
+1.00 EA
+5.58
+0.00
+5.58
+(0.00)
+5.58
+72b. Flashing kick-out diverter
+1.00 EA
+27.63
+1.03
+28.66
+(0.00)
+28.66
+73a. Remove Flashing pipe jack copper
+1.00 EA
+8.91
+0.00
+8.91
+(0.00)
+8.91
+73b. Flashing pipe jack copper
+1.00 EA
+94.51
+5.02
+99.53
+(0.00)
+99.53
+74a. Remove Flashing pipe jack lead
+1.00 EA
+8.91
+0.00
+8.91
+(0.00)
+8.91
+74b. Flashing pipe jack lead
+1.00 EA
+84.91
+4.25
+89.16
+(0.00)
+89.16
+75a. Remove Flashing pipe jack 6"
+1.00 EA
+8.91
+0.00
+8.91
+(0.00)
+8.91
+75b. Flashing pipe jack - 6"
+1.00 EA
+66.30
+2.76
+69.06
+(0.00)
+69.06
+76a. Remove Flashing - pipe jack - 8"
+1.00 EA
+8.91
+0.00
+8.91
+(0.00)
+8.91
+76b. Flashing pipe jack - 8"
+1.00 EA
+77.77
+3.68
+81.45
+(0.00)
+81.45
+77a. Remove Flashing pipe jack split boot
+1.00 EA
+10.00
+0.00
+10.00
+(0.00)
+10.00
+77b. Flashing pipe jack - split boot
+1.00 EA
+86.81
+4.12
+90.93
+(0.00)
+90.93
+78. Meter mast for overhead power - Detach & reset
+1.00 EA
+754.80
+0.00
+754.80
+(0.00)
+754.80
+79a. Remove Power attic vent cover only metal
+1.00 EA
+15.82
+0.00
+15.82
+(0.00)
+15.82
+79b. Power attic vent cover only metal
+1.00 ΕΑ
+97.21
+3.07
+100.28
+(0.00)
+100.28
+80a. Remove Power attic vent cover only plastic
+1.00 EA
+15.82
+0.00
+15.82
+(0.00)
+15.82
+80b. Power attic vent cover only plastic
+1.00 EA
+85.47
+2.13
+87.60
+(0.00)
+87.60
+81. Power attic vent cover only - Detach & reset
+1.00 EA
+62.00
+0.00
+62.00
+(0.00)
+62.00
+82a. Remove Rain cap - 10"
+1.00 EA
+6.33
+0.00
+6.33
+(0.00)
+6.33
+82b. Rain cap 10"
+1.00 ΕΑ
+87.90
+5.62
+93.52
+(0.00)
+93.52
+83a. Remove Rain cap - 12"
+1.00 EA
+6.33
+0.00
+6.33
+(0.00)
+6.33
+83b. Rain cap 12"
+1.00 EA
+96.95
+6.34
+103.29
+(0.00)
+103.29
+84a. Remove Rain cap - 4" to 5"
+1.00 EA
+6.33
+0.00
+6.33
+(0.00)
+6.33
+84b. Rain cap4" to 5"
+1.00 EA
+50.13
+2.60
+52.73
+(0.00)
+52.73
+85a. Remove Rain cap - 6"
+1.00 EA
+6.33
+0.00
+6.33
+(0.00)
+6.33
+85b. Rain cap-6"
+1.00 EA
+57.15
+3.16
+60.31
+(0.00)
+60.31
+86a. Remove Rain cap - 8"
+1.00 EA
+6.33
+0.00
+6.33
+(0.00)
+6.33
+86b. Rain cap 8"
+1.00 EA
+63.95
+3.70
+67.65
+(0.00)
+67.65
+87. Step flashing
+0.00 LF
+10.28
+0.00
+0.00
+(0.00)
+0.00
+The existing step flashing is punctured and damaged and cannot be reinstalled per code. If reinstalled, the sidewalls would not be water tight, would
+lead to leak hazards, and would void any current or future warranties. Reinstallation of Materials: Any existing flashings, edgings, outlets, vents or
+similar devices that are part of the assembly shall be replaced when rusted, damaged or deteriorated. (Reference: International Residential Code
+R907.5)
+MASTER ROOF MACRO
+9/24/2025
+Page: 5
+
+
+CONTINUED - MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+88a. Remove Aluminum sidewall/endwall flashing - mill
+finish
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+88b. Aluminum sidewall/endwall flashing - mill finish
+0.00 LF
+6.77
+0.00
+0.00
+(0.00)
+0.00
+89a. Remove Flashing, 14" wide
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+89b. Flashing, 14" wide
+0.00 LF
+4.76
+0.00
+0.00
+(0.00)
+0.00
+90a. Remove Flashing - pipe jack
+0.00 EA
+8.91
+0.00
+0.00
+(0.00)
+0.00
+90b. Flashing pipe jack
+0.00 EA
+48.45
+0.00
+0.00
+(0.00)
+0.00
+91a. Remove Flashing, 14" wide copper
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+91b. Flashing, 14" wide - copper
+0.00 LF
+23.26
+0.00
+0.00
+(0.00)
+0.00
+92a. Remove Flashing, 20" wide
+0.00 LF
+0.74
+0.00
+0.00
+(0.00)
+0.00
+92b. Flashing, 20" wide
+0.00 LF
+5.03
+0.00
+0.00
+(0.00)
+0.00
+93. Evaporative cooler - Detach & reset
+1.00 EA
+638.00
+0.00
+638.00
+(0.00)
+638.00
+94. Television antenna Detach & reset
+1.00 ΕΑ
+144.40
+0.00
+144.40
+(0.00)
+144.40
+95. Digital satellite system - Detach & reset
+1.00 EA
+52.17
+0.00
+52.17
+(0.00)
+52.17
+96a. Remove Chimney flashing small (24" x 24")
+1.00 EA
+15.82
+0.00
+15.82
+(0.00)
+15.82
+96b. Chimney flashing - small (24" x 24")
+1.00 EA
+327.54
+5.11
+332.65
+(0.00) 332.65
+97a. Remove Saddle or cricket up to 25 SF
+1.00 EA
+31.62
+0.00
+31.62
+(0.00)
+31.62
+97b. Saddle or cricket up to 25 SF
+1.00 EA
+157.96
+3.06
+161.02
+(0.00)
+161.02
+98a. Remove Saddle or cricket - 26 to 50 SF
+1.00 EA
+47.43
+0.00
+47.43
+(0.00)
+47.43
+98b. Saddle or cricket 26 to 50 SF
+1.00 EA
+275.20
+6.05
+281.25
+(0.00) 281.25
+99a. Remove Chimney flashing average (32" x 36")
+0.00 EA
+23.72
+0.00
+0.00
+(0.00)
+0.00
+99b. Chimney flashing average (32" x 36")
+0.00 EA
+424.12
+0.00
+0.00
+(0.00)
+0.00
+100a. Remove Chimney flashing- large (32" x 60")
+1.00 EA
+31.62
+0.00
+31.62
+(0.00)
+31.62
+100b. Chimney flashing- large (32" x 60")
+1.00 ΕΑ
+565.14
+13.09
+578.23
+(0.00)
+578.23
+101a. Remove Skylight flashing kit- dome
+1.00 EA
+7.90
+0.00
+7.90
+(0.00)
+7.90
+101b. Skylight flashing kit - dome
+1.00 ΕΑ
+128.01
+7.41
+135.42
+(0.00)
+135.42
+102a. Remove Skylight flashing kit - dome - High grade
+1.00 EA
+7.90
+0.00
+7.90
+(0.00)
+7.90
+102b. Skylight flashing kit dome High grade
+1.00 EA
+138.63
+8.26
+146.89
+(0.00)
+146.89
+103a. Remove Skylight flashing kit - dome - Large -
+High grade
+1.00 ΕΑ
+9.49
+0.00
+9.49
+(0.00)
+9.49
+103b. Skylight flashing kit dome Large High grade
+1.00 EA
+197.10
+12.23
+209.33
+(0.00)
+209.33
+104a. Remove Skylight flashing kit - dome - Large
+1.00 EA
+9.49
+0.00
+9.49
+(0.00)
+9.49
+104b. Skylight flashing kit - dome - Large
+1.00 EA
+144.47
+9.15
+153.62
+(0.00)
+153.62
+105a. Remove Roof window step flashing kit
+1.00 ΕΑ
+7.90
+0.00
+7.90
+(0.00)
+7.90
+105b. Roof window step flashing kit
+1.00 EA
+174.62
+11.08
+185.70
+(0.00)
+185.70
+106a. Remove Skylight - flat fixed, 9.1 - 10 sf
+1.00 EA
+57.11
+0.00
+57.11
+(0.00)
+57.11
+106b. Skylight flat fixed, 9.1 10 sf
+1.00 EA
+933.17
+63.33
+996.50
+(0.00)
+996.50
+107a. Remove Roof window step flashing kit - Large
+1.00 EA
+9.49
+0.00
+9.49
+(0.00)
+9.49
+107b. Roof window step flashing kit - Large
+1.00 EA
+207.72
+13.09
+220.81
+(0.00)
+220.81
+108a. Remove Roof window (skylight), 12.1 - 15 sf
+1.00 ΕΑ
+76.19
+0.00
+76.19
+(0.00)
+76.19
+108b. Roof window (skylight), 12.1 - 15 sf
+1.00 EA
+1,497.02
+106.99
+1,604.01
+(0.00)
+1,604.01
+MASTER ROOF MACRO
+9/24/2025
+Page: 6
+
+
+CONTINUED - MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+109a. Remove Skylight - double dome fixed, 6.6 - 9 sf
+1.00 EA
+28.57
+0.00
+28.57
+(0.00)
+28.57
+109b. Skylight double dome fixed, 6.6 - 9 sf
+1.00 ΕΑ
+568.18
+36.90
+605.08
+(0.00)
+605.08
+110a. Remove Skylight - double dome fixed, 4 - 6.5 sf
+1.00 EA
+28.57
+0.00
+28.57
+(0.00)
+28.57
+110b. Skylight double dome fixed, 4 - 6.5 sf
+1.00 EA
+420.50
+25.61
+446.11
+(0.00)
+446.11
+111a. Remove Skylight - double dome fixed, 9.1 12.5
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+sf
+111b. Skylight double dome fixed, 9.1 - 12.5 sf
+1.00 EA
+640.36
+41.25
+681.61
+(0.00) 681.61
+112a. Remove Skylight - double dome fixed, 12.6 - 15.5
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+sf
+112b. Skylight double dome fixed, 12.6 - 15.5 sf
+1.00 EA
+804.51
+52.60
+857.11
+(0.00) 857.11
+113a. Remove Skylight - double dome venting, 6.6 - 9 sf
+1.00 EA
+28.57
+0.00
+28.57
+(0.00)
+28.57
+113b. Skylight double dome venting, 6.6 - 9 sf
+1.00 EA
+867.34
+60.10
+927.44
+(0.00)
+927.44
+114a. Remove Skylight - double dome venting, 4- 6.5 sf
+1.00 ΕΑ
+28.57
+0.00
+28.57
+(0.00)
+28.57
+114b. Skylight- double dome venting, 4 - 6.5 sf
+1.00 ΕΑ
+804.35
+55.55
+859.90
+(0.00)
+859.90
+115a. Remove Skylight - double dome venting, 9.1 - 12.
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+5 sf
+115b. Skylight - double dome venting, 9.1 - 12.5 sf
+1.00 EA
+937.76
+64.31
+1,002.07
+(0.00)
+1,002.07
+116a. Remove Skylight - double dome venting, 12.6 15.
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+5 sf
+116b. Skylight double dome venting, 12.6 - 15.5 sf
+1.00 ΕΑ
+1,041.13
+70.80
+1,111.93
+(0.00)
+1,111.93
+117a. Remove Skylight - single dome fixed, 6.6 - 9 sf
+1.00 EA
+28.57
+0.00
+28.57
+(0.00)
+28.57
+117b. Skylight single dome fixed, 6.6 - 9 sf
+1.00 ΕΑ
+430.23
+25.86
+456.09
+(0.00)
+456.09
+118a. Remove Skylight - single dome fixed, 4-6.5 sf
+1.00 EA
+28.57
+0.00
+28.57
+(0.00)
+28.57
+118b. Skylight single dome fixed, 4 - 6.5 sf
+1.00 EA
+345.13
+19.58
+364.71
+(0.00)
+364.71
+119a. Remove Skylight - single dome fixed, 9.1 - 12.5 sf
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+119b. Skylight - single dome fixed, 9.1 - 12.5 sf
+1.00 ΕΑ
+590.54
+37.27
+627.81
+(0.00)
+627.81
+120a. Remove Skylight - single dome fixed, 12.6 15.5
+1.00 ΕΑ
+38.08
+0.00
+38.08
+(0.00)
+38.08
+sf
+120b. Skylight - single dome fixed, 12.6 - 15.5 sf
+1.00 EA
+672.94
+42.08
+715.02
+(0.00)
+715.02
+121a. Remove Skylight - single dome venting, 6.6 - 9 sf
+1.00 ΕΑ
+28.57
+0.00
+28.57
+(0.00)
+28.57
+121b. Skylight single dome venting, 6.6-9 sf
+1.00 EA
+793.47
+54.19
+847.66
+(0.00)
+847.66
+122a. Remove Skylight - single dome venting, 4- 6.5 sf
+1.00 EA
+28.57
+0.00
+28.57
+(0.00)
+28.57
+122b. Skylight single dome venting, 4 - 6.5 sf
+1.00 ΕΑ
+672.70
+45.02
+717.72
+(0.00)
+717.72
+123a. Remove Skylight - single dome venting, 9.1 - 12.5
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+sf
+123b. Skylight single dome venting, 9.1 - 12.5 sf
+1.00 EA
+849.40
+57.24
+906.64
+(0.00)
+906.64
+124a. Remove Skylight - single dome venting, 12.6 - 15.
+1.00 EA
+38.08
+0.00
+38.08
+(0.00)
+38.08
+5 sf
+124b. Skylight single dome venting, 12.6 - 15.5 sf
+1.00 EA
+968.05
+64.95
+1,033.00
+(0.00)
+1,033.00
+125a. Remove Skylight - flat fixed, 6.1 - 9 sf
+1.00 EA
+57.11
+0.00
+57.11
+(0.00)
+57.11
+125b. Skylight flat fixed, 6.19 sf
+1.00 EA
+823.00
+55.28
+878.28
+(0.00)
+878.28
+126a. Remove Skylight - flat fixed, up to 6 sf
+1.00 EA
+57.11
+0.00
+57.11
+(0.00)
+57.11
+126b. Skylight - flat fixed, up to 6 sf
+1.00 EA
+742.81
+49.60
+792.41
+(0.00)
+792.41
+MASTER_ROOF_MACRO
+9/24/2025
+Page: 7
+
+
+CONTINUED - MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+127a. Remove Skylight - flat fixed, 10.1 - 12 sf
+1.00 EA
+76.19
+0.00
+76.19
+(0.00)
+76.19
+127b. Skylight flat fixed, 10.1 12 sf
+1.00 ΕΑ
+985.61
+66.81
+1,052.42
+(0.00)
+1,052.42
+128a. Remove Skylight - flat fixed, 12.1 - 15 sf
+1.00 EA
+76.19
+0.00
+76.19
+(0.00)
+76.19
+128b. Skylight flat fixed, 12.1 15 sf
+1.00 EA
+1,092.20
+74.60
+1,166.80
+(0.00)
+1,166.80
+129a. Remove Roof window (skylight), 6.1 - 9 sf
+1.00 EA
+57.11
+0.00
+57.11
+(0.00)
+57.11
+129b. Roof window (skylight), 6.1 - 9 sf
+1.00 EA
+1,180.37
+83.87
+1,264.24
+(0.00)
+1,264.24
+130a. Remove Roof window (skylight), up to 6 sf
+1.00 EA
+57.11
+0.00
+57.11
+(0.00)
+57.11
+130b. Roof window (skylight), up to 6 sf
+1.00 EA
+1,066.28
+75.48
+1,141.76
+(0.00)
+1,141.76
+131a. Remove Roof window (skylight), 10.1- 12 sf
+1.00 EA
+76.19
+0.00
+76.19
+(0.00)
+76.19
+131b. Roof window (skylight), 10.1- 12 sf
+1.00 EA
+1,327.61
+94.17
+1,421.78
+(0.00)
+1,421.78
+132. Gutter guard/screen
+0.00 LF
+4.38
+0.00
+0.00
+(0.00)
+0.00
+133. Detach & Reset Gutter guard/screen
+0.00 LF
+3.54
+0.00
+0.00
+(0.00)
+0.00
+134. Gutter/downspout - Detach & reset
+0.00 LF
+5.45
+0.00
+0.00
+(0.00)
+0.00
+135a. Remove Drip edge/gutter apron
+0.00 LF
+0.41
+0.00
+0.00
+(0.00)
+0.00
+135b. Drip edge/gutter apron
+0.00 LF
+3.09
+0.00
+0.00
+(0.00)
+0.00
+136a. Remove Drip edge
+0.00 LF
+0.41
+0.00
+0.00
+(0.00)
+0.00
+136b. Drip edge
+0.00 LF
+2.81
+0.00
+0.00
+(0.00)
+0.00
+137a. Remove Drip edge copper
+0.00 LF
+0.41
+0.00
+0.00
+(0.00)
+0.00
+137b. Drip edge - copper
+0.00 LF
+9.89
+0.00
+0.00
+(0.00)
+0.00
+138. Sheathing additional cost for H-clips
+0.00 SF
+0.12
+0.00
+0.00
+(0.00)
+0.00
+139a. Remove Sheathing - OSB - 1/2"
+0.00 SF
+0.72
+0.00
+0.00
+(0.00)
+0.00
+139b. Sheathing OSB 1/2"
+0.00 SF
+2.04
+0.00
+0.00
+(0.00)
+0.00
+140a. Remove Sheathing - OSB - 5/8"
+0.00 SF
+0.72
+0.00
+0.00
+(0.00)
+0.00
+140b. Sheathing - OSB - 5/8"
+0.00 SF
+2.33
+0.00
+0.00
+(0.00)
+0.00
+141. Apply roofing sealant/cement - per LF
+0.00 LF
+0.72
+0.00
+0.00
+(0.00)
+0.00
+142. Re-nailing of roof sheathing - complete re-nail
+0.00 SF
+0.24
+0.00
+0.00
+(0.00)
+0.00
+143. Solar electric panel - Detach & reset
+1.00 EA
+277.49
+0.00
+277.49
+(0.00)
+277.49
+144. Electrician - per hour
+1.00 HR
+129.73
+0.00
+129.73
+(0.00)
+129.73
+145. Solar panel- mounting hardware- Detach & reset
+(per panel)
+1.00 EA
+31.10
+0.00
+31.10
+(0.00)
+31.10
+146. Remove Additional charge for steep roof - 7/12 to
+9/12 slope
+0.00 SQ
+16.45
+0.00
+0.00
+(0.00)
+0.00
+147. Additional charge for steep roof - 7/12 to 9/12 slope
+0.00 SQ
+41.33
+0.00
+0.00
+(0.00)
+0.00
+Waste Calculation for Steep Facet
+148. Remove Additional charge for steep roof - 10/12 -
+12/12 slope
+0.00 SQ
+25.83
+0.00
+0.00
+(0.00)
+0.00
+149. Additional charge for steep roof - 10/12 - 12/12
+0.00 SQ
+64.99
+0.00
+0.00
+(0.00)
+0.00
+slope
+Waste Calculation for Steep Facet(s)
+150. Remove Additional charge for steep roof greater
+than 12/12 slope
+0.00 SQ
+33.11
+0.00
+0.00
+(0.00)
+0.00
+151. Additional charge for steep roof greater than 12/12
+slope
+0.00 SQ
+84.77
+0.00
+0.00
+(0.00)
+0.00
+MASTER ROOF MACRO
+9/24/2025
+Page: 8
+
+
+CONTINUED - MASTER_ROOF_MACRO
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+152. Remove Additional charge for high roof (2 stories
+or greater)
+0.00 SQ
+6.68
+0.00
+0.00
+(0.00)
+0.00
+153. Additional charge for high roof (2 stories or greater)
+0.00 SQ
+19.65
+0.00
+0.00
+(0.00)
+0.00
+154. Roofing General Laborer per hour
+0.00 HR
+56.25
+0.00
+0.00
+(0.00)
+0.00
+Used to address access issue scenarios where shingle delivery trucks cannot get close enough to roof load materials and shingles must be hand
+carried the rest of the way. If the roof is also 2 story then additional hours are needed.
+155. Roofing (Agreed Price)
+1.00 EA
+0.00
+0.00
+0.00
+(0.00)
+0.00
+156. Roofing (Bid Item)
+1.00 EA
+0.00
+0.00
+0.00
+(0.00)
+0.00
+157. Dumpster load - Approx. 12 yards, 1-3 tons of
+1.00 ΕΑ
+480.00
+0.00
+480.00
+(0.00) 480.00
+debris
+158. Dumpster load - Approx. 20 yards, 4 tons of debris
+1.00 EA
+690.00
+0.00
+690.00
+(0.00)
+690.00
+159. Dumpster load - Approx. 30 yards, 5-7 tons of
+1.00 EA
+865.00
+0.00
+865.00
+(0.00) 865.00
+debris
+160. Dumpster load - Approx. 40 yards, 7-8 tons of
+1.00 EA
+970.00
+0.00
+970.00
+(0.00)
+970.00
+debris
+161. Install Tarp all-purpose poly per sq ft (labor and
+material)
+1.00 SF
+0.71
+0.00
+0.71
+(0.00)
+0.71
+162. Material Only Tarp - all-purpose poly - per sq ft
+(labor and material)
+1.00 SF
+0.30
+0.02
+0.32
+(0.00)
+0.32
+Total: MASTER_ROOF_MACRO
+1,633.42
+35,266.71
+0.00 35,266.71
+Labor Minimums Applied
+DESCRIPTION
+QUANTITY UNIT PRICE
+TAX
+RCV
+DEPREC.
+ACV
+163. Temporary repair services labor minimum
+1.00 ΕΑ
+209.77
+0.00
+209.77
+(0.00)
+209.77
+Totals: Labor Minimums Applied
+0.00
+209.77
+0.00
+209.77
+

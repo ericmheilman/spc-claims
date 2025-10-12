@@ -1,23 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { 
-  FileText, 
-  Download, 
-  Share2, 
-  CheckCircle, 
-  AlertTriangle, 
-  TrendingUp,
-  Calculator,
-  Building,
-  DollarSign,
-  Calendar,
-  User,
-  Phone,
-  Mail,
-  MapPin
-} from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2 } from 'lucide-react';
+import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
 
 interface LineItem {
   line_number: string;
@@ -46,61 +32,26 @@ interface Category {
   };
 }
 
-interface EstimateData {
-  insured: {
-    name: string;
-    phone: string;
-    email: string;
-  };
-  property: {
-    address: string;
-  };
-  claimRep: {
-    name: string;
-    phone: string;
-    email: string;
-  };
-  estimator: string;
-  claimNumber: string;
-  policyNumber: string;
-  typeOfLoss: string;
-  insuranceCompany: string;
-  dates: {
-    dateOfLoss: string;
-    dateReceived: string;
-    dateInspected: string;
-    dateEntered: string;
-    dateEstCompleted: string;
-  };
-  priceList: string;
-  estimateId: string;
-  description: string;
-  categories: Category[];
-  summary: {
-    lineItemTotal: number;
-    materialSalesTax: number;
-    rcv: number;
-    depreciation: number;
-    acv: number;
-    deductible: number;
-    netClaim: number;
-    totalRecoverableDepreciation: number;
-    netClaimIfRecovered: number;
-    overheadProfit: number;
-    adjustedFinalRcv: number;
-    adjustedFinalAcv: number;
-    adjustedNetClaim: number;
-    adjustedNetClaimIfRecovered: number;
-  };
-}
-
 export default function EstimatePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [extractedLineItems, setExtractedLineItems] = useState<LineItem[]>([]);
   const [rawAgentData, setRawAgentData] = useState<any>(null);
+  
+  // Adjustment agent state
+  const [adjustmentAgentResult, setAdjustmentAgentResult] = useState<any>(null);
+  const [isRunningAdjustmentAgent, setIsRunningAdjustmentAgent] = useState(false);
+  const [showAdjustedEstimate, setShowAdjustedEstimate] = useState(false);
+  
+  // Claim waste percentage state
+  const [claimWasteResult, setClaimWasteResult] = useState<any>(null);
+  const [isCalculatingClaimWaste, setIsCalculatingClaimWaste] = useState(false);
+  
+  // RMM Unit Cost Comparator state
+  const [rmmAdjustedClaim, setRmmAdjustedClaim] = useState<any>(null);
+  const [isRunningRmmComparator, setIsRunningRmmComparator] = useState(false);
+  const [showRmmAdjustedClaim, setShowRmmAdjustedClaim] = useState(false);
 
   useEffect(() => {
     console.log('=== ESTIMATE PAGE DEBUG START ===');
@@ -114,184 +65,563 @@ export default function EstimatePage() {
     if (storedData) {
       try {
         const parsedData = JSON.parse(storedData);
-        console.log('Parsed data structure:', {
-          hasClaimAgentResponse: !!parsedData.claimAgentResponse,
-          hasRoofAgentResponse: !!parsedData.roofAgentResponse,
-          hasClaimOcrResponse: !!parsedData.claimOcrResponse,
-          hasRoofOcrResponse: !!parsedData.roofOcrResponse,
-          uploadedClaimFileName: parsedData.uploadedClaimFileName,
-          uploadedRoofFileName: parsedData.uploadedRoofFileName,
-          timestamp: parsedData.timestamp
-        });
-        
+        console.log('Parsed data:', parsedData);
         setRawAgentData(parsedData);
         
-        // Try to extract line items from the claim agent response
-        if (parsedData.claimAgentResponse && parsedData.claimAgentResponse.response) {
-          console.log('Claim agent response exists');
-          console.log('Response type:', typeof parsedData.claimAgentResponse.response);
-          console.log('Response preview (first 500 chars):', parsedData.claimAgentResponse.response.substring(0, 500));
+        // Extract line items from claim agent response
+        if (parsedData.claimAgentResponse?.response) {
+          console.log('Claim agent response type:', typeof parsedData.claimAgentResponse.response);
+          console.log('Claim agent response preview:', parsedData.claimAgentResponse.response.substring(0, 200));
+          
+          // Try to extract JSON array from the response
+          const responseStr = parsedData.claimAgentResponse.response;
+          let lineItemsArray = [];
           
           try {
-            // Try to parse as JSON array first
-            const responseText = parsedData.claimAgentResponse.response;
-            let lineItems: LineItem[] = [];
-            
-            // Check if response contains JSON array
-            const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-            console.log('JSON match found:', !!jsonMatch);
-            
-            if (jsonMatch) {
-              console.log('Matched JSON length:', jsonMatch[0].length);
-              lineItems = JSON.parse(jsonMatch[0]);
-              console.log('Successfully parsed line items count:', lineItems.length);
-              setExtractedLineItems(lineItems);
-              console.log('Parsed line items:', lineItems);
-            } else {
-              console.log('No JSON array pattern found in response');
+            // Try to parse as JSON directly
+            const parsed = JSON.parse(responseStr);
+            if (Array.isArray(parsed)) {
+              lineItemsArray = parsed;
+            } else if (parsed.response && Array.isArray(parsed.response)) {
+              lineItemsArray = parsed.response;
             }
-          } catch (parseError) {
-            console.error('Error parsing line items:', parseError);
-            console.error('Parse error details:', parseError instanceof Error ? parseError.message : 'Unknown error');
+          } catch (e) {
+            // Try to extract JSON array using regex
+            const jsonMatch = responseStr.match(/\[[\s\S]*?\]/);
+            if (jsonMatch) {
+              try {
+                lineItemsArray = JSON.parse(jsonMatch[0]);
+              } catch (parseError) {
+                console.error('Failed to parse extracted JSON array:', parseError);
+              }
+            }
           }
-        } else {
-          console.log('No claim agent response found in parsed data');
+          
+          console.log('Extracted line items array:', lineItemsArray);
+          setExtractedLineItems(lineItemsArray);
+        }
+      } catch (error) {
+        console.error('Error parsing stored data:', error);
+      }
+    }
+    
+    setLoading(false);
+    console.log('=== ESTIMATE PAGE DEBUG END ===');
+  }, []);
+
+  // Run RMM Unit Cost Comparator
+  const runRmmComparator = async () => {
+    console.log('=== RUNNING RMM UNIT COST COMPARATOR ===');
+    setIsRunningRmmComparator(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningRmmComparator(false);
+        return;
+      }
+
+      console.log('Preparing payload with line items...');
+      
+      // The agent has a Knowledge Base (roof_master_macro9wdb) with RMM data already
+      // So we just need to send the line items JSON
+      const lineItemsJson = JSON.stringify(extractedLineItems, null, 2);
+      
+      console.log('Line items JSON length:', lineItemsJson.length);
+      console.log('Line items count:', extractedLineItems.length);
+      console.log('Message preview:', lineItemsJson.substring(0, 500));
+
+      // Call the RMM comparator agent
+      const agentPayload = {
+        user_id: 'gdnaaccount@lyzr.ai',
+        agent_id: '68eaf673de8385f5b43204d9',
+        session_id: '68eaf673de8385f5b43204d9-' + Date.now(),
+        message: lineItemsJson
+      };
+      
+      console.log('Calling RMM agent with payload:', {
+        ...agentPayload,
+        message: `${agentPayload.message.substring(0, 200)}... (${agentPayload.message.length} chars total)`
+      });
+      
+      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+        },
+        body: JSON.stringify(agentPayload)
+      });
+
+      console.log('RMM agent response status:', response.status);
+
+      if (!response.ok) {
+        let errorDetails = `${response.status} ${response.statusText}`;
+        try {
+          const errorBody = await response.text();
+          console.error('Error response body:', errorBody);
+          errorDetails += `\n\nResponse: ${errorBody}`;
+        } catch (e) {
+          console.error('Could not read error body');
+        }
+        throw new Error(`RMM comparator agent failed: ${errorDetails}`);
+      }
+
+      const result = await response.json();
+      console.log('=== RMM COMPARATOR AGENT RESPONSE ===');
+      console.log('Full result:', result);
+      
+      // Parse the response
+      let rmmData = null;
+      
+      if (result.response) {
+        console.log('Response type:', typeof result.response);
+        console.log('Response preview:', result.response.substring(0, 1000));
+        
+        try {
+          let parsedResponse = null;
+          
+          // Try markdown code block
+          const jsonMatch = result.response.match(/```json\s*\n([\s\S]*?)\n```/);
+          if (jsonMatch && jsonMatch[1]) {
+            console.log('Found JSON in markdown block');
+            parsedResponse = JSON.parse(jsonMatch[1]);
+          } else {
+            // Try to find array pattern
+            const arrayMatch = result.response.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+              console.log('Found JSON array');
+              parsedResponse = JSON.parse(arrayMatch[0]);
+            } else {
+              // Try standalone JSON object
+              const jsonObjectMatch = result.response.match(/\{[\s\S]*"updated_line_items"[\s\S]*\}/);
+              if (jsonObjectMatch) {
+                console.log('Found standalone JSON object');
+                parsedResponse = JSON.parse(jsonObjectMatch[0]);
+              } else {
+                // Try direct parse
+                console.log('Attempting direct parse');
+                parsedResponse = JSON.parse(result.response);
+              }
+            }
+          }
+          
+          // Handle the response format: it could be an array with two objects
+          if (Array.isArray(parsedResponse)) {
+            console.log('Response is an array with', parsedResponse.length, 'elements');
+            // Find the objects containing updated_line_items and audit_log
+            const lineItemsObj = parsedResponse.find(obj => obj.updated_line_items);
+            const auditLogObj = parsedResponse.find(obj => obj.audit_log);
+            
+            if (lineItemsObj) {
+              rmmData = {
+                updated_line_items: lineItemsObj.updated_line_items,
+                audit_log: auditLogObj?.audit_log || []
+              };
+              console.log('✅ Extracted from array format');
+            }
+          } else if (parsedResponse && parsedResponse.updated_line_items) {
+            // It's already in the right format
+            rmmData = parsedResponse;
+            console.log('✅ Response is in object format');
+          }
+          
+        } catch (e) {
+          console.error('Failed to parse RMM comparator response:', e);
+          console.error('Parse error:', e);
+        }
+      }
+
+      if (!rmmData || !rmmData.updated_line_items) {
+        console.error('❌ Invalid RMM data structure');
+        console.error('Parsed data:', rmmData);
+        alert('Failed to parse RMM comparator response. Check console for details.');
+        setIsRunningRmmComparator(false);
+        return;
+      }
+
+      console.log('✅ Parsed RMM data successfully');
+      console.log('Updated line items:', rmmData.updated_line_items.length);
+      console.log('Audit log entries:', rmmData.audit_log?.length || 0);
+      console.log('Sample updated item:', rmmData.updated_line_items[0]);
+      console.log('Sample audit entry:', rmmData.audit_log?.[0]);
+      
+      setRmmAdjustedClaim(rmmData);
+      setShowRmmAdjustedClaim(true);
+      
+    } catch (error) {
+      console.error('Error running RMM comparator:', error);
+      alert(`Error running RMM comparator: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningRmmComparator(false);
+    }
+  };
+
+  // Calculate claim waste percentage
+  const calculateClaimWaste = async () => {
+    console.log('=== CALCULATING CLAIM WASTE PERCENTAGE ===');
+    setIsCalculatingClaimWaste(true);
+    
+    try {
+      if (!rawAgentData?.claimOcrResponse) {
+        alert('No claim OCR data available. Please upload and process documents first.');
+        setIsCalculatingClaimWaste(false);
+        return;
+      }
+
+      console.log('Sending claim OCR to waste percentage agent...');
+      console.log('Claim OCR length:', rawAgentData.claimOcrResponse.length);
+
+      // Call the claim waste percentage agent
+      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+        },
+        body: JSON.stringify({
+          user_id: 'gdnaaccount@lyzr.ai',
+          agent_id: '68eae51c8d106b3b3abb37f8',
+          session_id: '68eae51c8d106b3b3abb37f8-' + Date.now(),
+          message: rawAgentData.claimOcrResponse
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Claim waste agent failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('=== CLAIM WASTE AGENT RESPONSE ===');
+      console.log('Full result:', result);
+      
+      // Parse the response
+      let wasteData = null;
+      
+      if (result.response) {
+        console.log('Response type:', typeof result.response);
+        console.log('Response preview:', result.response.substring(0, 1000));
+        
+        try {
+          // Try markdown code block
+          const jsonMatch = result.response.match(/```json\s*\n([\s\S]*?)\n```/);
+          if (jsonMatch && jsonMatch[1]) {
+            console.log('Found JSON in markdown block');
+            wasteData = JSON.parse(jsonMatch[1]);
+          } else {
+            // Try standalone JSON
+            const jsonObjectMatch = result.response.match(/\{[\s\S]*?\}/);
+            if (jsonObjectMatch) {
+              console.log('Found standalone JSON');
+              wasteData = JSON.parse(jsonObjectMatch[0]);
+            } else {
+              // Try direct parse
+              console.log('Attempting direct parse');
+              wasteData = JSON.parse(result.response);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse claim waste response:', e);
+        }
+      }
+
+      if (!wasteData) {
+        alert('Failed to parse claim waste percentage response. Check console for details.');
+        setIsCalculatingClaimWaste(false);
+        return;
+      }
+
+      console.log('✅ Parsed claim waste data:', wasteData);
+      setClaimWasteResult(wasteData);
+      
+    } catch (error) {
+      console.error('Error calculating claim waste percentage:', error);
+      alert(`Error calculating claim waste percentage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCalculatingClaimWaste(false);
+    }
+  };
+
+  // Call the adjustment agent with line items and roof measurements
+  const runAdjustmentAgent = async () => {
+    console.log('=== RUNNING ADJUSTMENT AGENT ===');
+    setIsRunningAdjustmentAgent(true);
+    
+    try {
+      if (!rawAgentData?.roofAgentResponse?.response) {
+        alert('No roof measurement data available. Please upload and process documents first.');
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+
+      // Extract roof measurements JSON from the response
+      const roofResponseStr = rawAgentData.roofAgentResponse.response;
+      let roofMeasurementsObj = null;
+      
+      console.log('=== PARSING ROOF MEASUREMENTS ===');
+      console.log('Roof response type:', typeof roofResponseStr);
+      console.log('Roof response preview:', roofResponseStr?.substring(0, 500));
+      
+      try {
+        let rawContent = roofResponseStr;
+        
+        // Step 1: Try to parse as JSON object (might have "response" key)
+        try {
+          const outerJson = JSON.parse(roofResponseStr);
+          console.log('Parsed outer JSON:', outerJson);
+          if (outerJson && typeof outerJson === 'object' && 'response' in outerJson) {
+            rawContent = outerJson.response;
+            console.log('Extracted response from outer JSON object');
+          }
+        } catch (e) {
+          console.log('Not a JSON object, using as-is');
         }
         
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading stored data:', error);
-        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-        setLoading(false);
-      }
-    } else {
-      console.log('No stored data found, using fallback sample data');
-      // Fallback to sample data if no stored data
-      const sampleData: EstimateData = {
-      insured: {
-        name: "EUNJEE SABLAN",
-        phone: "(571) 228-8961",
-        email: "EUNSABLAN@YAHOO.COM"
-      },
-      property: {
-        address: "433 SANTA ANNA TRAIL, MARTINEZ, GA 30907-4900"
-      },
-      claimRep: {
-        name: "Christy Dean",
-        phone: "(800) 806-5570 x 1220723",
-        email: "cdeas@allstate.com"
-      },
-      estimator: "Grok 4 (Adjusted Estimate)",
-      claimNumber: "0771214871",
-      policyNumber: "000810846497",
-      typeOfLoss: "Windstorm and Hail",
-      insuranceCompany: "Allstate Vehicle and Property Insurance Company",
-      dates: {
-        dateOfLoss: "9/25/2024 12:00 AM",
-        dateReceived: "10/3/2024 8:27 AM",
-        dateInspected: "10/9/2024 1:42 PM",
-        dateEntered: "9/25/2025 12:00 PM",
-        dateEstCompleted: "9/25/2025 12:00 PM"
-      },
-      priceList: "SCCH8X_SEP25 (Updated from GAAU8X_MAY25 per current pricing and adjustments)",
-      estimateId: "ADJUSTED_EUNJEE_SABLAN1",
-      description: "This adjusted estimate incorporates discrepancies from the precise aerial measurement report (e.g., minor area variance of 3.4% adjusted down to 19.02 SQ per Rule 1, citing Report Page 2: Total Roof Area = 1,902 sq ft). Adjustments include upgrading to laminated shingles for complex roof (13 facets >10 per Rule 30), synthetic underlayment for high-wind zone (per Rule 38), added line items for omitted materials and labor (e.g., rake starter per Rule 6, ice & water barrier for valleys 17 ft >10 ft per Rule 22), ventilation upgrades to meet code (added ridge vent per Rule 126, NFA calculation: attic 1,700 sq ft requires 5.67 sq ft balanced; current turtle vents ~1.74 sq ft, added ridge 28 ft at 18 in²/LF = 3.5 sq ft total ~5.24 sq ft), override D&R to R&R for vents per IRC R908.5 (Rule 125), additional penetrations (11 vs 5 per Rule 27), flashing omissions (counterflashing 4 ft per Rule 28, step flashing 41 ft per Rule 29), sealant for penetrations area 12 sq ft >5 sq ft (per Rule 36), complex labor premium (per Rule 46), multi-story premium (stories >1 per Rule 47), permit fee (per Rule 58), weather delay contingency (per Rule 59), material escalation from May to Sep 2025 (4 months, 5% applied per Rule 85), and overhead & profit (20% for >$5k claim per Rule 82). Prices updated to current list (per Rule 96). Narratives for key adjustments (e.g., waste math per Rule 11: starter 220 ft + ridge/hip cap 164 ft requires ~3.84 SQ extra shingles if cut, equivalent cost ~$904 vs separate items $1,742; waste increased to 39% to match separate cost parity, but separate lines used here for laminated upgrade) support increases per Rule 100.",
-      categories: [
-        {
-          name: "Dwelling Roof",
-          items: [
-            { description: "Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt", quantity: "19.02", unitPrice: 65.96, tax: 0.00, rcv: 1254.66, depreciation: 0.00, acv: 1254.66 },
-            { description: "Roofing felt - synthetic underlayment", quantity: "19.02", unitPrice: 47.68, tax: 0.00, rcv: 907.27, depreciation: 635.09, acv: 272.18 },
-            { description: "Laminated - comp. shingle rfg. - w/out felt (23% waste applied)", quantity: "23.39", unitPrice: 249.37, tax: 0.00, rcv: 5831.77, depreciation: 3265.79, acv: 2565.98 },
-            { description: "Additional premium for laminated upgrade (10%)", quantity: "1.00", unitPrice: 583.18, tax: 0.00, rcv: 583.18, depreciation: 326.58, acv: 256.60 },
-            { description: "R&R Roof vent - turtle type - Metal (override D&R to R&R)", quantity: "5.00", unitPrice: 84.79, tax: 0.00, rcv: 423.95, depreciation: 169.58, acv: 254.37 },
-            { description: "Flashing - pipe jack (additional 6 + original 5)", quantity: "11.00", unitPrice: 59.03, tax: 0.00, rcv: 649.33, depreciation: 259.73, acv: 389.60 },
-            { description: "Drip edge", quantity: "232.00", unitPrice: 3.22, tax: 0.00, rcv: 746.24, depreciation: 298.50, acv: 447.74 },
-            { description: "Remove Additional charge for high roof (2 stories or greater) (adjusted SQ)", quantity: "11.63", unitPrice: 6.68, tax: 0.00, rcv: 77.69, depreciation: 0.00, acv: 77.69 },
-            { description: "Additional charge for high roof (2 stories or greater) (adjusted SQ)", quantity: "11.63", unitPrice: 19.65, tax: 0.00, rcv: 228.55, depreciation: 0.00, acv: 228.55 },
-            { description: "Asphalt starter - universal starter course (eaves + rakes)", quantity: "232.00", unitPrice: 1.73, tax: 0.00, rcv: 401.36, depreciation: 224.76, acv: 176.60 },
-            { description: "Hip / Ridge cap - Standard profile - Composition Shingles", quantity: "164.00", unitPrice: 8.30, tax: 0.00, rcv: 1361.20, depreciation: 762.27, acv: 598.93 },
-            { description: "Counterflashing - Apron flashing", quantity: "4.00", unitPrice: 11.00, tax: 0.00, rcv: 44.00, depreciation: 24.64, acv: 19.36 },
-            { description: "Step flashing", quantity: "41.00", unitPrice: 10.28, tax: 0.00, rcv: 421.48, depreciation: 236.03, acv: 185.45 },
-            { description: "Apply roofing sealant/cement - per LF", quantity: "37.00", unitPrice: 0.72, tax: 0.00, rcv: 26.64, depreciation: 0.00, acv: 26.64 },
-            { description: "Ice & water barrier (for valleys)", quantity: "51.00", unitPrice: 1.63, tax: 0.00, rcv: 83.13, depreciation: 46.55, acv: 36.58 },
-            { description: "Continuous ridge vent - shingle-over style (for ventilation adequacy)", quantity: "28.00", unitPrice: 10.87, tax: 0.00, rcv: 304.36, depreciation: 0.00, acv: 304.36 },
-            { description: "Roofing - General Laborer - per hour (complex roof premium 10% materials)", quantity: "21.00", unitPrice: 56.25, tax: 0.00, rcv: 1181.25, depreciation: 0.00, acv: 1181.25 },
-            { description: "Roofing - General Laborer - per hour (multi-story premium ~15% labor)", quantity: "4.00", unitPrice: 56.25, tax: 0.00, rcv: 225.00, depreciation: 0.00, acv: 225.00 },
-            { description: "Roofing (Bid Item) - Permit fee", quantity: "1.00", unitPrice: 150.00, tax: 0.00, rcv: 150.00, depreciation: 0.00, acv: 150.00 },
-            { description: "Roofing - General Laborer - per hour (weather delay contingency 3%)", quantity: "8.00", unitPrice: 56.25, tax: 0.00, rcv: 450.00, depreciation: 0.00, acv: 450.00 },
-            { description: "Roofing (Bid Item) - Material escalation (5%)", quantity: "1.00", unitPrice: 589.39, tax: 0.00, rcv: 589.39, depreciation: 0.00, acv: 589.39 },
-            { description: "Roofing (Bid Item) - Contingency for hidden damages (e.g., sheathing)", quantity: "1.00", unitPrice: 500.00, tax: 0.00, rcv: 500.00, depreciation: 0.00, acv: 500.00 }
-          ],
-          totals: { rcv: 16436.78, depreciation: 6277.19, acv: 10159.59 }
-        },
-        {
-          name: "Interior",
-          items: [
-            { description: "Seal/prime then paint the surface area (2 coats) - Ceiling Repair", quantity: "20.00", unitPrice: 1.31, tax: 0.00, rcv: 26.20, depreciation: 0.00, acv: 26.20 },
-            { description: "Paint the surface area - one coat - Ceiling repair", quantity: "121.00", unitPrice: 0.92, tax: 0.00, rcv: 111.32, depreciation: 74.21, acv: 37.11 },
-            { description: "Paint the surface area - one coat - Ceiling repair (Bathroom)", quantity: "144.67", unitPrice: 0.92, tax: 0.00, rcv: 133.10, depreciation: 88.73, acv: 44.37 },
-            { description: "Seal/prime then paint the surface area (2 coats) - Ceiling repair (Bathroom)", quantity: "24.00", unitPrice: 1.31, tax: 0.00, rcv: 31.44, depreciation: 0.00, acv: 31.44 }
-          ],
-          totals: { rcv: 302.06, depreciation: 162.94, acv: 139.12 }
-        },
-        {
-          name: "Dwelling Elevation",
-          items: [
-            { description: "R&R Siding - beveled - cedar (clapboard)", quantity: "3.00", unitPrice: 11.28, tax: 0.00, rcv: 33.84, depreciation: 0.00, acv: 33.84 },
-            { description: "Seal & paint wood siding", quantity: "3.00", unitPrice: 2.52, tax: 0.00, rcv: 7.56, depreciation: 0.00, acv: 7.56 },
-            { description: "Paint wood siding - 1 coat", quantity: "956.00", unitPrice: 1.68, tax: 0.00, rcv: 1606.08, depreciation: 0.00, acv: 1606.08 }
-          ],
-          totals: { rcv: 1647.48, depreciation: 0.00, acv: 1647.48 }
-        },
-        {
-          name: "Tarp",
-          items: [
-            { description: "R&R Tarp - all-purpose poly - per sq ft (labor and material)", quantity: "103.00", unitPrice: 1.09, tax: 0.00, rcv: 112.27, depreciation: 0.00, acv: 112.27 },
-            { description: "Roofer - per hour", quantity: "2.00", unitPrice: 120.34, tax: 0.00, rcv: 240.68, depreciation: 0.00, acv: 240.68 }
-          ],
-          totals: { rcv: 352.95, depreciation: 0.00, acv: 352.95 }
-        },
-        {
-          name: "General Items",
-          items: [
-            { description: "Haul debris - per pickup truck load - including dump fees", quantity: "0.25", unitPrice: 165.06, tax: 0.00, rcv: 41.27, depreciation: 0.00, acv: 41.27 }
-          ],
-          totals: { rcv: 41.27, depreciation: 0.00, acv: 41.27 }
-        },
-        {
-          name: "Labor Minimums Applied",
-          items: [
-            { description: "Siding labor minimum", quantity: "1.00", unitPrice: 385.55, tax: 0.00, rcv: 385.55, depreciation: 0.00, acv: 385.55 },
-            { description: "Temporary repair services labor minimum", quantity: "1.00", unitPrice: 115.64, tax: 0.00, rcv: 115.64, depreciation: 0.00, acv: 115.64 }
-          ],
-          totals: { rcv: 501.19, depreciation: 0.00, acv: 501.19 }
+        // Step 2: Extract JSON from markdown code block (```json\n{...}\n```)
+        const markdownMatch = rawContent.match(/```json\s*\n([\s\S]*?)\n```/);
+        if (markdownMatch && markdownMatch[1]) {
+          try {
+            roofMeasurementsObj = JSON.parse(markdownMatch[1]);
+            console.log('✅ Successfully parsed JSON from markdown code block');
+            console.log('Parsed roof measurements:', roofMeasurementsObj);
+          } catch (e) {
+            console.warn('Failed to parse JSON from markdown block:', e);
+          }
         }
-      ],
-      summary: {
-        lineItemTotal: 19281.73,
-        materialSalesTax: 0.00,
-        rcv: 19281.73,
-        depreciation: 6440.13,
-        acv: 12841.60,
-        deductible: 2500.00,
-        netClaim: 10341.60,
-        totalRecoverableDepreciation: 6440.13,
-        netClaimIfRecovered: 16781.73,
-        overheadProfit: 3856.35,
-        adjustedFinalRcv: 23138.08,
-        adjustedFinalAcv: 16697.95,
-        adjustedNetClaim: 14197.95,
-        adjustedNetClaimIfRecovered: 20638.08
+        
+        // Step 3: If no markdown block, try to find a standalone JSON object
+        if (!roofMeasurementsObj) {
+          const jsonMatch = rawContent.match(/(\{[\s\S]*?\})/);
+          if (jsonMatch && jsonMatch[1]) {
+            try {
+              roofMeasurementsObj = JSON.parse(jsonMatch[1]);
+              console.log('✅ Successfully parsed standalone JSON object');
+              console.log('Parsed roof measurements:', roofMeasurementsObj);
+            } catch (e) {
+              console.warn('Failed to parse standalone JSON object:', e);
+            }
+          }
+        }
+        
+        // Step 4: Try parsing the raw content directly
+        if (!roofMeasurementsObj) {
+          try {
+            roofMeasurementsObj = JSON.parse(rawContent);
+            console.log('✅ Successfully parsed raw content as JSON');
+            console.log('Parsed roof measurements:', roofMeasurementsObj);
+          } catch (e) {
+            console.warn('Failed to parse raw content as JSON:', e);
+          }
+        }
+        
+      } catch (e) {
+        console.error('Error in roof measurements parsing:', e);
       }
-    };
 
-      setTimeout(() => {
-        setEstimateData(sampleData);
-        setLoading(false);
-      }, 1000);
+      if (!roofMeasurementsObj) {
+        console.error('❌ Could not parse roof measurements');
+        console.error('Full roof response:', roofResponseStr);
+        alert('Could not parse roof measurements for adjustment agent. Check console for details.');
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+      
+      console.log('✅ Final roof measurements object:', roofMeasurementsObj);
+
+      // Combine line items and roof measurements into the message
+      const messagePayload = JSON.stringify(extractedLineItems) + '\n\n' + JSON.stringify(roofMeasurementsObj);
+      
+      console.log('Sending to adjustment agent:', {
+        lineItemsCount: extractedLineItems.length,
+        roofMeasurements: roofMeasurementsObj,
+        messageLength: messagePayload.length
+      });
+
+      // Call the adjustment agent
+      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+        },
+        body: JSON.stringify({
+          user_id: 'gdnaaccount@lyzr.ai',
+          agent_id: '68e92ded1945df86d876afc6',
+          session_id: '68e92ded1945df86d876afc6-' + Date.now(),
+          message: messagePayload
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Adjustment agent failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('=== ADJUSTMENT AGENT RESPONSE ===');
+      console.log('Full result object:', result);
+      console.log('Result keys:', Object.keys(result));
+      
+      // Parse the response - try multiple strategies
+      let adjustedData = null;
+      let parseError = null;
+      
+      if (!result.response) {
+        console.error('❌ No response field in result object');
+        alert(`Adjustment agent returned no response field.\n\nReceived keys: ${Object.keys(result).join(', ')}\n\nCheck console for full details.`);
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+      
+      console.log('Response type:', typeof result.response);
+      console.log('Response length:', result.response?.length || 0);
+      console.log('Response preview (first 1000 chars):', result.response.substring(0, 1000));
+      
+      try {
+        // Strategy 1: Try to extract JSON from markdown code block
+        console.log('Trying Strategy 1: Markdown code block extraction...');
+        const jsonMatch = result.response.match(/```json\s*\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+          console.log('✓ Found JSON in markdown block, attempting parse...');
+          console.log('Extracted content preview:', jsonMatch[1].substring(0, 500));
+          try {
+            adjustedData = JSON.parse(jsonMatch[1]);
+            console.log('✅ Successfully parsed from markdown block');
+          } catch (e) {
+            console.error('✗ Failed to parse markdown block:', e);
+            parseError = `Markdown parse error: ${e}`;
+          }
+        } else {
+          console.log('✗ No markdown code block found');
+        }
+        
+        // Strategy 2: Try to find a JSON object pattern
+        if (!adjustedData) {
+          console.log('Trying Strategy 2: JSON object pattern search...');
+          const jsonObjectMatch = result.response.match(/\{[\s\S]*?"modified_estimate"[\s\S]*?\}/);
+          if (jsonObjectMatch) {
+            console.log('✓ Found JSON object pattern, attempting parse...');
+            console.log('Extracted content preview:', jsonObjectMatch[0].substring(0, 500));
+            try {
+              adjustedData = JSON.parse(jsonObjectMatch[0]);
+              console.log('✅ Successfully parsed from JSON pattern');
+            } catch (e) {
+              console.error('✗ Failed to parse JSON pattern:', e);
+              parseError = `Pattern parse error: ${e}`;
+            }
+          } else {
+            console.log('✗ No JSON object pattern found');
+          }
+        }
+        
+        // Strategy 3: Try to parse directly
+        if (!adjustedData) {
+          console.log('Trying Strategy 3: Direct parse...');
+          try {
+            adjustedData = JSON.parse(result.response);
+            console.log('✅ Successfully parsed directly');
+          } catch (e) {
+            console.error('✗ Failed to parse directly:', e);
+            parseError = `Direct parse error: ${e}`;
+          }
+        }
+        
+        // Strategy 4: Try to find ANY JSON object in the response
+        if (!adjustedData) {
+          console.log('Trying Strategy 4: Any JSON object search...');
+          const anyJsonMatch = result.response.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+          if (anyJsonMatch && anyJsonMatch.length > 0) {
+            console.log(`✓ Found ${anyJsonMatch.length} potential JSON objects`);
+            for (let i = 0; i < anyJsonMatch.length; i++) {
+              try {
+                const parsed = JSON.parse(anyJsonMatch[i]);
+                if (parsed.modified_estimate) {
+                  adjustedData = parsed;
+                  console.log(`✅ Successfully parsed from JSON object ${i + 1}`);
+                  break;
+                }
+              } catch (e) {
+                console.log(`✗ Failed to parse JSON object ${i + 1}`);
+              }
+            }
+          } else {
+            console.log('✗ No JSON objects found');
+          }
+        }
+        
+      } catch (e) {
+        console.error('❌ Unexpected error during parsing:', e);
+        parseError = `Unexpected error: ${e}`;
+      }
+      
+      // Validate the parsed data
+      if (!adjustedData) {
+        console.error('❌ Failed to parse adjustment agent response');
+        console.error('Last parse error:', parseError);
+        console.error('Full response:', result.response);
+        alert(`Failed to parse adjustment agent response.\n\nError: ${parseError}\n\nResponse preview:\n${result.response.substring(0, 500)}\n\nCheck console for full details.`);
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+      
+      console.log('Parsed data structure:', {
+        hasModifiedEstimate: !!adjustedData.modified_estimate,
+        modifiedEstimateType: typeof adjustedData.modified_estimate,
+        isArray: Array.isArray(adjustedData.modified_estimate),
+        hasDelta: !!adjustedData.delta,
+        keys: Object.keys(adjustedData)
+      });
+      
+      if (!adjustedData.modified_estimate) {
+        console.error('❌ Missing modified_estimate field');
+        console.error('Available fields:', Object.keys(adjustedData));
+        console.error('Parsed data:', adjustedData);
+        alert(`Adjustment agent response missing "modified_estimate" field.\n\nAvailable fields: ${Object.keys(adjustedData).join(', ')}\n\nCheck console for full details.`);
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+      
+      if (!Array.isArray(adjustedData.modified_estimate)) {
+        console.error('❌ modified_estimate is not an array');
+        console.error('Type:', typeof adjustedData.modified_estimate);
+        console.error('Value:', adjustedData.modified_estimate);
+        alert(`Adjustment agent "modified_estimate" is not an array.\n\nType: ${typeof adjustedData.modified_estimate}\n\nCheck console for full details.`);
+        setIsRunningAdjustmentAgent(false);
+        return;
+      }
+      
+      if (adjustedData.modified_estimate.length === 0) {
+        console.warn('⚠️ Warning: modified_estimate array is empty');
+      }
+      
+      if (!adjustedData.delta) {
+        console.warn('⚠️ Warning: No delta object in response, creating empty one');
+        adjustedData.delta = { added: [], removed: [], updated: [] };
+      }
+      
+      console.log('✅ Successfully validated adjustment data');
+      console.log('Modified estimate items:', adjustedData.modified_estimate.length);
+      console.log('Delta - Added:', adjustedData.delta.added?.length || 0);
+      console.log('Delta - Updated:', adjustedData.delta.updated?.length || 0);
+      console.log('Delta - Removed:', adjustedData.delta.removed?.length || 0);
+      console.log('Sample item:', adjustedData.modified_estimate[0]);
+
+      setAdjustmentAgentResult(adjustedData);
+      setShowAdjustedEstimate(true);
+      console.log('✅ Adjustment agent completed successfully');
+      
+    } catch (error) {
+      console.error('Error running adjustment agent:', error);
+      alert(`Error running adjustment agent: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningAdjustmentAgent(false);
     }
-  }, []);
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -300,23 +630,9 @@ export default function EstimatePage() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading extracted claim data...</p>
@@ -325,18 +641,20 @@ export default function EstimatePage() {
     );
   }
 
-  if (!estimateData && extractedLineItems.length === 0) {
+  if (extractedLineItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Claim Data Available</h2>
-          <p className="text-gray-600 mb-4">Please upload and process insurance claim documents first.</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto">
+          <div className="bg-yellow-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">No Claim Data Available</h1>
+          <p className="text-gray-600 mb-6">Please upload and process insurance claim documents first.</p>
           <button
             onClick={() => router.push('/')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold transition-colors"
           >
-            Return to Home
+            Go to Upload Page
           </button>
         </div>
       </div>
@@ -344,30 +662,56 @@ export default function EstimatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <FileText className="w-8 h-8 text-blue-600 mr-3" />
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Adjusted Insurance Estimate</h1>
                 <p className="text-sm text-blue-600">SPC Claims Processing System</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <button className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share
-              </button>
-              <button className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900">
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={runRmmComparator}
+                disabled={isRunningRmmComparator || !rawAgentData}
+                className={`flex items-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                  isRunningRmmComparator || !rawAgentData
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl transform hover:-translate-y-0.5'
+                }`}
+              >
+                <span className="text-xl mr-2">💰</span>
+                {isRunningRmmComparator ? 'Comparing...' : 'RMM Unit Cost Comparator'}
               </button>
               <button
+                onClick={calculateClaimWaste}
+                disabled={isCalculatingClaimWaste || !rawAgentData}
+                className={`flex items-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                  isCalculatingClaimWaste || !rawAgentData
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                    : 'bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-700 hover:to-amber-700 hover:shadow-xl transform hover:-translate-y-0.5'
+                }`}
+              >
+                <span className="text-xl mr-2">📊</span>
+                {isCalculatingClaimWaste ? 'Calculating...' : 'Calculate Claim Waste %'}
+              </button>
+              <button
+                onClick={runAdjustmentAgent}
+                disabled={isRunningAdjustmentAgent || !rawAgentData || extractedLineItems.length === 0}
+                className={`flex items-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                  isRunningAdjustmentAgent || !rawAgentData || extractedLineItems.length === 0
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-xl transform hover:-translate-y-0.5'
+                }`}
+              >
+                <Settings className="w-5 h-5 mr-2" />
+                {isRunningAdjustmentAgent ? 'Processing...' : 'Apply AI Adjustments'}
+              </button>
+              <button 
                 onClick={() => router.push('/')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-6 py-3 bg-white text-gray-700 rounded-xl hover:bg-gray-50 border border-gray-200 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 New Estimate
               </button>
@@ -376,670 +720,1360 @@ export default function EstimatePage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Debug Information Panel */}
-        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 mb-8">
-          <h2 className="text-lg font-bold text-yellow-900 mb-4">🔍 Debug Information</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold text-yellow-800">LocalStorage Data:</span>
-              <span className={`px-2 py-1 rounded ${localStorage.getItem('extractedClaimData') ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                {localStorage.getItem('extractedClaimData') ? '✓ Found' : '✗ Not Found'}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold text-yellow-800">Raw Agent Data:</span>
-              <span className={`px-2 py-1 rounded ${rawAgentData ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                {rawAgentData ? '✓ Loaded' : '✗ Not Loaded'}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold text-yellow-800">Extracted Line Items:</span>
-              <span className={`px-2 py-1 rounded ${extractedLineItems.length > 0 ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                {extractedLineItems.length > 0 ? `✓ ${extractedLineItems.length} items` : '✗ 0 items'}
-              </span>
-            </div>
-            {rawAgentData && (
-              <>
-                <div className="mt-3 pt-3 border-t border-yellow-300">
-                  <p className="font-semibold text-yellow-800 mb-2">Loaded Data Details:</p>
-                  <ul className="space-y-1 text-xs text-yellow-900 ml-4">
-                    <li>• Claim File: {rawAgentData.uploadedClaimFileName || 'N/A'}</li>
-                    <li>• Roof File: {rawAgentData.uploadedRoofFileName || 'N/A'}</li>
-                    <li>• Timestamp: {rawAgentData.timestamp ? new Date(rawAgentData.timestamp).toLocaleString() : 'N/A'}</li>
-                    <li>• Has Claim Agent Response: {rawAgentData.claimAgentResponse ? 'Yes' : 'No'}</li>
-                    <li>• Has Roof Agent Response: {rawAgentData.roofAgentResponse ? 'Yes' : 'No'}</li>
-                    {rawAgentData.claimAgentResponse && (
-                      <>
-                        <li>• Claim Agent Response Type: {typeof rawAgentData.claimAgentResponse.response}</li>
-                        <li>• Response Preview: {rawAgentData.claimAgentResponse.response ? rawAgentData.claimAgentResponse.response.substring(0, 100) + '...' : 'Empty'}</li>
-                      </>
-                    )}
-                  </ul>
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Adjusted Estimate Display */}
+          {adjustmentAgentResult && showAdjustedEstimate && (
+            <div className="mb-8 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold text-white mb-2">✨ AI-Adjusted Estimate</h2>
+                    <p className="text-green-100 text-lg">Professional adjustments applied using advanced AI analysis</p>
+                  </div>
+                  <button
+                    onClick={() => setShowAdjustedEstimate(false)}
+                    className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 font-semibold transition-all duration-200 border border-white/30"
+                  >
+                    Hide Results
+                  </button>
                 </div>
-                <div className="mt-3 pt-3 border-t border-yellow-300">
-                  <details className="cursor-pointer">
-                    <summary className="font-semibold text-yellow-800 hover:text-yellow-900">
-                      View Full Raw Data (Click to expand)
-                    </summary>
-                    <div className="mt-2 bg-white rounded p-3 max-h-96 overflow-auto">
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
-                        {JSON.stringify(rawAgentData, null, 2)}
-                      </pre>
-                    </div>
-                  </details>
-                </div>
-              </>
-            )}
-            <div className="mt-3 pt-3 border-t border-yellow-300">
-              <p className="text-xs text-yellow-700">
-                💡 Check the browser console (F12) for detailed parsing logs
-              </p>
-            </div>
-          </div>
-        </div>
+              </div>
 
-        {/* Extracted Line Items from Agent */}
-        {extractedLineItems.length > 0 && (
-          <>
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-6 mb-8 shadow-lg">
-              <h2 className="text-2xl font-bold mb-2">🎯 Extracted Insurance Claim Line Items</h2>
-              <p className="text-blue-100">Automatically extracted from insurance claim PDF using AI Agent (68e559ebdc57add4679b89dd)</p>
-              <div className="mt-4 flex items-center space-x-6 text-sm">
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  <span>{extractedLineItems.length} Line Items</span>
+              {/* Delta Summary */}
+              {adjustmentAgentResult.delta && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6">📊 Adjustment Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-green-500">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-green-100 rounded-full">
+                          <span className="text-2xl">➕</span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-3xl font-bold text-green-600">
+                            {adjustmentAgentResult.delta.added?.length || 0}
+                          </div>
+                          <div className="text-sm font-medium text-gray-600">Items Added</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-blue-500">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-blue-100 rounded-full">
+                          <span className="text-2xl">✏️</span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-3xl font-bold text-blue-600">
+                            {adjustmentAgentResult.delta.updated?.length || 0}
+                          </div>
+                          <div className="text-sm font-medium text-gray-600">Items Updated</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-red-500">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-red-100 rounded-full">
+                          <span className="text-2xl">🗑️</span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-3xl font-bold text-red-600">
+                            {adjustmentAgentResult.delta.removed?.length || 0}
+                          </div>
+                          <div className="text-sm font-medium text-gray-600">Items Removed</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <FileText className="w-4 h-4 mr-2" />
-                  <span>{rawAgentData?.uploadedClaimFileName || 'Insurance Claim PDF'}</span>
+              )}
+
+              {/* Modified Line Items Table */}
+              <div className="p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Adjusted Line Items</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Line</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Qty</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {adjustmentAgentResult.modified_estimate?.map((item: any, index: number) => {
+                        // Check if this item was added (look for matching line_number or description in delta.added)
+                        const isAdded = adjustmentAgentResult.delta?.added?.some((a: any) => 
+                          (a.line_number === item.line_number) || 
+                          (item.line_number === null && a.description === item.description)
+                        );
+                        
+                        // Check if this item was updated (look for matching line_number in delta.updated)
+                        const updateInfo = adjustmentAgentResult.delta?.updated?.find((u: any) => 
+                          String(u.line_number) === String(item.line_number)
+                        );
+                        
+                        // Check if this item was removed
+                        const isRemoved = adjustmentAgentResult.delta?.removed?.some((r: any) => 
+                          String(r.line_number) === String(item.line_number)
+                        );
+                        
+                        const rowClass = isAdded ? 'bg-green-50 border-l-4 border-green-500' : 
+                                        updateInfo ? 'bg-blue-50 border-l-4 border-blue-500' : 
+                                        isRemoved ? 'bg-red-50 border-l-4 border-red-500' : 
+                                        'hover:bg-gray-50';
+                        
+                        // Get the justification note
+                        let justificationNote = '';
+                        if (isAdded) {
+                          const addedInfo = adjustmentAgentResult.delta.added.find((a: any) => 
+                            (a.line_number === item.line_number) || 
+                            (item.line_number === null && a.description === item.description)
+                          );
+                          justificationNote = addedInfo?.note || '';
+                        } else if (updateInfo) {
+                          justificationNote = updateInfo.note || '';
+                        }
+                        
+                        return (
+                          <tr key={index} className={rowClass}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {item.line_number || '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <div className="max-w-md">
+                                <div className="font-medium mb-1">{item.description}</div>
+                                {isAdded && (
+                                  <div className="mt-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white">
+                                      ✨ NEW ITEM
+                                    </span>
+                                  </div>
+                                )}
+                                {updateInfo && (
+                                  <div className="mt-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-600 text-white">
+                                      🔄 MODIFIED
+                                    </span>
+                                  </div>
+                                )}
+                                {justificationNote && (
+                                  <div className="mt-2 p-2 bg-yellow-50 border-l-2 border-yellow-400 rounded text-xs text-gray-700">
+                                    <span className="font-semibold text-yellow-800">Reason: </span>
+                                    {justificationNote}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {updateInfo?.changes?.quantity ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
+                                    {item.quantity?.toFixed(2)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {updateInfo.changes.quantity.before?.toFixed(2)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{item.quantity?.toFixed(2)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {item.unit}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {updateInfo?.changes?.unit_cost ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.unit_price || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(updateInfo.changes.unit_cost.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {updateInfo?.changes?.rcv ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.RCV || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(updateInfo.changes.rcv.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{formatCurrency(item.RCV || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {updateInfo?.changes?.depreciation_amount ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.depreciation_amount || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(updateInfo.changes.depreciation_amount.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-700">{formatCurrency(item.depreciation_amount || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {updateInfo?.changes?.acv ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.ACV || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(updateInfo.changes.acv.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{formatCurrency(item.ACV || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {(isAdded || updateInfo) && updateInfo?.changes && (
+                                <button 
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-xs"
+                                  onClick={() => {
+                                    const changesText = Object.entries(updateInfo.changes)
+                                      .map(([field, change]: [string, any]) => 
+                                        `${field}: ${change.before} → ${change.after}`
+                                      ).join('\n');
+                                    alert(`Changes to Line ${item.line_number}:\n\n${changesText}\n\nReason: ${justificationNote}`);
+                                  }}
+                                >
+                                  View All Changes
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr className="font-bold">
+                        <td colSpan={5} className="px-6 py-4 text-right text-sm text-gray-700">
+                          Totals:
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-blue-50">
+                          {formatCurrency(adjustmentAgentResult.modified_estimate?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
+                          {formatCurrency(adjustmentAgentResult.modified_estimate?.reduce((sum: number, item: any) => sum + (item.depreciation_amount || 0), 0) || 0)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
+                          {formatCurrency(adjustmentAgentResult.modified_estimate?.reduce((sum: number, item: any) => sum + (item.ACV || 0), 0) || 0)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 px-8 py-6">
+                <h4 className="text-lg font-semibold text-gray-700 mb-4">🎨 Color Guide</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-green-50 border-l-4 border-green-500 rounded mr-3 mt-1"></div>
+                    <div>
+                      <div className="text-gray-900 font-bold">Green Row</div>
+                      <div className="text-gray-600">New line item added</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-blue-50 border-l-4 border-blue-500 rounded mr-3 mt-1"></div>
+                    <div>
+                      <div className="text-gray-900 font-bold">Blue Row</div>
+                      <div className="text-gray-600">Item modified/updated</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded mr-3 text-xs mt-1">Value</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Blue Badge</div>
+                      <div className="text-gray-600">Changed value</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-yellow-50 border-l-2 border-yellow-400 rounded mr-3 mt-1"></div>
+                    <div>
+                      <div className="text-gray-900 font-bold">Yellow Box</div>
+                      <div className="text-gray-600">Justification/reason</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-900">
+                    <span className="font-semibold">💡 Tip:</span> Modified values show the new value prominently with the old value crossed out below. 
+                    Justifications appear directly under item descriptions for easy reference.
+                  </p>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Group line items by category */}
-            {(() => {
-              const categorizedItems: { [key: string]: LineItem[] } = {};
-              extractedLineItems.forEach(item => {
-                const cat = item.category || 'Other';
-                if (!categorizedItems[cat]) {
-                  categorizedItems[cat] = [];
-                }
-                categorizedItems[cat].push(item);
-              });
+          {/* RMM Adjusted Claim Display */}
+          {rmmAdjustedClaim && showRmmAdjustedClaim && (
+            <div className="mb-8 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold text-white mb-2">💰 RMM Unit Cost Adjusted Claim</h2>
+                    <p className="text-purple-100 text-lg">Prices updated based on Roof Master Macro database</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRmmAdjustedClaim(false)}
+                    className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 font-semibold transition-all duration-200 border border-white/30"
+                  >
+                    Hide Results
+                  </button>
+                </div>
+              </div>
 
-              return Object.entries(categorizedItems).map(([categoryName, items]) => {
-                // Calculate category totals
-                const categoryTotals = items.reduce((acc, item) => ({
-                  rcv: acc.rcv + (item.RCV || 0),
-                  depreciation: acc.depreciation + (item.depreciation_amount || 0),
-                  acv: acc.acv + (item.ACV || 0)
-                }), { rcv: 0, depreciation: 0, acv: 0 });
-
-                return (
-                  <div key={categoryName} className="bg-white rounded-lg shadow-sm border mb-8">
-                    <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-                      <h3 className="text-xl font-bold text-gray-900">📂 {categoryName}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{items.length} items</p>
-                    </div>
-                    
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">RCV</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age/Life</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dep %</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depreciation</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ACV</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {items.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-500">{item.line_number}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 max-w-md">{item.description}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{item.quantity}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600">{item.unit}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(item.unit_price)}</td>
-                              <td className="px-4 py-3 text-sm font-medium text-green-600">{formatCurrency(item.RCV)}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{item.age_life}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600">{item.dep_percent !== null ? `${item.dep_percent}%` : '-'}</td>
-                              <td className="px-4 py-3 text-sm text-red-600">
-                                {item.depreciation_amount > 0 ? `(${formatCurrency(item.depreciation_amount)})` : formatCurrency(0)}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium text-blue-600">{formatCurrency(item.ACV)}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{item.location_room || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-                          <tr className="font-bold">
-                            <td className="px-4 py-4 text-sm text-gray-900" colSpan={5}>
-                              Category Total: {categoryName}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-green-700">
-                              {formatCurrency(categoryTotals.rcv)}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-900" colSpan={2}></td>
-                            <td className="px-4 py-4 text-sm text-red-700">
-                              ({formatCurrency(categoryTotals.depreciation)})
-                            </td>
-                            <td className="px-4 py-4 text-sm text-blue-700">
-                              {formatCurrency(categoryTotals.acv)}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-900"></td>
-                          </tr>
-                        </tfoot>
-                      </table>
+              {/* Summary Cards */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-8 py-6 border-b border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">📊 Adjustment Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-indigo-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-indigo-100 rounded-full">
+                        <span className="text-2xl">📝</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-indigo-600">
+                          {rmmAdjustedClaim.updated_line_items?.length || 0}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Total Line Items</div>
+                      </div>
                     </div>
                   </div>
-                );
-              });
-            })()}
-
-            {/* Overall Totals */}
-            {(() => {
-              const grandTotals = extractedLineItems.reduce((acc, item) => ({
-                rcv: acc.rcv + (item.RCV || 0),
-                depreciation: acc.depreciation + (item.depreciation_amount || 0),
-                acv: acc.acv + (item.ACV || 0)
-              }), { rcv: 0, depreciation: 0, acv: 0 });
-
-              return (
-                <div className="bg-white rounded-lg shadow-lg border-2 border-blue-300 p-8 mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                    <Calculator className="w-6 h-6 mr-2 text-green-600" />
-                    Grand Totals
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
-                      <p className="text-sm font-medium text-green-700 mb-2">Total RCV</p>
-                      <p className="text-3xl font-bold text-green-800">{formatCurrency(grandTotals.rcv)}</p>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6 border border-red-200">
-                      <p className="text-sm font-medium text-red-700 mb-2">Total Depreciation</p>
-                      <p className="text-3xl font-bold text-red-800">({formatCurrency(grandTotals.depreciation)})</p>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
-                      <p className="text-sm font-medium text-blue-700 mb-2">Total ACV</p>
-                      <p className="text-3xl font-bold text-blue-800">{formatCurrency(grandTotals.acv)}</p>
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-purple-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-purple-100 rounded-full">
+                        <span className="text-2xl">✏️</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-purple-600">
+                          {rmmAdjustedClaim.audit_log?.length || 0}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Items Modified</div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm text-gray-600">
-                      <strong>Total Line Items:</strong> {extractedLineItems.length} | 
-                      <strong className="ml-4">Categories:</strong> {Object.keys(extractedLineItems.reduce((acc: any, item) => { acc[item.category || 'Other'] = true; return acc; }, {})).length}
-                    </p>
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-pink-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-pink-100 rounded-full">
+                        <span className="text-2xl">💎</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-pink-600">
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Total RCV</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              );
-            })()}
+              </div>
 
-            {/* Roof Measurement Report Agent Output */}
-            {rawAgentData?.roofAgentResponse && (
-              <div className="bg-white rounded-lg shadow-sm border-2 border-green-300 p-6 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  🏠 Roof Measurement Report Analysis
-                </h2>
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded p-4 border border-green-200">
-                  <div className="mb-3">
-                    <span className="text-sm font-medium text-gray-700">Agent ID: </span>
-                    <span className="text-sm font-mono text-green-600">68e53a30a387fd7879a96bea</span>
-                    <span className="text-xs text-gray-500 ml-2">(Roof Measurement Analyzer)</span>
+              {/* Modified Line Items Table */}
+              <div className="p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Adjusted Line Items</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Line</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Qty</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {rmmAdjustedClaim.updated_line_items?.map((item: any, index: number) => {
+                        // Find if this item has an audit log entry
+                        const auditEntry = rmmAdjustedClaim.audit_log?.find((log: any) => 
+                          String(log.line_number) === String(item.line_number)
+                        );
+                        
+                        const rowClass = auditEntry ? 'bg-purple-50 border-l-4 border-purple-500' : 'hover:bg-gray-50';
+                        
+                        return (
+                          <tr key={index} className={rowClass}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {item.line_number || '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <div className="max-w-md">
+                                <div className="font-medium mb-1">{item.description}</div>
+                                {auditEntry && (
+                                  <>
+                                    <div className="mt-2 flex items-center space-x-2">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white">
+                                        💰 RMM ADJUSTED
+                                      </span>
+                                      {auditEntry.similarity_score && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+                                          {auditEntry.similarity_score.toFixed(0)}% Match
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
+                                      <div className="font-semibold text-amber-900 mb-1">🏷️ Matched Roof Master Macro Item:</div>
+                                      <div className="text-gray-700 mb-2 italic">"{auditEntry.matched_macro_description}"</div>
+                                      <div className="text-gray-600">
+                                        <strong className="text-amber-800">Action:</strong> {auditEntry.action} | 
+                                        <strong className="text-amber-800 ml-2">Changes:</strong> {auditEntry.fields_changed?.length || 0} field(s)
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.quantity?.toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {item.unit}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'unit_price') ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.unit_price || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'unit_price')?.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'RCV') ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.RCV || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'RCV')?.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{formatCurrency(item.RCV || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'depreciation_amount') ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.depreciation_amount || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'depreciation_amount')?.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-700">{formatCurrency(item.depreciation_amount || 0)}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'ACV') ? (
+                                <div className="space-y-1">
+                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                    {formatCurrency(item.ACV || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 line-through">
+                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'ACV')?.before || 0)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{formatCurrency(item.ACV || 0)}</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr className="font-bold">
+                        <td colSpan={5} className="px-6 py-4 text-right text-sm text-gray-700">
+                          Totals:
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-purple-50">
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.depreciation_amount || 0), 0) || 0)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.ACV || 0), 0) || 0)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-t border-gray-200 px-8 py-6">
+                <h4 className="text-lg font-semibold text-gray-700 mb-4">🎨 Color Guide</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-purple-50 border-l-4 border-purple-500 rounded mr-3 mt-1"></div>
+                    <div>
+                      <div className="text-gray-900 font-bold">Purple Row</div>
+                      <div className="text-gray-600">Price updated from Roof Master Macro</div>
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <span className="text-sm font-medium text-gray-700">Source File: </span>
-                    <span className="text-sm text-gray-800">{rawAgentData.uploadedRoofFileName}</span>
+                  <div className="flex items-start">
+                    <span className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded mr-3 text-xs mt-1">Value</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Purple Badge</div>
+                      <div className="text-gray-600">New value from RMM database</div>
+                    </div>
                   </div>
-                  
-                  {rawAgentData.roofAgentResponse.response && (
-                    <div className="mb-4 p-4 bg-white rounded border border-green-200">
-                      <h3 className="text-lg font-semibold text-gray-700 mb-3">📐 Roof Measurement Analysis:</h3>
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                        {rawAgentData.roofAgentResponse.response}
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-amber-50 border-l-2 border-amber-400 rounded mr-3 mt-1"></div>
+                    <div>
+                      <div className="text-gray-900 font-bold">Amber Box</div>
+                      <div className="text-gray-600">Roof Master Macro explanation</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-xs text-gray-500 line-through mr-3 mt-1">Old Value</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Strikethrough</div>
+                      <div className="text-gray-600">Original carrier value</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                  <p className="text-sm text-indigo-900">
+                    <span className="font-semibold">💡 Tip:</span> Modified values show the new RMM database price prominently with the original carrier price crossed out below. 
+                    Each adjustment includes the Roof Master Macro explanation.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Claim Waste Percentage Debug Window */}
+          {claimWasteResult && (
+            <div className="mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-2xl shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">📊 Insurance Claim Waste % Calculation</h2>
+                    <p className="text-purple-100">Agent ID: 68eae51c8d106b3b3abb37f8 | Calculated from claim line items</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
+                    <span className="text-white font-bold text-lg">Carrier Data</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-8">
+                {/* Key Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-purple-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-purple-100 rounded-xl">
+                        <span className="text-3xl">📈</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-purple-600">
+                          {claimWasteResult.carrier_waste_percentage?.toFixed(2) || 'N/A'}%
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Carrier Waste %</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-blue-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-blue-100 rounded-xl">
+                        <span className="text-3xl">🔢</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-blue-600">
+                          {claimWasteResult.waste_squares?.toFixed(2) || 'N/A'}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Waste Squares</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-green-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-green-100 rounded-xl">
+                        <span className="text-3xl">➕</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-green-600">
+                          {claimWasteResult.numerator_sum?.toFixed(2) || 'N/A'}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Numerator Sum</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-orange-500">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-orange-100 rounded-xl">
+                        <span className="text-3xl">➖</span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-3xl font-bold text-orange-600">
+                          {claimWasteResult.denominator_sum?.toFixed(2) || 'N/A'}
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">Denominator Sum</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Matched Lines Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  {/* Numerator Matched Lines */}
+                  <div className="border-2 border-green-200 rounded-xl overflow-hidden">
+                    <div className="bg-green-50 px-6 py-4 border-b-2 border-green-200">
+                      <h3 className="text-lg font-bold text-green-900">➕ Numerator Matched Lines</h3>
+                      <p className="text-sm text-green-700 mt-1">
+                        {claimWasteResult.numerator_matched_lines?.length || 0} lines matched
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white max-h-96 overflow-auto">
+                      {claimWasteResult.numerator_matched_lines?.map((line: any, index: number) => (
+                        <div key={index} className="mb-4 p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-bold text-green-900">Line {line.line_number}</span>
+                            <span className="px-2 py-1 bg-green-600 text-white rounded text-xs font-bold">
+                              Qty: {line.quantity}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-800 mb-2">{line.description}</div>
+                          <div className="text-xs text-gray-600">
+                            <div><strong>Match Type:</strong> {line.match_type}</div>
+                            <div><strong>Target:</strong> {line.match_details?.matched_target}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {(!claimWasteResult.numerator_matched_lines || claimWasteResult.numerator_matched_lines.length === 0) && (
+                        <div className="text-center text-gray-500 py-8">No numerator lines matched</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Denominator Matched Lines */}
+                  <div className="border-2 border-orange-200 rounded-xl overflow-hidden">
+                    <div className="bg-orange-50 px-6 py-4 border-b-2 border-orange-200">
+                      <h3 className="text-lg font-bold text-orange-900">➖ Denominator Matched Lines</h3>
+                      <p className="text-sm text-orange-700 mt-1">
+                        {claimWasteResult.denominator_matched_lines?.length || 0} lines matched
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white max-h-96 overflow-auto">
+                      {claimWasteResult.denominator_matched_lines?.map((line: any, index: number) => (
+                        <div key={index} className="mb-4 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-bold text-orange-900">Line {line.line_number}</span>
+                            <span className="px-2 py-1 bg-orange-600 text-white rounded text-xs font-bold">
+                              Qty: {line.quantity}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-800 mb-2">{line.description}</div>
+                          <div className="text-xs text-gray-600">
+                            <div><strong>Match Type:</strong> {line.match_type}</div>
+                            <div><strong>Target:</strong> {line.match_details?.matched_target}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {(!claimWasteResult.denominator_matched_lines || claimWasteResult.denominator_matched_lines.length === 0) && (
+                        <div className="text-center text-gray-500 py-8">No denominator lines matched</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Calculation Explanation */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
+                  <h3 className="text-lg font-bold text-blue-900 mb-3">📐 Calculation Formula</h3>
+                  <div className="space-y-2 text-sm text-gray-800">
+                    <div className="font-mono bg-white p-3 rounded border border-blue-200">
+                      Carrier Waste % = ((Numerator Sum - Denominator Sum) / Denominator Sum) × 100
+                    </div>
+                    <div className="font-mono bg-white p-3 rounded border border-blue-200">
+                      = (({claimWasteResult.numerator_sum?.toFixed(2)} - {claimWasteResult.denominator_sum?.toFixed(2)}) / {claimWasteResult.denominator_sum?.toFixed(2)}) × 100
+                    </div>
+                    <div className="font-mono bg-white p-3 rounded border border-blue-200 font-bold">
+                      = {claimWasteResult.carrier_waste_percentage?.toFixed(2)}%
+                    </div>
+                    <div className="mt-4 p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+                      <p className="text-sm text-yellow-900">
+                        <strong>Note:</strong> Waste Squares = (Numerator Sum - Denominator Sum) = {claimWasteResult.waste_squares?.toFixed(2)} SQ
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Waste Percentage Debug Window */}
+          {rawAgentData?.wastePercentResponse && (
+            <div className="mb-8 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-2xl shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-orange-600 to-amber-600 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">📊 Waste Percentage Calculation</h2>
+                    <p className="text-orange-100">Agent ID: 68eae0638be660f19f9164ea</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
+                    <span className="text-white font-bold text-lg">Debug Data</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  {(() => {
+                    // Parse the waste percentage response
+                    let wasteData = null;
+                    try {
+                      const responseStr = rawAgentData.wastePercentResponse.response;
+                      console.log('Waste percent response:', responseStr);
+                      
+                      // Try to extract JSON from markdown code block
+                      const jsonMatch = responseStr.match(/```json\s*\n([\s\S]*?)\n```/);
+                      if (jsonMatch && jsonMatch[1]) {
+                        wasteData = JSON.parse(jsonMatch[1]);
+                      } else {
+                        // Try to find a standalone JSON object
+                        const jsonObjectMatch = responseStr.match(/\{[\s\S]*?\}/);
+                        if (jsonObjectMatch) {
+                          wasteData = JSON.parse(jsonObjectMatch[0]);
+                        } else {
+                          // Try direct parse
+                          wasteData = JSON.parse(responseStr);
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Failed to parse waste percentage data:', e);
+                    }
+
+                    if (wasteData) {
+                      return (
+                        <>
+                          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-orange-500">
+                            <div className="flex items-center">
+                              <div className="p-3 bg-orange-100 rounded-xl">
+                                <span className="text-3xl">📈</span>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-3xl font-bold text-orange-600">
+                                  {wasteData.waste_percent || 'N/A'}
+                                </div>
+                                <div className="text-sm font-medium text-gray-600">Waste Percentage</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-blue-500">
+                            <div className="flex items-center">
+                              <div className="p-3 bg-blue-100 rounded-xl">
+                                <span className="text-3xl">📐</span>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-3xl font-bold text-blue-600">
+                                  {wasteData.area_sqft || 'N/A'} sq ft
+                                </div>
+                                <div className="text-sm font-medium text-gray-600">Total Area</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-green-500">
+                            <div className="flex items-center">
+                              <div className="p-3 bg-green-100 rounded-xl">
+                                <span className="text-3xl">🔢</span>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-3xl font-bold text-green-600">
+                                  {wasteData.squares || 'N/A'}
+                                </div>
+                                <div className="text-sm font-medium text-gray-600">Squares</div>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                {/* Raw Response */}
+                <div className="border-2 border-orange-200 rounded-xl overflow-hidden">
+                  <div className="bg-orange-50 px-6 py-4 border-b-2 border-orange-200">
+                    <h3 className="text-lg font-bold text-orange-900">Raw Agent Response</h3>
+                  </div>
+                  <div className="p-6 bg-white">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Full Response
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(rawAgentData.wastePercentResponse?.response || '');
+                          alert('Waste percentage response copied to clipboard!');
+                        }}
+                        className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 max-h-64 overflow-auto">
+                      <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                        {rawAgentData.wastePercentResponse?.response || 'No response available'}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center">
+                <div className="p-3 bg-blue-100 rounded-xl">
+                  <span className="text-2xl">📄</span>
+                </div>
+                <div className="ml-4">
+                  <div className="text-2xl font-bold text-gray-900">{extractedLineItems.length}</div>
+                  <div className="text-sm font-medium text-gray-600">Line Items</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center">
+                <div className="p-3 bg-green-100 rounded-xl">
+                  <span className="text-2xl">🏠</span>
+                </div>
+                <div className="ml-4">
+                  <div className="text-2xl font-bold text-gray-900">{rawAgentData ? '✓' : '✗'}</div>
+                  <div className="text-sm font-medium text-gray-600">Roof Data</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center">
+                <div className="p-3 bg-purple-100 rounded-xl">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <div className="ml-4">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {extractedLineItems.length > 0 ? formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.RCV || 0), 0)) : '$0'}
+                  </div>
+                  <div className="text-sm font-medium text-gray-600">Total RCV</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center">
+                <div className="p-3 bg-orange-100 rounded-xl">
+                  <span className="text-2xl">⚡</span>
+                </div>
+                <div className="ml-4">
+                  <div className="text-2xl font-bold text-gray-900">{adjustmentAgentResult ? '✓' : '○'}</div>
+                  <div className="text-sm font-medium text-gray-600">AI Processed</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Debug Section */}
+          {rawAgentData && (
+            <div className="mb-8">
+              <details className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                <summary className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6 cursor-pointer hover:from-purple-700 hover:to-indigo-700 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-2">🔍 Debug Information</h2>
+                      <p className="text-purple-100">Click to view agent outputs and combined payload</p>
+                    </div>
+                    <span className="text-white text-3xl">▼</span>
+                  </div>
+                </summary>
+                
+                <div className="p-8 space-y-8">
+                  {/* Claim Agent Output */}
+                  <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
+                    <div className="bg-blue-50 px-6 py-4 border-b-2 border-blue-200">
+                      <h3 className="text-xl font-bold text-blue-900">📄 Insurance Claim Agent Output</h3>
+                      <p className="text-sm text-blue-700 mt-1">Agent ID: 68e559ebdc57add4679b89dd</p>
+                    </div>
+                    <div className="p-6 bg-white">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-semibold text-gray-700">
+                          Response Length: {rawAgentData.claimAgentResponse?.response?.length || 0} characters
+                        </span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(rawAgentData.claimAgentResponse?.response || '');
+                              alert('Claim agent response copied to clipboard!');
+                            }}
+                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                          >
+                            📋 Copy
+                          </button>
+                          <button
+                            onClick={() => {
+                              const blob = new Blob([rawAgentData.claimAgentResponse?.response || ''], { type: 'application/json' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = 'claim-agent-output.json';
+                              a.click();
+                            }}
+                            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                          >
+                            💾 Download
+                          </button>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                        <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                          {rawAgentData.claimAgentResponse?.response || 'No response available'}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Roof Report Agent Output */}
+                  <div className="border-2 border-green-200 rounded-xl overflow-hidden">
+                    <div className="bg-green-50 px-6 py-4 border-b-2 border-green-200">
+                      <h3 className="text-xl font-bold text-green-900">🏠 Roof Report Agent Output</h3>
+                      <p className="text-sm text-green-700 mt-1">Agent ID: 68e53a30a387fd7879a96bea</p>
+                    </div>
+                    <div className="p-6 bg-white">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-semibold text-gray-700">
+                          Response Length: {rawAgentData.roofAgentResponse?.response?.length || 0} characters
+                        </span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(rawAgentData.roofAgentResponse?.response || '');
+                              alert('Roof agent response copied to clipboard!');
+                            }}
+                            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                          >
+                            📋 Copy
+                          </button>
+                          <button
+                            onClick={() => {
+                              const blob = new Blob([rawAgentData.roofAgentResponse?.response || ''], { type: 'application/json' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = 'roof-agent-output.json';
+                              a.click();
+                            }}
+                            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                          >
+                            💾 Download
+                          </button>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                        <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                          {rawAgentData.roofAgentResponse?.response || 'No response available'}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Waste Percentage Agent Output */}
+                  {rawAgentData.wastePercentResponse && (
+                    <div className="border-2 border-orange-200 rounded-xl overflow-hidden">
+                      <div className="bg-orange-50 px-6 py-4 border-b-2 border-orange-200">
+                        <h3 className="text-xl font-bold text-orange-900">📊 Waste Percentage Agent Output</h3>
+                        <p className="text-sm text-orange-700 mt-1">Agent ID: 68eae0638be660f19f9164ea</p>
+                      </div>
+                      <div className="p-6 bg-white">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-semibold text-gray-700">
+                            Response Length: {rawAgentData.wastePercentResponse?.response?.length || 0} characters
+                          </span>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(rawAgentData.wastePercentResponse?.response || '');
+                                alert('Waste percentage response copied to clipboard!');
+                              }}
+                              className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                            >
+                              📋 Copy
+                            </button>
+                            <button
+                              onClick={() => {
+                                const blob = new Blob([rawAgentData.wastePercentResponse?.response || ''], { type: 'application/json' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'waste-percent-output.json';
+                                a.click();
+                              }}
+                              className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                            >
+                              💾 Download
+                            </button>
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                            {rawAgentData.wastePercentResponse?.response || 'No response available'}
+                          </pre>
+                        </div>
                       </div>
                     </div>
                   )}
-                  
-                  <div className="mt-4">
-                    <details className="cursor-pointer">
-                      <summary className="text-sm font-semibold text-gray-700 mb-2 hover:text-green-600">
-                        🔧 Full Roof Agent Response JSON (Click to expand)
-                      </summary>
-                      <div className="mt-2">
-                        <pre className="text-xs text-gray-700 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200 max-h-96 overflow-y-auto">
-                          {JSON.stringify(rawAgentData.roofAgentResponse, null, 2)}
-                        </pre>
+
+                  {/* Combined Payload Preview */}
+                  <div className="border-2 border-purple-200 rounded-xl overflow-hidden">
+                    <div className="bg-purple-50 px-6 py-4 border-b-2 border-purple-200">
+                      <h3 className="text-xl font-bold text-purple-900">🔄 Combined Payload for Adjustment Agent</h3>
+                      <p className="text-sm text-purple-700 mt-1">Agent ID: 68e92ded1945df86d876afc6 | This is what gets sent to the adjustment agent</p>
+                    </div>
+                    <div className="p-6 bg-white">
+                      <div className="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+                        <p className="text-sm text-yellow-800">
+                          <strong>📌 Note:</strong> The adjustment agent receives a combined message containing both the extracted line items (from claim agent) 
+                          and the parsed roof measurements (from roof report agent).
+                        </p>
                       </div>
-                    </details>
+                      
+                      {/* Line Items Section */}
+                      <div className="mb-6">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="text-lg font-bold text-gray-900">Part 1: Extracted Line Items ({extractedLineItems.length} items)</h4>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(JSON.stringify(extractedLineItems, null, 2));
+                              alert('Line items JSON copied to clipboard!');
+                            }}
+                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                          >
+                            📋 Copy Line Items
+                          </button>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-4 max-h-64 overflow-auto">
+                          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                            {JSON.stringify(extractedLineItems, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+
+                      {/* Roof Measurements Section */}
+                      <div className="mb-6">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="text-lg font-bold text-gray-900">Part 2: Parsed Roof Measurements</h4>
+                          <button
+                            onClick={() => {
+                              const roofResponseStr = rawAgentData.roofAgentResponse?.response;
+                              if (roofResponseStr) {
+                                let roofMeasurementsObj = null;
+                                try {
+                                  let rawContent = roofResponseStr;
+                                  try {
+                                    const outerJson = JSON.parse(roofResponseStr);
+                                    if (outerJson && typeof outerJson === 'object' && 'response' in outerJson) {
+                                      rawContent = outerJson.response;
+                                    }
+                                  } catch (e) {}
+                                  const markdownMatch = rawContent.match(/```json\s*\n([\s\S]*?)\n```/);
+                                  if (markdownMatch && markdownMatch[1]) {
+                                    roofMeasurementsObj = JSON.parse(markdownMatch[1]);
+                                  } else {
+                                    const jsonMatch = rawContent.match(/(\{[\s\S]*?\})/);
+                                    if (jsonMatch && jsonMatch[1]) {
+                                      roofMeasurementsObj = JSON.parse(jsonMatch[1]);
+                                    }
+                                  }
+                                } catch (e) {}
+                                navigator.clipboard.writeText(JSON.stringify(roofMeasurementsObj, null, 2));
+                                alert('Roof measurements JSON copied to clipboard!');
+                              }
+                            }}
+                            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                          >
+                            📋 Copy Roof Data
+                          </button>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-4 max-h-64 overflow-auto">
+                          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                            {(() => {
+                              const roofResponseStr = rawAgentData.roofAgentResponse?.response;
+                              if (!roofResponseStr) return 'No roof measurements available';
+                              
+                              let roofMeasurementsObj = null;
+                              try {
+                                let rawContent = roofResponseStr;
+                                try {
+                                  const outerJson = JSON.parse(roofResponseStr);
+                                  if (outerJson && typeof outerJson === 'object' && 'response' in outerJson) {
+                                    rawContent = outerJson.response;
+                                  }
+                                } catch (e) {}
+                                
+                                const markdownMatch = rawContent.match(/```json\s*\n([\s\S]*?)\n```/);
+                                if (markdownMatch && markdownMatch[1]) {
+                                  roofMeasurementsObj = JSON.parse(markdownMatch[1]);
+                                } else {
+                                  const jsonMatch = rawContent.match(/(\{[\s\S]*?\})/);
+                                  if (jsonMatch && jsonMatch[1]) {
+                                    roofMeasurementsObj = JSON.parse(jsonMatch[1]);
+                                  }
+                                }
+                              } catch (e) {
+                                return 'Error parsing roof measurements: ' + e;
+                              }
+                              
+                              return roofMeasurementsObj ? JSON.stringify(roofMeasurementsObj, null, 2) : 'Could not parse roof measurements';
+                            })()}
+                          </pre>
+                        </div>
+                      </div>
+
+                      {/* Full Combined Payload */}
+                      <div>
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="text-lg font-bold text-gray-900">Complete Combined Payload (as sent to agent)</h4>
+                          <button
+                            onClick={() => {
+                              const roofResponseStr = rawAgentData.roofAgentResponse?.response;
+                              let roofMeasurementsObj = null;
+                              try {
+                                let rawContent = roofResponseStr;
+                                try {
+                                  const outerJson = JSON.parse(roofResponseStr);
+                                  if (outerJson && typeof outerJson === 'object' && 'response' in outerJson) {
+                                    rawContent = outerJson.response;
+                                  }
+                                } catch (e) {}
+                                const markdownMatch = rawContent.match(/```json\s*\n([\s\S]*?)\n```/);
+                                if (markdownMatch && markdownMatch[1]) {
+                                  roofMeasurementsObj = JSON.parse(markdownMatch[1]);
+                                } else {
+                                  const jsonMatch = rawContent.match(/(\{[\s\S]*?\})/);
+                                  if (jsonMatch && jsonMatch[1]) {
+                                    roofMeasurementsObj = JSON.parse(jsonMatch[1]);
+                                  }
+                                }
+                              } catch (e) {}
+                              const combinedPayload = JSON.stringify(extractedLineItems) + '\n\n' + JSON.stringify(roofMeasurementsObj);
+                              navigator.clipboard.writeText(combinedPayload);
+                              alert('Combined payload copied to clipboard!');
+                            }}
+                            className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                          >
+                            📋 Copy Full Payload
+                          </button>
+                        </div>
+                        <div className="bg-purple-50 rounded-lg p-4 max-h-64 overflow-auto">
+                          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                            {(() => {
+                              const roofResponseStr = rawAgentData.roofAgentResponse?.response;
+                              let roofMeasurementsObj = null;
+                              try {
+                                let rawContent = roofResponseStr;
+                                try {
+                                  const outerJson = JSON.parse(roofResponseStr);
+                                  if (outerJson && typeof outerJson === 'object' && 'response' in outerJson) {
+                                    rawContent = outerJson.response;
+                                  }
+                                } catch (e) {}
+                                const markdownMatch = rawContent.match(/```json\s*\n([\s\S]*?)\n```/);
+                                if (markdownMatch && markdownMatch[1]) {
+                                  roofMeasurementsObj = JSON.parse(markdownMatch[1]);
+                                } else {
+                                  const jsonMatch = rawContent.match(/(\{[\s\S]*?\})/);
+                                  if (jsonMatch && jsonMatch[1]) {
+                                    roofMeasurementsObj = JSON.parse(jsonMatch[1]);
+                                  }
+                                }
+                              } catch (e) {
+                                return 'Error parsing combined payload: ' + e;
+                              }
+                              return JSON.stringify(extractedLineItems) + '\n\n' + JSON.stringify(roofMeasurementsObj);
+                            })()}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Adjustment Agent Output (if available) */}
+                  {adjustmentAgentResult && (
+                    <div className="border-2 border-orange-200 rounded-xl overflow-hidden">
+                      <div className="bg-orange-50 px-6 py-4 border-b-2 border-orange-200">
+                        <h3 className="text-xl font-bold text-orange-900">⚡ Adjustment Agent Output</h3>
+                        <p className="text-sm text-orange-700 mt-1">Agent ID: 68e92ded1945df86d876afc6</p>
+                      </div>
+                      <div className="p-6 bg-white">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-semibold text-gray-700">
+                            Modified Items: {adjustmentAgentResult.modified_estimate?.length || 0}
+                          </span>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(JSON.stringify(adjustmentAgentResult, null, 2));
+                                alert('Adjustment result copied to clipboard!');
+                              }}
+                              className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                            >
+                              📋 Copy
+                            </button>
+                            <button
+                              onClick={() => {
+                                const blob = new Blob([JSON.stringify(adjustmentAgentResult, null, 2)], { type: 'application/json' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'adjustment-agent-output.json';
+                                a.click();
+                              }}
+                              className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                            >
+                              💾 Download
+                            </button>
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+                          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+                            {JSON.stringify(adjustmentAgentResult, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          )}
+
+          {/* Original Line Items */}
+          {extractedLineItems.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-8">
+              <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-8 py-6 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">📋 Original Line Items</h2>
+                    <p className="text-slate-200">
+                      Extracted from insurance claim PDF using AI analysis
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-white">{extractedLineItems.length}</div>
+                    <div className="text-slate-200">Items</div>
                   </div>
                 </div>
-                
-                <div className="mt-4 flex space-x-4">
-                  <button
-                    onClick={() => {
-                      const dataStr = JSON.stringify(rawAgentData.roofAgentResponse, null, 2);
-                      const dataBlob = new Blob([dataStr], {type: 'application/json'});
-                      const url = URL.createObjectURL(dataBlob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `roof-agent-response-${Date.now()}.json`;
-                      link.click();
-                    }}
-                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                  >
-                    Download JSON
-                  </button>
-                  <button
-                    onClick={() => {
-                      let textContent = 'Roof Measurement Report Analysis\n\n';
-                      if (rawAgentData.roofAgentResponse.response) {
-                        textContent += rawAgentData.roofAgentResponse.response;
-                      } else {
-                        textContent += JSON.stringify(rawAgentData.roofAgentResponse, null, 2);
-                      }
-                      const textBlob = new Blob([textContent], {type: 'text/plain'});
-                      const url = URL.createObjectURL(textBlob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `roof-analysis-${Date.now()}.txt`;
-                      link.click();
-                    }}
-                    className="px-4 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600"
-                  >
-                    Download Text
-                  </button>
+              </div>
+
+              <div className="p-8">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Line</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Qty</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {extractedLineItems.map((item, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {item.line_number}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <div className="max-w-xs">
+                              <div className="font-medium">{item.description}</div>
+                              <div className="text-xs text-gray-500 mt-1">{item.category} • {item.location_room}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.quantity?.toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {item.unit}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {formatCurrency(item.unit_price || 0)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {formatCurrency(item.RCV || 0)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {formatCurrency(item.depreciation_amount || 0)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {formatCurrency(item.ACV || 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr className="font-bold">
+                        <td colSpan={5} className="px-6 py-4 text-right text-sm text-gray-700">
+                          Totals:
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-blue-50">
+                          {formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.RCV || 0), 0))}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
+                          {formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.depreciation_amount || 0), 0))}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
+                          {formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.ACV || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
-            )}
-
-            {/* Raw Agent Data Debug Section */}
-            {rawAgentData && (
-              <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-                <details>
-                  <summary className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-600">
-                    🔧 Raw Agent Data (Click to expand for debugging)
-                  </summary>
-                  <div className="mt-4 space-y-4">
-                    <div className="bg-gray-50 rounded p-4 border border-gray-200">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Files Processed:</h4>
-                      <p className="text-xs text-gray-600">Claim: {rawAgentData.uploadedClaimFileName}</p>
-                      <p className="text-xs text-gray-600">Roof: {rawAgentData.uploadedRoofFileName}</p>
-                      <p className="text-xs text-gray-600">Timestamp: {new Date(rawAgentData.timestamp).toLocaleString()}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded p-4 border border-gray-200 max-h-96 overflow-y-auto">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Full Agent Response:</h4>
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap">
-                        {JSON.stringify(rawAgentData, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </details>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Estimate Header */}
-        {!extractedLineItems.length && estimateData && (
-        <div className="bg-white rounded-lg shadow-sm border p-8 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Insured Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <User className="w-5 h-5 mr-2 text-blue-600" />
-                Insured
-              </h3>
-              <div className="space-y-2">
-                <p className="font-medium text-gray-900">{estimateData.insured.name}</p>
-                <p className="text-gray-600 flex items-center">
-                  <Phone className="w-4 h-4 mr-2" />
-                  {estimateData.insured.phone}
-                </p>
-                <p className="text-gray-600 flex items-center">
-                  <Mail className="w-4 h-4 mr-2" />
-                  {estimateData.insured.email}
-                </p>
-              </div>
             </div>
-
-            {/* Property Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <MapPin className="w-5 h-5 mr-2 text-green-600" />
-                Property
-              </h3>
-              <div className="space-y-2">
-                <p className="text-gray-600 flex items-center">
-                  <Building className="w-4 h-4 mr-2" />
-                  {estimateData.property.address}
-                </p>
-              </div>
-            </div>
-
-            {/* Claim Representative */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <User className="w-5 h-5 mr-2 text-purple-600" />
-                Claim Rep.
-              </h3>
-              <div className="space-y-2">
-                <p className="font-medium text-gray-900">{estimateData.claimRep.name}</p>
-                <p className="text-gray-600 flex items-center">
-                  <Phone className="w-4 h-4 mr-2" />
-                  {estimateData.claimRep.phone}
-                </p>
-                <p className="text-gray-600 flex items-center">
-                  <Mail className="w-4 h-4 mr-2" />
-                  {estimateData.claimRep.email}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Claim Details */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Estimator</p>
-                <p className="text-lg font-semibold text-gray-900">{estimateData.estimator}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Claim Number</p>
-                <p className="text-lg font-semibold text-gray-900">{estimateData.claimNumber}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Policy Number</p>
-                <p className="text-lg font-semibold text-gray-900">{estimateData.policyNumber}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Type of Loss</p>
-                <p className="text-lg font-semibold text-gray-900">{estimateData.typeOfLoss}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Dates */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-              Important Dates
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Date of Loss</p>
-                <p className="text-gray-900">{formatDate(estimateData.dates.dateOfLoss)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Date Received</p>
-                <p className="text-gray-900">{formatDate(estimateData.dates.dateReceived)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Date Inspected</p>
-                <p className="text-gray-900">{formatDate(estimateData.dates.dateInspected)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Date Entered</p>
-                <p className="text-gray-900">{formatDate(estimateData.dates.dateEntered)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Date Est. Completed</p>
-                <p className="text-gray-900">{formatDate(estimateData.dates.dateEstCompleted)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Estimate Information */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Insurance Company</p>
-                <p className="text-gray-900">{estimateData.insuranceCompany}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Price List</p>
-                <p className="text-gray-900">{estimateData.priceList}</p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm font-medium text-gray-500">Estimate ID</p>
-              <p className="text-gray-900 font-mono">{estimateData.estimateId}</p>
-            </div>
-          </div>
+          )}
         </div>
-        )}
-
-        {/* Adjustment Summary (Sample Data) */}
-        {!extractedLineItems.length && estimateData && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
-            Adjustment Summary
-          </h3>
-          <div className="bg-white rounded-lg p-4 border border-blue-100">
-            <p className="text-sm text-gray-700 leading-relaxed">{estimateData.description}</p>
-          </div>
-        </div>
-        )}
-
-        {/* Line Items by Category (Sample Data) */}
-        {!extractedLineItems.length && estimateData && estimateData.categories.map((category, categoryIndex) => (
-          <div key={categoryIndex} className="bg-white rounded-lg shadow-sm border mb-8">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">{category.name}</h3>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Unit Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tax
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      RCV
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Deprec.
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ACV
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {category.items.map((item, itemIndex) => (
-                    <tr key={itemIndex} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                        {item.description}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {item.quantity}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {formatCurrency(item.unitPrice)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {formatCurrency(item.tax)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        {formatCurrency(item.rcv)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-red-600">
-                        ({formatCurrency(Math.abs(item.depreciation))})
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        {formatCurrency(item.acv)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50">
-                  <tr className="font-semibold">
-                    <td className="px-6 py-4 text-sm text-gray-900" colSpan={4}>
-                      Totals: {category.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {formatCurrency(category.totals.rcv)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-red-600">
-                      ({formatCurrency(Math.abs(category.totals.depreciation))})
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {formatCurrency(category.totals.acv)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        ))}
-
-        {/* Financial Summary (Sample Data) */}
-        {!extractedLineItems.length && estimateData && (
-        <div className="bg-white rounded-lg shadow-sm border p-8">
-          <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
-            <Calculator className="w-6 h-6 mr-2 text-green-600" />
-            Financial Summary
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Basic Summary */}
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                Summary for All Items
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Line Item Total:</span>
-                  <span className="font-medium">{formatCurrency(estimateData.summary.lineItemTotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Material Sales Tax:</span>
-                  <span className="font-medium">{formatCurrency(estimateData.summary.materialSalesTax)}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-600">Replacement Cost Value (RCV):</span>
-                  <span className="font-semibold text-green-600">{formatCurrency(estimateData.summary.rcv)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Less Depreciation:</span>
-                  <span className="font-medium text-red-600">({formatCurrency(Math.abs(estimateData.summary.depreciation))})</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-600">Actual Cash Value (ACV):</span>
-                  <span className="font-semibold text-blue-600">{formatCurrency(estimateData.summary.acv)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Less Deductible:</span>
-                  <span className="font-medium text-red-600">({formatCurrency(Math.abs(estimateData.summary.deductible))})</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-900 font-semibold">Net Claim:</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(estimateData.summary.netClaim)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Recoverable Depreciation:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(estimateData.summary.totalRecoverableDepreciation)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Net Claim if Depreciation is Recovered:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(estimateData.summary.netClaimIfRecovered)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Adjusted Summary */}
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                Adjusted Final Summary (with O&P)
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Overhead & Profit (20% on RCV):</span>
-                  <span className="font-medium">{formatCurrency(estimateData.summary.overheadProfit)}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-900 font-semibold">Adjusted Final RCV (with O&P):</span>
-                  <span className="font-bold text-green-600">{formatCurrency(estimateData.summary.adjustedFinalRcv)}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-900 font-semibold">Adjusted Final ACV (with O&P):</span>
-                  <span className="font-bold text-blue-600">{formatCurrency(estimateData.summary.adjustedFinalAcv)}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-900 font-semibold">Adjusted Net Claim (ACV - Deductible):</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(estimateData.summary.adjustedNetClaim)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-900 font-semibold">Adjusted Net Claim if Depreciation Recovered:</span>
-                  <span className="font-bold text-green-600">{formatCurrency(estimateData.summary.adjustedNetClaimIfRecovered)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Key Metrics Cards */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
-              <div className="flex items-center">
-                <DollarSign className="w-8 h-8 text-green-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-green-600">Total RCV</p>
-                  <p className="text-2xl font-bold text-green-700">{formatCurrency(estimateData.summary.adjustedFinalRcv)}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
-              <div className="flex items-center">
-                <Calculator className="w-8 h-8 text-blue-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-blue-600">Net Claim</p>
-                  <p className="text-2xl font-bold text-blue-700">{formatCurrency(estimateData.summary.adjustedNetClaim)}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-6 border border-purple-200">
-              <div className="flex items-center">
-                <TrendingUp className="w-8 h-8 text-purple-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-purple-600">Recoverable Depreciation</p>
-                  <p className="text-2xl font-bold text-purple-700">{formatCurrency(estimateData.summary.totalRecoverableDepreciation)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
       </main>
     </div>
   );
 }
-
-
-
-
-
-
