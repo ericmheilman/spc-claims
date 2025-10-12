@@ -632,7 +632,7 @@ export default function EstimatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading extracted claim data...</p>
@@ -643,7 +643,7 @@ export default function EstimatePage() {
 
   if (extractedLineItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto">
           <div className="bg-yellow-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <span className="text-2xl">⚠️</span>
@@ -652,7 +652,7 @@ export default function EstimatePage() {
           <p className="text-gray-600 mb-6">Please upload and process insurance claim documents first.</p>
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold transition-colors"
+            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium transition-colors"
           >
             Go to Upload Page
           </button>
@@ -662,24 +662,24 @@ export default function EstimatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14">
             <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Adjusted Insurance Estimate</h1>
-                <p className="text-sm text-blue-600">SPC Claims Processing System</p>
+                <h1 className="text-lg font-medium text-gray-900">Adjusted Insurance Estimate</h1>
+                <p className="text-xs text-gray-500">SPC Claims Processing System</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={runRmmComparator}
                 disabled={isRunningRmmComparator || !rawAgentData}
-                className={`flex items-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isRunningRmmComparator || !rawAgentData
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl transform hover:-translate-y-0.5'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-slate-700 text-white hover:bg-slate-800 border border-slate-600'
                 }`}
               >
                 <span className="text-xl mr-2">💰</span>
@@ -688,10 +688,10 @@ export default function EstimatePage() {
               <button
                 onClick={calculateClaimWaste}
                 disabled={isCalculatingClaimWaste || !rawAgentData}
-                className={`flex items-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isCalculatingClaimWaste || !rawAgentData
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                    : 'bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-700 hover:to-amber-700 hover:shadow-xl transform hover:-translate-y-0.5'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-amber-700 text-white hover:bg-amber-800 border border-amber-600'
                 }`}
               >
                 <span className="text-xl mr-2">📊</span>
@@ -700,10 +700,10 @@ export default function EstimatePage() {
               <button
                 onClick={runAdjustmentAgent}
                 disabled={isRunningAdjustmentAgent || !rawAgentData || extractedLineItems.length === 0}
-                className={`flex items-center px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isRunningAdjustmentAgent || !rawAgentData || extractedLineItems.length === 0
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-xl transform hover:-translate-y-0.5'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-700 text-white hover:bg-blue-800 border border-blue-600'
                 }`}
               >
                 <Settings className="w-5 h-5 mr-2" />
@@ -711,7 +711,7 @@ export default function EstimatePage() {
               </button>
               <button 
                 onClick={() => router.push('/')}
-                className="px-6 py-3 bg-white text-gray-700 rounded-xl hover:bg-gray-50 border border-gray-200 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 border border-gray-300 text-sm font-medium transition-all duration-200"
               >
                 New Estimate
               </button>
@@ -720,21 +720,21 @@ export default function EstimatePage() {
         </div>
       </header>
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      <main className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Adjusted Estimate Display */}
           {adjustmentAgentResult && showAdjustedEstimate && (
             <div className="mb-8 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
               {/* Header */}
-              <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-8 py-6">
+              <div className="bg-slate-800 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-3xl font-bold text-white mb-2">✨ AI-Adjusted Estimate</h2>
-                    <p className="text-green-100 text-lg">Professional adjustments applied using advanced AI analysis</p>
+                    <h2 className="text-xl font-semibold text-white mb-1">AI-Adjusted Estimate</h2>
+                    <p className="text-gray-300 text-sm">Professional adjustments applied using advanced AI analysis</p>
                   </div>
                   <button
                     onClick={() => setShowAdjustedEstimate(false)}
-                    className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 font-semibold transition-all duration-200 border border-white/30"
+                    className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                   >
                     Hide Results
                   </button>
@@ -743,45 +743,45 @@ export default function EstimatePage() {
 
               {/* Delta Summary */}
               {adjustmentAgentResult.delta && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-6">📊 Adjustment Summary</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-green-500">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Adjustment Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500">
                       <div className="flex items-center">
-                        <div className="p-3 bg-green-100 rounded-full">
-                          <span className="text-2xl">➕</span>
+                        <div className="p-2 bg-green-100 rounded-full">
+                          <span className="text-lg">➕</span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-3xl font-bold text-green-600">
+                          <div className="text-xl font-bold text-green-600">
                             {adjustmentAgentResult.delta.added?.length || 0}
                           </div>
-                          <div className="text-sm font-medium text-gray-600">Items Added</div>
+                          <div className="text-xs font-medium text-gray-600">Items Added</div>
                         </div>
                       </div>
                     </div>
-                    <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-blue-500">
+                    <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
                       <div className="flex items-center">
-                        <div className="p-3 bg-blue-100 rounded-full">
-                          <span className="text-2xl">✏️</span>
+                        <div className="p-2 bg-blue-100 rounded-full">
+                          <span className="text-lg">✏️</span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-3xl font-bold text-blue-600">
+                          <div className="text-xl font-bold text-blue-600">
                             {adjustmentAgentResult.delta.updated?.length || 0}
                           </div>
-                          <div className="text-sm font-medium text-gray-600">Items Updated</div>
+                          <div className="text-xs font-medium text-gray-600">Items Updated</div>
                         </div>
                       </div>
                     </div>
-                    <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-red-500">
+                    <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-red-500">
                       <div className="flex items-center">
-                        <div className="p-3 bg-red-100 rounded-full">
-                          <span className="text-2xl">🗑️</span>
+                        <div className="p-2 bg-red-100 rounded-full">
+                          <span className="text-lg">🗑️</span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-3xl font-bold text-red-600">
+                          <div className="text-xl font-bold text-red-600">
                             {adjustmentAgentResult.delta.removed?.length || 0}
                           </div>
-                          <div className="text-sm font-medium text-gray-600">Items Removed</div>
+                          <div className="text-xs font-medium text-gray-600">Items Removed</div>
                         </div>
                       </div>
                     </div>
@@ -987,8 +987,8 @@ export default function EstimatePage() {
               </div>
 
               {/* Legend */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 px-8 py-6">
-                <h4 className="text-lg font-semibold text-gray-700 mb-4">🎨 Color Guide</h4>
+              <div className="bg-gray-50 border-t border-gray-200 px-6 py-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Color Guide</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                   <div className="flex items-start">
                     <div className="w-6 h-6 bg-green-50 border-l-4 border-green-500 rounded mr-3 mt-1"></div>
@@ -1033,15 +1033,15 @@ export default function EstimatePage() {
           {rmmAdjustedClaim && showRmmAdjustedClaim && (
             <div className="mb-8 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
               {/* Header */}
-              <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-8 py-6">
+              <div className="bg-slate-800 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-3xl font-bold text-white mb-2">💰 RMM Unit Cost Adjusted Claim</h2>
-                    <p className="text-purple-100 text-lg">Prices updated based on Roof Master Macro database</p>
+                    <h2 className="text-xl font-semibold text-white mb-1">RMM Unit Cost Adjusted Claim</h2>
+                    <p className="text-gray-300 text-sm">Prices updated based on Roof Master Macro database</p>
                   </div>
                   <button
                     onClick={() => setShowRmmAdjustedClaim(false)}
-                    className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 font-semibold transition-all duration-200 border border-white/30"
+                    className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                   >
                     Hide Results
                   </button>
@@ -1049,45 +1049,45 @@ export default function EstimatePage() {
               </div>
 
               {/* Summary Cards */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-8 py-6 border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">📊 Adjustment Summary</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-indigo-500">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Adjustment Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-indigo-500">
                     <div className="flex items-center">
-                      <div className="p-3 bg-indigo-100 rounded-full">
-                        <span className="text-2xl">📝</span>
+                      <div className="p-2 bg-indigo-100 rounded-full">
+                        <span className="text-lg">📝</span>
                       </div>
                       <div className="ml-4">
-                        <div className="text-3xl font-bold text-indigo-600">
+                        <div className="text-xl font-bold text-indigo-600">
                           {rmmAdjustedClaim.updated_line_items?.length || 0}
                         </div>
-                        <div className="text-sm font-medium text-gray-600">Total Line Items</div>
+                        <div className="text-xs font-medium text-gray-600">Total Line Items</div>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-purple-500">
+                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500">
                     <div className="flex items-center">
-                      <div className="p-3 bg-purple-100 rounded-full">
-                        <span className="text-2xl">✏️</span>
+                      <div className="p-2 bg-purple-100 rounded-full">
+                        <span className="text-lg">✏️</span>
                       </div>
                       <div className="ml-4">
-                        <div className="text-3xl font-bold text-purple-600">
+                        <div className="text-xl font-bold text-purple-600">
                           {rmmAdjustedClaim.audit_log?.length || 0}
                         </div>
-                        <div className="text-sm font-medium text-gray-600">Items Modified</div>
+                        <div className="text-xs font-medium text-gray-600">Items Modified</div>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white rounded-xl p-6 shadow-lg border-l-4 border-pink-500">
+                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-pink-500">
                     <div className="flex items-center">
-                      <div className="p-3 bg-pink-100 rounded-full">
-                        <span className="text-2xl">💎</span>
+                      <div className="p-2 bg-pink-100 rounded-full">
+                        <span className="text-lg">💎</span>
                       </div>
                       <div className="ml-4">
-                        <div className="text-3xl font-bold text-pink-600">
+                        <div className="text-xl font-bold text-pink-600">
                           {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
                         </div>
-                        <div className="text-sm font-medium text-gray-600">Total RCV</div>
+                        <div className="text-xs font-medium text-gray-600">Total RCV</div>
                       </div>
                     </div>
                   </div>
@@ -1118,7 +1118,20 @@ export default function EstimatePage() {
                           String(log.line_number) === String(item.line_number)
                         );
                         
-                        const rowClass = auditEntry ? 'bg-purple-50 border-l-4 border-purple-500' : 'hover:bg-gray-50';
+                        // Filter out changes that we don't want to apply:
+                        // 1. Depreciation changes where original was 0
+                        // 2. Unit price changes that result in decreases
+                        const validChanges = auditEntry?.fields_changed?.filter((change: any) => {
+                          if (change.field === 'depreciation_amount') {
+                            return change.before > 0; // Only count if original depreciation was > 0
+                          }
+                          if (change.field === 'unit_price') {
+                            return change.after > change.before; // Only count if unit price increased
+                          }
+                          return true; // Count all other changes
+                        }) || [];
+                        
+                        const rowClass = auditEntry && validChanges.length > 0 ? 'bg-purple-50 border-l-4 border-purple-500' : 'hover:bg-gray-50';
                         
                         return (
                           <tr key={index} className={rowClass}>
@@ -1130,24 +1143,30 @@ export default function EstimatePage() {
                                 <div className="font-medium mb-1">{item.description}</div>
                                 {auditEntry && (
                                   <>
-                                    <div className="mt-2 flex items-center space-x-2">
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white">
-                                        💰 RMM ADJUSTED
-                                      </span>
-                                      {auditEntry.similarity_score && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
-                                          {auditEntry.similarity_score.toFixed(0)}% Match
+                                    {/* Only show RMM ADJUSTED badge if fields were actually changed (excluding depreciation changes from 0) */}
+                                    {validChanges.length > 0 && (
+                                      <div className="mt-2 flex items-center space-x-2">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white">
+                                          💰 RMM ADJUSTED
                                         </span>
-                                      )}
-                                    </div>
-                                    <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
-                                      <div className="font-semibold text-amber-900 mb-1">🏷️ Matched Roof Master Macro Item:</div>
-                                      <div className="text-gray-700 mb-2 italic">"{auditEntry.matched_macro_description}"</div>
-                                      <div className="text-gray-600">
-                                        <strong className="text-amber-800">Action:</strong> {auditEntry.action} | 
-                                        <strong className="text-amber-800 ml-2">Changes:</strong> {auditEntry.fields_changed?.length || 0} field(s)
+                                        {auditEntry.similarity_score && (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+                                            {auditEntry.similarity_score.toFixed(0)}% Match
+                                          </span>
+                                        )}
                                       </div>
-                                    </div>
+                                    )}
+                                    {/* Show match information only if there was a match AND changes were made */}
+                                    {auditEntry.matched && validChanges.length > 0 && (
+                                      <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
+                                        <div className="font-semibold text-amber-900 mb-1">🏷️ Matched Roof Master Macro Item:</div>
+                                        <div className="text-gray-700 mb-2 italic">"{auditEntry.matched_macro_description}"</div>
+                                        <div className="text-gray-600">
+                                          <strong className="text-amber-800">Action:</strong> {auditEntry.action} | 
+                                          <strong className="text-amber-800 ml-2">Changes:</strong> {validChanges.length} field(s)
+                                        </div>
+                                      </div>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -1159,60 +1178,125 @@ export default function EstimatePage() {
                               {item.unit}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'unit_price') ? (
-                                <div className="space-y-1">
-                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
-                                    {formatCurrency(item.unit_price || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 line-through">
-                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'unit_price')?.before || 0)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
-                              )}
+                              {(() => {
+                                const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
+                                
+                                if (auditEntry && unitPriceChange && unitPriceChange.after > unitPriceChange.before) {
+                                  // Show adjustment only if unit price increased
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                        {formatCurrency(unitPriceChange.after)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 line-through">
+                                        Was: {formatCurrency(unitPriceChange.before)}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  // Show original value (either no change or decrease was ignored)
+                                  const displayPrice = unitPriceChange ? unitPriceChange.before : (item.unit_price || 0);
+                                  return (
+                                    <span className="text-gray-900">{formatCurrency(displayPrice)}</span>
+                                  );
+                                }
+                              })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'RCV') ? (
-                                <div className="space-y-1">
-                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
-                                    {formatCurrency(item.RCV || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 line-through">
-                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'RCV')?.before || 0)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-900">{formatCurrency(item.RCV || 0)}</span>
-                              )}
+                              {(() => {
+                                const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
+                                const rcvChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'RCV');
+                                
+                                // Use corrected unit price for RCV calculation
+                                const correctedUnitPrice = unitPriceChange && unitPriceChange.after > unitPriceChange.before 
+                                  ? unitPriceChange.after 
+                                  : (unitPriceChange ? unitPriceChange.before : (item.unit_price || 0));
+                                
+                                const correctedRCV = (item.quantity || 0) * correctedUnitPrice;
+                                
+                                if (auditEntry && rcvChange && unitPriceChange && unitPriceChange.after > unitPriceChange.before) {
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                        {formatCurrency(correctedRCV)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 line-through">
+                                        Was: {formatCurrency(rcvChange.before)}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="text-gray-900">{formatCurrency(correctedRCV)}</span>
+                                  );
+                                }
+                              })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'depreciation_amount') ? (
-                                <div className="space-y-1">
-                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
-                                    {formatCurrency(item.depreciation_amount || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 line-through">
-                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'depreciation_amount')?.before || 0)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-700">{formatCurrency(item.depreciation_amount || 0)}</span>
-                              )}
+                              {(() => {
+                                const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
+                                const originalDepreciation = depreciationChange?.before || 0;
+                                
+                                // Override depreciation to 0 if original was 0
+                                const displayDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
+                                
+                                // Show adjustment styling only if original depreciation was > 0
+                                if (auditEntry && depreciationChange && originalDepreciation > 0) {
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                        {formatCurrency(displayDepreciation)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 line-through">
+                                        Was: {formatCurrency(originalDepreciation)}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="text-gray-700">{formatCurrency(displayDepreciation)}</span>
+                                  );
+                                }
+                              })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {auditEntry && auditEntry.fields_changed?.some((c: any) => c.field === 'ACV') ? (
-                                <div className="space-y-1">
-                                  <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
-                                    {formatCurrency(item.ACV || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 line-through">
-                                    Was: {formatCurrency(auditEntry.fields_changed.find((c: any) => c.field === 'ACV')?.before || 0)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-900">{formatCurrency(item.ACV || 0)}</span>
-                              )}
+                              {(() => {
+                                const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
+                                const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
+                                const acvChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'ACV');
+                                const originalDepreciation = depreciationChange?.before || 0;
+                                
+                                // Use corrected unit price for RCV calculation
+                                const correctedUnitPrice = unitPriceChange && unitPriceChange.after > unitPriceChange.before 
+                                  ? unitPriceChange.after 
+                                  : (unitPriceChange ? unitPriceChange.before : (item.unit_price || 0));
+                                
+                                const correctedRCV = (item.quantity || 0) * correctedUnitPrice;
+                                
+                                // Calculate corrected ACV: RCV - (depreciation forced to 0 if original was 0)
+                                const correctedDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
+                                const correctedACV = correctedRCV - correctedDepreciation;
+                                
+                                // Only show adjustment if there were valid changes
+                                const hasValidChanges = validChanges.length > 0;
+                                
+                                if (auditEntry && acvChange && hasValidChanges) {
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
+                                        {formatCurrency(correctedACV)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 line-through">
+                                        Was: {formatCurrency(acvChange.before || 0)}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="text-gray-900">{formatCurrency(correctedACV)}</span>
+                                  );
+                                }
+                              })()}
                             </td>
                           </tr>
                         );
@@ -1224,13 +1308,51 @@ export default function EstimatePage() {
                           Totals:
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-purple-50">
-                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => {
+                            const auditEntry = rmmAdjustedClaim.audit_log?.find((log: any) => 
+                              String(log.line_number) === String(item.line_number)
+                            );
+                            const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
+                            
+                            // Use corrected unit price for RCV calculation
+                            const correctedUnitPrice = unitPriceChange && unitPriceChange.after > unitPriceChange.before 
+                              ? unitPriceChange.after 
+                              : (unitPriceChange ? unitPriceChange.before : (item.unit_price || 0));
+                            
+                            const correctedRCV = (item.quantity || 0) * correctedUnitPrice;
+                            return sum + correctedRCV;
+                          }, 0) || 0)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
-                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.depreciation_amount || 0), 0) || 0)}
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => {
+                            const auditEntry = rmmAdjustedClaim.audit_log?.find((log: any) => 
+                              String(log.line_number) === String(item.line_number)
+                            );
+                            const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
+                            const originalDepreciation = depreciationChange?.before || 0;
+                            const correctedDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
+                            return sum + correctedDepreciation;
+                          }, 0) || 0)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
-                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => sum + (item.ACV || 0), 0) || 0)}
+                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => {
+                            const auditEntry = rmmAdjustedClaim.audit_log?.find((log: any) => 
+                              String(log.line_number) === String(item.line_number)
+                            );
+                            const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
+                            const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
+                            const originalDepreciation = depreciationChange?.before || 0;
+                            
+                            // Use corrected unit price for RCV calculation
+                            const correctedUnitPrice = unitPriceChange && unitPriceChange.after > unitPriceChange.before 
+                              ? unitPriceChange.after 
+                              : (unitPriceChange ? unitPriceChange.before : (item.unit_price || 0));
+                            
+                            const correctedRCV = (item.quantity || 0) * correctedUnitPrice;
+                            const correctedDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
+                            const correctedACV = correctedRCV - correctedDepreciation;
+                            return sum + correctedACV;
+                          }, 0) || 0)}
                         </td>
                       </tr>
                     </tfoot>
@@ -1239,8 +1361,8 @@ export default function EstimatePage() {
               </div>
 
               {/* Legend */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-t border-gray-200 px-8 py-6">
-                <h4 className="text-lg font-semibold text-gray-700 mb-4">🎨 Color Guide</h4>
+              <div className="bg-gray-50 border-t border-gray-200 px-6 py-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Color Guide</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-start">
                     <div className="w-6 h-6 bg-purple-50 border-l-4 border-purple-500 rounded mr-3 mt-1"></div>
@@ -1283,12 +1405,12 @@ export default function EstimatePage() {
 
           {/* Claim Waste Percentage Debug Window */}
           {claimWasteResult && (
-            <div className="mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-2xl shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6">
+            <div className="mb-8 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-slate-800 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">📊 Insurance Claim Waste % Calculation</h2>
-                    <p className="text-purple-100">Agent ID: 68eae51c8d106b3b3abb37f8 | Calculated from claim line items</p>
+                    <h2 className="text-lg font-semibold text-white mb-1">Insurance Claim Waste % Calculation</h2>
+                    <p className="text-gray-300 text-sm">Agent ID: 68eae51c8d106b3b3abb37f8 | Calculated from claim line items</p>
                   </div>
                   <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
                     <span className="text-white font-bold text-lg">Carrier Data</span>
@@ -1442,12 +1564,12 @@ export default function EstimatePage() {
 
           {/* Waste Percentage Debug Window */}
           {rawAgentData?.wastePercentResponse && (
-            <div className="mb-8 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-2xl shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-600 to-amber-600 px-8 py-6">
+            <div className="mb-8 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-slate-800 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">📊 Waste Percentage Calculation</h2>
-                    <p className="text-orange-100">Agent ID: 68eae0638be660f19f9164ea</p>
+                    <h2 className="text-lg font-semibold text-white mb-1">Waste Percentage Calculation</h2>
+                    <p className="text-gray-300 text-sm">Agent ID: 68eae0638be660f19f9164ea</p>
                   </div>
                   <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
                     <span className="text-white font-bold text-lg">Debug Data</span>
@@ -1616,11 +1738,11 @@ export default function EstimatePage() {
           {rawAgentData && (
             <div className="mb-8">
               <details className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-                <summary className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6 cursor-pointer hover:from-purple-700 hover:to-indigo-700 transition-all">
+                <summary className="bg-slate-800 px-6 py-4 cursor-pointer hover:bg-slate-700 transition-all">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-2">🔍 Debug Information</h2>
-                      <p className="text-purple-100">Click to view agent outputs and combined payload</p>
+                      <h2 className="text-lg font-semibold text-white mb-1">Debug Information</h2>
+                      <p className="text-gray-300 text-sm">Click to view agent outputs and combined payload</p>
                     </div>
                     <span className="text-white text-3xl">▼</span>
                   </div>
