@@ -2581,10 +2581,10 @@ export default function EstimatePage() {
                           <div className="flex-1">
                             <h4 className="font-semibold text-gray-900 mb-2">{adjustment.description}</h4>
                             <p className="text-sm text-gray-700 mb-2">{adjustment.reason}</p>
-                            <div className="text-xs text-gray-600 bg-white p-2 rounded border">
-                              <div>Old Quantity: {adjustment.old_quantity}</div>
-                              <div>New Quantity: {adjustment.new_quantity}</div>
-                              {adjustment.savings > 0 && <div>Estimated Savings: ${adjustment.savings.toFixed(2)}</div>}
+                            <div className="text-xs text-gray-700 space-y-1">
+                              <div><span className="font-medium">Old Quantity:</span> {adjustment.old_quantity}</div>
+                              <div><span className="font-medium">New Quantity:</span> {adjustment.new_quantity}</div>
+                              {adjustment.savings > 0 && <div><span className="font-medium">Estimated Savings:</span> ${adjustment.savings.toFixed(2)}</div>}
                             </div>
                           </div>
                           <div className="ml-4 text-right">
@@ -2603,8 +2603,8 @@ export default function EstimatePage() {
                           <div className="flex-1">
                             <h4 className="font-semibold text-gray-900 mb-2">{addition.description}</h4>
                             <p className="text-sm text-gray-700 mb-2">{addition.reason}</p>
-                            <div className="text-xs text-gray-600 bg-white p-2 rounded border">
-                              <div>Quantity: {addition.quantity}</div>
+                            <div className="text-xs text-gray-700">
+                              <div><span className="font-medium">Quantity:</span> {addition.quantity}</div>
                             </div>
                           </div>
                           <div className="ml-4 text-right">
