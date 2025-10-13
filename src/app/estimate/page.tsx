@@ -72,6 +72,19 @@ export default function EstimatePage() {
   const [isRunningRmmComparator, setIsRunningRmmComparator] = useState(false);
   const [showRmmAdjustedClaim, setShowRmmAdjustedClaim] = useState(false);
 
+  // Quick Switch state
+  const [roofMasterMacro, setRoofMasterMacro] = useState<Map<string, any>>(new Map());
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemIndex: number } | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<number | null>(null);
+
+  // Shingle Removal Check state
+  const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
+  const [selectedShingleRemoval, setSelectedShingleRemoval] = useState('');
+  const [shingleRemovalQuantity, setShingleRemovalQuantity] = useState('');
+
+  // O&P Check state
+  const [showOPModal, setShowOPModal] = useState(false);
+
   useEffect(() => {
     console.log('=== ESTIMATE PAGE DEBUG START ===');
     
@@ -207,6 +220,100 @@ export default function EstimatePage() {
     console.log('✅ Final roof measurements object:', roofMeasurementsObj);
     return roofMeasurementsObj;
   };
+
+  // Load Roof Master Macro data
+  useEffect(() => {
+    const loadRoofMasterMacro = async () => {
+      try {
+        const response = await fetch('/roof_master_macro.txt');
+        const text = await response.text();
+        
+        // Parse CSV
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+        const macroMap = new Map();
+        
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',');
+          const description = values[0]?.trim();
+          
+          if (description) {
+            macroMap.set(description, {
+              description,
+              unit_price: parseFloat(values[1] || '0'),
+              rcv: parseFloat(values[2] || '0'),
+              acv: parseFloat(values[3] || '0'),
+              unit: values[4]?.trim() || 'SQ'
+            });
+          }
+        }
+        
+        console.log('✅ Loaded Roof Master Macro:', macroMap.size, 'items');
+        setRoofMasterMacro(macroMap);
+      } catch (error) {
+        console.error('Error loading Roof Master Macro:', error);
+      }
+    };
+    
+    loadRoofMasterMacro();
+  }, []);
+
+  // Quick Switch Definitions
+  const quickSwitchOptions: Record<string, string> = {
+    'Hip/Ridge cap Standard profile - composition shingles': 'Hip/Ridge cap High profile - composition shingles',
+    'Drip edge/gutter apron': 'Drip edge',
+    'Sheathing - OSB - 5/8"': 'Sheathing OSB 1/2"'
+  };
+
+  // Handle Quick Switch
+  const handleQuickSwitch = (itemIndex: number, newDescription: string) => {
+    const macroData = roofMasterMacro.get(newDescription);
+    
+    if (!macroData) {
+      console.error('Item not found in Roof Master Macro:', newDescription);
+      alert(`Item "${newDescription}" not found in Roof Master Macro`);
+      return;
+    }
+
+    const updatedItems = [...extractedLineItems];
+    const item = updatedItems[itemIndex];
+    const quantity = item.quantity;
+
+    // Update item with new data from roof master macro
+    updatedItems[itemIndex] = {
+      ...item,
+      description: newDescription,
+      unit_price: macroData.unit_price,
+      unit: macroData.unit,
+      RCV: quantity * macroData.unit_price,
+      ACV: quantity * macroData.unit_price - (item.depreciation_amount || 0)
+    };
+
+    setExtractedLineItems(updatedItems);
+    setContextMenu(null);
+    
+    console.log('✅ Quick switched to:', newDescription);
+  };
+
+  // Handle Right Click
+  const handleRightClick = (e: React.MouseEvent, itemIndex: number) => {
+    const item = extractedLineItems[itemIndex];
+    if (quickSwitchOptions[item.description]) {
+      e.preventDefault();
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        itemIndex
+      });
+    }
+  };
+
+  // Close context menu
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
 
   // Run RMM Unit Cost Comparator
   const runRmmComparator = async () => {
@@ -830,18 +937,147 @@ export default function EstimatePage() {
     }
   };
 
-  // User Prompt Workflow function
-  const runUserPromptWorkflow = async () => {
-    console.log('=== RUNNING USER PROMPT WORKFLOW ===');
+  // Shingle Removal Options
+  const shingleRemovalOptions = [
+    'Remove Laminated comp. shingle rfg. - w/out felt',
+    'Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt',
+    'Remove 3 tab 25 yr. composition shingle roofing - incl. felt',
+    'Remove Laminated comp. shingle rfg. - w/ felt'
+  ];
+
+  // Check if shingle removal items are present
+  const checkShingleRemovalItems = () => {
+    const hasShingleRemoval = extractedLineItems.some(item => 
+      shingleRemovalOptions.includes(item.description)
+    );
+    return hasShingleRemoval;
+  };
+
+  // Add shingle removal item and continue workflow
+  const handleAddShingleRemoval = async () => {
+    if (!selectedShingleRemoval) {
+      alert('Please select a shingle removal type');
+      return;
+    }
+
+    const quantity = parseFloat(shingleRemovalQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    const macroData = roofMasterMacro.get(selectedShingleRemoval);
+    if (!macroData) {
+      alert(`Item "${selectedShingleRemoval}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...extractedLineItems.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item
+    const newItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: selectedShingleRemoval,
+      quantity: quantity,
+      unit: macroData.unit || 'SQ',
+      unit_price: macroData.unit_price,
+      RCV: quantity * macroData.unit_price,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: quantity * macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...extractedLineItems.map(item => item.page_number || 0), 1)
+    };
+
+    // Add to line items
+    const updatedItems = [...extractedLineItems, newItem];
+    setExtractedLineItems(updatedItems);
+    
+    // Close modal and reset
+    setShowShingleRemovalModal(false);
+    setSelectedShingleRemoval('');
+    setShingleRemovalQuantity('');
+    
+    console.log('✅ Added shingle removal item:', newItem);
+    console.log('🔄 Continuing User Prompt Workflow...');
+    
+    // Continue with the workflow using updated items
+    continueUserPromptWorkflow(updatedItems);
+  };
+
+  // Check if O&P is present
+  const checkOPPresent = (items: LineItem[]) => {
+    return items.some(item => 
+      item.description.toLowerCase().includes('o&p') || 
+      item.description.toLowerCase().includes('overhead') && item.description.toLowerCase().includes('profit')
+    );
+  };
+
+  // Add O&P line item
+  const handleAddOP = (items: LineItem[]) => {
+    // Calculate 20% of total RCV (excluding O&P itself)
+    const totalRCV = items.reduce((sum, item) => sum + (item.RCV || 0), 0);
+    const opAmount = totalRCV * 0.20;
+
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...items.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create O&P line item
+    const opItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: 'O&P',
+      quantity: 1,
+      unit: 'EA',
+      unit_price: opAmount,
+      RCV: opAmount,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: opAmount,
+      location_room: 'General',
+      category: 'General',
+      page_number: Math.max(...items.map(item => item.page_number || 0), 1)
+    };
+
+    // Add O&P at the end
+    const updatedItems = [...items, opItem];
+    setExtractedLineItems(updatedItems);
+    
+    // Close modal
+    setShowOPModal(false);
+    
+    console.log('✅ Added O&P line item:', opItem);
+    console.log('🔄 Continuing User Prompt Workflow...');
+    
+    // Continue workflow with updated items
+    continueUserPromptWorkflow(updatedItems);
+  };
+
+  // Continue User Prompt Workflow after adding shingle removal
+  const continueUserPromptWorkflow = async (itemsToUse: LineItem[]) => {
+    // Check for O&P before proceeding
+    const hasOP = checkOPPresent(itemsToUse);
+    if (!hasOP) {
+      console.log('⚠️ No O&P found - showing modal');
+      setShowOPModal(true);
+      return;
+    }
+
+    console.log('✅ O&P found - proceeding with workflow');
     setIsRunningPrompts(true);
     
     try {
-      if (extractedLineItems.length === 0) {
-        alert('No line items available. Please upload and process documents first.');
-        setIsRunningPrompts(false);
-        return;
-      }
-
       // Get roof measurements using the helper function
       const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
       
@@ -862,19 +1098,17 @@ export default function EstimatePage() {
         roofMeasurements = roofMeasurementsObj;
       }
       
-      console.log('📊 Using extracted roof measurements for User Prompt Workflow:', roofMeasurements);
-      
       // If we have individual ridge/hip lengths but no combined field, create it
       if (roofMeasurements.ridgeLength !== undefined && roofMeasurements.hipLength !== undefined && !roofMeasurements["Total Ridges/Hips Length"]) {
         const combinedLength = roofMeasurements.ridgeLength + roofMeasurements.hipLength;
         roofMeasurements["Total Ridges/Hips Length"] = { value: combinedLength };
       }
 
-      console.log('📊 Using LIVE roof measurements for User Prompt Workflow:', roofMeasurements);
+      console.log('📊 Using roof measurements for User Prompt Workflow:', roofMeasurements);
 
       // Prepare data for user prompt workflow
       const promptInputData = {
-        line_items: extractedLineItems.map(item => ({
+        line_items: itemsToUse.map(item => ({
           line_number: item.line_number,
           description: item.description,
           quantity: item.quantity,
@@ -925,6 +1159,35 @@ export default function EstimatePage() {
       console.error('Error running user prompt workflow:', error);
       alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
+      setIsRunningPrompts(false);
+    }
+  };
+
+  // User Prompt Workflow function
+  const runUserPromptWorkflow = async () => {
+    console.log('=== RUNNING USER PROMPT WORKFLOW ===');
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        return;
+      }
+
+      // Check for shingle removal items - only show modal if NONE exist
+      const hasShingleRemoval = checkShingleRemovalItems();
+      if (!hasShingleRemoval) {
+        console.log('⚠️ No shingle removal items found - showing modal');
+        setShowShingleRemovalModal(true);
+        return;
+      }
+
+      // If shingle removal exists, continue with workflow
+      console.log('✅ Shingle removal item found - continuing workflow');
+      continueUserPromptWorkflow(extractedLineItems);
+
+    } catch (error) {
+      console.error('Error running user prompt workflow:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsRunningPrompts(false);
     }
   };
@@ -2689,15 +2952,37 @@ export default function EstimatePage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
-                      {extractedLineItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                      {extractedLineItems.map((item, index) => {
+                        const hasQuickSwitch = quickSwitchOptions[item.description];
+                        const isHovered = hoveredItem === index;
+                        
+                        return (
+                        <tr 
+                          key={index} 
+                          className="hover:bg-gray-50"
+                          onContextMenu={(e) => handleRightClick(e, index)}
+                          onMouseEnter={() => setHoveredItem(index)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                        >
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {item.line_number}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            <div className="max-w-xs">
+                            <div className="max-w-xs relative">
                               <div className="font-medium">{item.description}</div>
                               <div className="text-xs text-gray-500 mt-1">{item.category} • {item.location_room}</div>
+                              
+                              {/* Quick Switch Hover Button */}
+                              {hasQuickSwitch && isHovered && (
+                                <button
+                                  onClick={() => handleQuickSwitch(index, quickSwitchOptions[item.description])}
+                                  className="absolute -right-2 top-0 bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg transition-all duration-200 flex items-center gap-1 z-10"
+                                  title={`Switch to: ${quickSwitchOptions[item.description]}`}
+                                >
+                                  <span>🔄</span>
+                                  <span>Switch</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -2719,7 +3004,8 @@ export default function EstimatePage() {
                             {formatCurrency(item.ACV || 0)}
                           </td>
                         </tr>
-                      ))}
+                      );
+                      })}
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr className="font-bold">
@@ -3055,6 +3341,231 @@ export default function EstimatePage() {
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
                   >
                     Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Context Menu for Quick Switch */}
+          {contextMenu && (
+            <div
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50"
+              style={{
+                top: `${contextMenu.y}px`,
+                left: `${contextMenu.x}px`,
+              }}
+            >
+              <button
+                onClick={() => {
+                  const item = extractedLineItems[contextMenu.itemIndex];
+                  const newDescription = quickSwitchOptions[item.description];
+                  handleQuickSwitch(contextMenu.itemIndex, newDescription);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm flex items-center gap-2 transition-colors"
+              >
+                <span className="text-blue-600">🔄</span>
+                <div>
+                  <div className="font-medium text-gray-900">Quick Switch</div>
+                  <div className="text-xs text-gray-500">
+                    Switch to: {quickSwitchOptions[extractedLineItems[contextMenu.itemIndex].description]}
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Shingle Removal Modal */}
+          {showShingleRemovalModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-orange-600 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Shingle Removal Required</h2>
+                      <p className="text-orange-100 text-sm">No shingle removal items found in estimate</p>
+                    </div>
+                    <button
+                      onClick={() => setShowShingleRemovalModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700">
+                        The estimate must include at least one shingle removal line item. 
+                        Please select one of the following options and enter the quantity:
+                      </p>
+                    </div>
+
+                    {/* Shingle Type Selection */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Shingle Removal Type *
+                      </label>
+                      <select
+                        value={selectedShingleRemoval}
+                        onChange={(e) => setSelectedShingleRemoval(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                      >
+                        <option value="">-- Select a type --</option>
+                        {shingleRemovalOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Quantity Input */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity (SQ) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={shingleRemovalQuantity}
+                        onChange={(e) => setShingleRemovalQuantity(e.target.value)}
+                        placeholder="Enter quantity"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                      />
+                    </div>
+
+                    {/* Price Preview */}
+                    {selectedShingleRemoval && shingleRemovalQuantity && roofMasterMacro.get(selectedShingleRemoval) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="text-gray-600">Unit Price:</div>
+                            <div className="font-semibold">
+                              ${roofMasterMacro.get(selectedShingleRemoval).unit_price.toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">Quantity:</div>
+                            <div className="font-semibold">{shingleRemovalQuantity} SQ</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">Total RCV:</div>
+                            <div className="font-semibold text-blue-700">
+                              ${(roofMasterMacro.get(selectedShingleRemoval).unit_price * parseFloat(shingleRemovalQuantity)).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => setShowShingleRemovalModal(false)}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowShingleRemovalModal(false);
+                        console.log('⏭️ Skipping shingle removal - continuing workflow');
+                        continueUserPromptWorkflow(extractedLineItems);
+                      }}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                    >
+                      Skip & Continue
+                    </button>
+                    <button
+                      onClick={handleAddShingleRemoval}
+                      className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
+                    >
+                      Add to Estimate
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* O&P Modal */}
+          {showOPModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-blue-600 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">💰 O&P (Overhead & Profit) Required</h2>
+                      <p className="text-blue-100 text-sm">No O&P line item found in estimate</p>
+                    </div>
+                    <button
+                      onClick={() => setShowOPModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700">
+                        The estimate should include an O&P (Overhead & Profit) line item calculated at 20% of the total RCV.
+                        Would you like to add O&P to this estimate?
+                      </p>
+                    </div>
+
+                    {/* Current Estimate Totals */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-2">Current Estimate Totals</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-gray-700 font-medium">Total RCV:</div>
+                          <div className="font-bold text-gray-900 text-lg">
+                            ${extractedLineItems.reduce((sum, item) => sum + (item.RCV || 0), 0).toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-700 font-medium">O&P Amount (20%):</div>
+                          <div className="font-bold text-blue-700 text-lg">
+                            ${(extractedLineItems.reduce((sum, item) => sum + (item.RCV || 0), 0) * 0.20).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowOPModal(false);
+                      console.log('⏭️ Skipping O&P - continuing workflow');
+                      continueUserPromptWorkflow(extractedLineItems);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip & Continue
+                  </button>
+                  <button
+                    onClick={() => handleAddOP(extractedLineItems)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                  >
+                    Add O&P (20%)
                   </button>
                 </div>
               </div>

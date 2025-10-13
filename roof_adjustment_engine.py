@@ -204,6 +204,12 @@ class RoofAdjustmentEngine:
         total_roof_area = self.get_metric(roof_metrics, "Total Roof Area")
         total_eaves_length = self.get_metric(roof_metrics, "Total Eaves Length")
         total_rakes_length = self.get_metric(roof_metrics, "Total Rakes Length")
+        area_pitch_1 = self.get_metric(roof_metrics, "Area for Pitch 1/12 (sq ft)")
+        area_pitch_2 = self.get_metric(roof_metrics, "Area for Pitch 2/12 (sq ft)")
+        area_pitch_3 = self.get_metric(roof_metrics, "Area for Pitch 3/12 (sq ft)")
+        area_pitch_4 = self.get_metric(roof_metrics, "Area for Pitch 4/12 (sq ft)")
+        area_pitch_5 = self.get_metric(roof_metrics, "Area for Pitch 5/12 (sq ft)")
+        area_pitch_6 = self.get_metric(roof_metrics, "Area for Pitch 6/12 (sq ft)")
         area_pitch_7 = self.get_metric(roof_metrics, "Area for Pitch 7/12 (sq ft)")
         area_pitch_8 = self.get_metric(roof_metrics, "Area for Pitch 8/12 (sq ft)")
         area_pitch_9 = self.get_metric(roof_metrics, "Area for Pitch 9/12 (sq ft)")
@@ -225,7 +231,13 @@ class RoofAdjustmentEngine:
         print(f"  Total Valleys Length: {total_valleys_length}")
         print(f"  Total Step Flashing Length: {total_step_flashing_length}")
         print(f"  Total Flashing Length: {total_flashing_length}")
-        print(f"\n  PITCH AREAS (CRITICAL FOR STEEP ROOF CHARGES):")
+        print(f"\n  PITCH AREAS (ALL SLOPES):")
+        print(f"  Pitch 1/12: {area_pitch_1}")
+        print(f"  Pitch 2/12: {area_pitch_2}")
+        print(f"  Pitch 3/12: {area_pitch_3}")
+        print(f"  Pitch 4/12: {area_pitch_4}")
+        print(f"  Pitch 5/12: {area_pitch_5}")
+        print(f"  Pitch 6/12: {area_pitch_6}")
         print(f"  Pitch 7/12: {area_pitch_7}")
         print(f"  Pitch 8/12: {area_pitch_8}")
         print(f"  Pitch 9/12: {area_pitch_9}")
@@ -692,6 +704,84 @@ class RoofAdjustmentEngine:
                 break
         else:
             print(f"  ❌ Not found: Valley metal (tried all variations)")
+
+        # Roofing felt logic based on pitch areas
+        print(f"\n📄 RULE: Roofing Felt Adjustments Based on Pitch")
+        
+        # Calculate pitch area totals for different slope ranges
+        low_slope_area = area_pitch_1 + area_pitch_2 + area_pitch_3 + area_pitch_4
+        medium_slope_area = area_pitch_5 + area_pitch_6 + area_pitch_7 + area_pitch_8
+        steep_slope_area = area_pitch_9 + area_pitch_10 + area_pitch_11 + area_pitch_12 + area_pitch_12_plus
+        
+        print(f"  Low Slope (1/12-4/12): {low_slope_area} sq ft → {low_slope_area / 100:.2f} SQ")
+        print(f"  Medium Slope (5/12-8/12): {medium_slope_area} sq ft → {medium_slope_area / 100:.2f} SQ")
+        print(f"  Steep Slope (9/12+): {steep_slope_area} sq ft → {steep_slope_area / 100:.2f} SQ")
+        
+        # Rule 1: Low slope roofing felt (1/12 to 4/12)
+        if low_slope_area != 0:
+            desc = "Roofing felt - 15 lb. double coverage/low slope"
+            low_slope_qty = low_slope_area / 100.0
+            item = self.find_item(line_items, desc)
+            if item:
+                old_qty = float(item["quantity"])
+                print(f"  Found: {desc} - Current Qty: {old_qty}, Target: {low_slope_qty:.2f}")
+                if old_qty < low_slope_qty:
+                    item["quantity"] = max(old_qty, low_slope_qty)
+                    self.update_item_costs(item)
+                    print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
+                    self.results.add_adjustment(desc, old_qty, item["quantity"], 
+                                              f"Quantity should equal (Area 1/12 + 2/12 + 3/12 + 4/12) / 100 ({low_slope_qty:.2f})")
+                else:
+                    print(f"    ⏭️  No change needed (already sufficient)")
+            else:
+                print(f"  ❌ Not found: {desc} - ADDING NEW ITEM")
+                self.add_new_item(line_items, desc, low_slope_qty)
+        else:
+            print(f"  ⏭️  No low slope areas (1/12-4/12) - skipping low slope felt")
+        
+        # Rule 2: Medium slope roofing felt (5/12 to 8/12)
+        if medium_slope_area != 0:
+            desc = "Roofing felt - 15 lb."
+            medium_slope_qty = medium_slope_area / 100.0
+            item = self.find_item(line_items, desc)
+            if item:
+                old_qty = float(item["quantity"])
+                print(f"  Found: {desc} - Current Qty: {old_qty}, Target: {medium_slope_qty:.2f}")
+                if old_qty < medium_slope_qty:
+                    item["quantity"] = max(old_qty, medium_slope_qty)
+                    self.update_item_costs(item)
+                    print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
+                    self.results.add_adjustment(desc, old_qty, item["quantity"], 
+                                              f"Quantity should equal (Area 5/12 + 6/12 + 7/12 + 8/12) / 100 ({medium_slope_qty:.2f})")
+                else:
+                    print(f"    ⏭️  No change needed (already sufficient)")
+            else:
+                print(f"  ❌ Not found: {desc} - ADDING NEW ITEM")
+                self.add_new_item(line_items, desc, medium_slope_qty)
+        else:
+            print(f"  ⏭️  No medium slope areas (5/12-8/12) - skipping medium slope felt")
+        
+        # Rule 3: Steep slope roofing felt (9/12 and above)
+        if steep_slope_area != 0:
+            desc = "Roofing felt - 30 lb."
+            steep_slope_qty = steep_slope_area / 100.0
+            item = self.find_item(line_items, desc)
+            if item:
+                old_qty = float(item["quantity"])
+                print(f"  Found: {desc} - Current Qty: {old_qty}, Target: {steep_slope_qty:.2f}")
+                if old_qty < steep_slope_qty:
+                    item["quantity"] = max(old_qty, steep_slope_qty)
+                    self.update_item_costs(item)
+                    print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
+                    self.results.add_adjustment(desc, old_qty, item["quantity"], 
+                                              f"Quantity should equal (Area 9/12 + 10/12 + 11/12 + 12/12 + 12/12+) / 100 ({steep_slope_qty:.2f})")
+                else:
+                    print(f"    ⏭️  No change needed (already sufficient)")
+            else:
+                print(f"  ❌ Not found: {desc} - ADDING NEW ITEM")
+                self.add_new_item(line_items, desc, steep_slope_qty)
+        else:
+            print(f"  ⏭️  No steep slope areas (9/12+) - skipping steep slope felt")
 
         # Chimney saddle/cricket logic
         print(f"\n🏠 RULE: Chimney Saddle/Cricket Logic")

@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, FileText, BarChart3, Settings, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Upload, FileText, Settings, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { SPCClaimsOrchestrator } from '@/lib/SPCClaimsOrchestrator';
-import { XactimateClaim, SPCQuote, DashboardStats, AgentResponse } from '@/types';
+import { AgentResponse } from '@/types';
 
 export default function HomePage() {
   const router = useRouter();
   const [orchestrator] = useState(new SPCClaimsOrchestrator());
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-  const [recentClaims, setRecentClaims] = useState<XactimateClaim[]>([]);
-  const [recentQuotes, setRecentQuotes] = useState<SPCQuote[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadedClaimFile, setUploadedClaimFile] = useState<File | null>(null);
@@ -33,7 +30,6 @@ export default function HomePage() {
   const [roofAgentStatus, setRoofAgentStatus] = useState<string>('');
 
   useEffect(() => {
-    loadDashboardData();
     checkLyzrStatus();
   }, []);
 
@@ -52,19 +48,6 @@ export default function HomePage() {
     }
   };
 
-  const loadDashboardData = async () => {
-    try {
-      const stats = await orchestrator.getDashboardStats();
-      const claims = await orchestrator.getClaimHistory(5);
-      const quotes = await orchestrator.getQuoteHistory(5);
-      
-      setDashboardStats(stats);
-      setRecentClaims(claims);
-      setRecentQuotes(quotes);
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    }
-  };
 
   const handleClaimFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -413,6 +396,7 @@ export default function HomePage() {
   const formatPercentage = (value: number) => {
     return `${(value * 100).toFixed(1)}%`;
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -875,81 +859,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Dashboard Stats */}
-        {dashboardStats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Total Claims</p>
-                  <p className="text-2xl font-semibold text-gray-900">{dashboardStats.totalClaims}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Processed</p>
-                  <p className="text-2xl font-semibold text-gray-900">{dashboardStats.processedClaims}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Avg Processing Time</p>
-                  <p className="text-2xl font-semibold text-gray-900">{dashboardStats.averageProcessingTime}s</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <BarChart3 className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Success Rate</p>
-                  <p className="text-2xl font-semibold text-gray-900">{formatPercentage(dashboardStats.successRate / 100)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Additional Stats */}
-        {dashboardStats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Total Savings</h3>
-              <p className="text-3xl font-bold text-green-600">{formatCurrency(dashboardStats.totalSavings)}</p>
-              <p className="text-sm text-gray-500 mt-2">Generated through bundle optimization</p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Trust Score</h3>
-              <p className="text-3xl font-bold text-blue-600">{formatPercentage(dashboardStats.averageTrustScore)}</p>
-              <p className="text-sm text-gray-500 mt-2">Quality assessment across all claims</p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Processing Efficiency</h3>
-              <p className="text-3xl font-bold text-purple-600">{formatPercentage(dashboardStats.successRate / 100)}</p>
-              <p className="text-sm text-gray-500 mt-2">Successful claim processing rate</p>
-            </div>
-          </div>
-        )}
 
         {/* Processing Results */}
         {showResults && processingResult && (
@@ -1280,66 +1189,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Claims</h3>
-            {recentClaims.length > 0 ? (
-              <div className="space-y-3">
-                {recentClaims.map((claim) => (
-                  <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      {getStatusIcon(claim.processingStatus.status)}
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900">{claim.fileName}</p>
-                        <p className="text-xs text-gray-500">{claim.uploadDate.toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatCurrency(claim.extractedData.totals.total)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatPercentage(claim.extractedData.metadata.confidenceScore)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-4">No recent claims</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Quotes</h3>
-            {recentQuotes.length > 0 ? (
-              <div className="space-y-3">
-                {recentQuotes.map((quote) => (
-                  <div key={quote.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      {getStatusIcon(quote.status.status)}
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900">{quote.id}</p>
-                        <p className="text-xs text-gray-500">{quote.generatedAt.toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatCurrency(quote.quoteData.totals.total)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatPercentage(quote.trustScore)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-4">No recent quotes</p>
-            )}
-          </div>
-        </div>
       </main>
     </div>
   );
