@@ -1,0 +1,252 @@
+{
+  "original_line_items": [
+    {
+      "line_number": "1",
+      "description": "Remove 3 tab - 25 yr. composition shingle roofing incl. felt",
+      "quantity": 19.67,
+      "unit": "SQ",
+      "unit_price": 65.04,
+      "RCV": 1279.34,
+      "age_life": "14/25 yrs",
+      "condition": "Avg.",
+      "dep_percent": null,
+      "depreciation_amount": 0,
+      "ACV": 1279.34,
+      "location_room": "Dwelling Roof",
+      "category": "Roof"
+    },
+    {
+      "line_number": "2",
+      "description": "Chimney flashing average (32\" x 36\")",
+      "quantity": 1,
+      "unit": "EA",
+      "unit_price": 150.0,
+      "RCV": 150.0,
+      "age_life": "New",
+      "condition": "Good",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 150.0,
+      "location_room": "Dwelling Roof",
+      "category": "Roof"
+    },
+    {
+      "line_number": "3",
+      "description": "Chimney flashing- large (32\" x 60\")",
+      "quantity": 1,
+      "unit": "EA",
+      "unit_price": 200.0,
+      "RCV": 200.0,
+      "age_life": "New",
+      "condition": "Good",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 200.0,
+      "location_room": "Dwelling Roof",
+      "category": "Roof"
+    }
+  ],
+  "adjusted_line_items": [
+    {
+      "line_number": "1",
+      "description": "Remove 3 tab - 25 yr. composition shingle roofing incl. felt",
+      "quantity": 19.67,
+      "unit": "SQ",
+      "unit_price": 65.04,
+      "RCV": 1279.34,
+      "age_life": "14/25 yrs",
+      "condition": "Avg.",
+      "dep_percent": null,
+      "depreciation_amount": 0,
+      "ACV": 1279.34,
+      "location_room": "Dwelling Roof",
+      "category": "Roof"
+    },
+    {
+      "line_number": "2",
+      "description": "Chimney flashing average (32\" x 36\")",
+      "quantity": 1,
+      "unit": "EA",
+      "unit_price": 150.0,
+      "RCV": 150.0,
+      "age_life": "New",
+      "condition": "Good",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 150.0,
+      "location_room": "Dwelling Roof",
+      "category": "Roof"
+    },
+    {
+      "line_number": "3",
+      "description": "Chimney flashing- large (32\" x 60\")",
+      "quantity": 1,
+      "unit": "EA",
+      "unit_price": 200.0,
+      "RCV": 200.0,
+      "age_life": "New",
+      "condition": "Good",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 200.0,
+      "location_room": "Dwelling Roof",
+      "category": "Roof"
+    },
+    {
+      "line_number": "4",
+      "description": "Remove Additional charge for steep roof - 7/12 to 9/12 slope",
+      "quantity": 0.06,
+      "unit": "SQ",
+      "unit_price": 0,
+      "RCV": 0,
+      "age_life": "0/NA",
+      "condition": "Avg.",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 0,
+      "location_room": "Roof",
+      "category": "Roof",
+      "page_number": 0
+    },
+    {
+      "line_number": "5",
+      "description": "Additional charge for steep roof - 7/12 to 9/12 slope",
+      "quantity": 0.06,
+      "unit": "SQ",
+      "unit_price": 0,
+      "RCV": 0,
+      "age_life": "0/NA",
+      "condition": "Avg.",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 0,
+      "location_room": "Roof",
+      "category": "Roof",
+      "page_number": 0
+    },
+    {
+      "line_number": "6",
+      "description": "Asphalt starter - universal starter course",
+      "quantity": 2.0,
+      "unit": "SQ",
+      "unit_price": 0,
+      "RCV": 0,
+      "age_life": "0/NA",
+      "condition": "Avg.",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 0,
+      "location_room": "Roof",
+      "category": "Roof",
+      "page_number": 0
+    },
+    {
+      "line_number": "7",
+      "description": "Continuous ridge vent - Detach & reset",
+      "quantity": 1.64,
+      "unit": "LF",
+      "unit_price": 0,
+      "RCV": 0,
+      "age_life": "0/NA",
+      "condition": "Avg.",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 0,
+      "location_room": "Roof",
+      "category": "Roof",
+      "page_number": 0
+    },
+    {
+      "line_number": "8",
+      "description": "Saddle or cricket up to 25 SF",
+      "quantity": 1.0,
+      "unit": "EA",
+      "unit_price": 0,
+      "RCV": 0,
+      "age_life": "0/NA",
+      "condition": "Avg.",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 0,
+      "location_room": "Roof",
+      "category": "Roof",
+      "page_number": 0
+    },
+    {
+      "line_number": "9",
+      "description": "Saddle or cricket 26 to 50 SF",
+      "quantity": 1.0,
+      "unit": "EA",
+      "unit_price": 0,
+      "RCV": 0,
+      "age_life": "0/NA",
+      "condition": "Avg.",
+      "dep_percent": 0,
+      "depreciation_amount": 0,
+      "ACV": 0,
+      "location_room": "Roof",
+      "category": "Roof",
+      "page_number": 0
+    }
+  ],
+  "adjustment_results": {
+    "adjustments": [],
+    "additions": [
+      {
+        "type": "addition",
+        "description": "Remove Additional charge for steep roof - 7/12 to 9/12 slope",
+        "quantity": 0.06,
+        "reason": "Added missing line item based on roof measurements"
+      },
+      {
+        "type": "addition",
+        "description": "Additional charge for steep roof - 7/12 to 9/12 slope",
+        "quantity": 0.06,
+        "reason": "Added missing line item based on roof measurements"
+      },
+      {
+        "type": "addition",
+        "description": "Asphalt starter - universal starter course",
+        "quantity": 2.0,
+        "reason": "Added missing line item based on roof measurements"
+      },
+      {
+        "type": "addition",
+        "description": "Continuous ridge vent - Detach & reset",
+        "quantity": 1.64,
+        "reason": "Added missing line item based on roof measurements"
+      },
+      {
+        "type": "addition",
+        "description": "Saddle or cricket up to 25 SF",
+        "quantity": 1.0,
+        "reason": "Added missing line item based on roof measurements"
+      },
+      {
+        "type": "addition",
+        "description": "Saddle or cricket 26 to 50 SF",
+        "quantity": 1.0,
+        "reason": "Added missing line item based on roof measurements"
+      }
+    ],
+    "warnings": [],
+    "summary": {
+      "total_adjustments": 0,
+      "total_additions": 6,
+      "total_warnings": 0,
+      "estimated_savings": 0.0
+    }
+  },
+  "roof_measurements": {
+    "total_roof_area": 1902,
+    "total_eaves_length": 120,
+    "total_rakes_length": 80,
+    "total_ridges_hips_length": 164,
+    "total_valleys_length": 30,
+    "steep_roof_areas": {
+      "7_12_to_9_12": 5.6,
+      "10_12_to_12_12": 0,
+      "12_12_plus": 0
+    }
+  }
+}

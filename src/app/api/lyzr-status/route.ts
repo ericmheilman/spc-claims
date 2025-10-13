@@ -4,12 +4,14 @@ import { LyzrAPIService } from '@/lib/LyzrAPIService';
 export async function GET(request: NextRequest) {
   try {
     const lyzrAPI = new LyzrAPIService();
-    const isConnected = await lyzrAPI.getAgentStatus();
+    const statusResult = await lyzrAPI.getAgentStatus();
     
     return NextResponse.json({
       success: true,
-      connected: isConnected,
-      status: isConnected ? 'connected' : 'error'
+      connected: statusResult.connected,
+      status: statusResult.connected ? 'connected' : 'error',
+      error: statusResult.error,
+      details: statusResult.details
     });
 
   } catch (error) {

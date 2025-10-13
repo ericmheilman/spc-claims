@@ -200,7 +200,7 @@ Include detailed analysis results for both the insurance claim and roof measurem
     }
   }
 
-  async getAgentStatus(): Promise<boolean> {
+  async getAgentStatus(): Promise<{ connected: boolean; error?: string; details?: any }> {
     try {
       const sessionId = `${this.agentId}-${Date.now()}`;
       
@@ -217,10 +217,38 @@ Include detailed analysis results for both the insurance claim and roof measurem
       
       console.log('Lyzr Orchestrator Agent status response:', response.status);
       
-      return response.status === 200;
-    } catch (error) {
+      return { 
+        connected: response.status === 200,
+        details: response.data
+      };
+    } catch (error: any) {
       console.error('Error checking Lyzr Orchestrator Agent status:', error);
-      return false;
+      
+      let errorMessage = 'Unknown error';
+      let errorDetails = {};
+      
+      if (error.response) {
+        // Server responded with error status
+        errorMessage = error.response.data?.detail || `HTTP ${error.response.status}: ${error.response.statusText}`;
+        errorDetails = {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        };
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'No response from Lyzr API server';
+        errorDetails = { request: 'No response received' };
+      } else {
+        // Something else happened
+        errorMessage = error.message || 'Unknown error occurred';
+      }
+      
+      return { 
+        connected: false, 
+        error: errorMessage,
+        details: errorDetails
+      };
     }
   }
 }

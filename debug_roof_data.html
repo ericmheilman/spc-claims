@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Roof Data</title>
+</head>
+<body>
+    <h1>Debug Roof Data Extraction</h1>
+    <div id="output"></div>
+    
+    <script>
+        // Get data from localStorage
+        const rawAgentData = JSON.parse(localStorage.getItem('extractedClaimData') || '{}');
+        
+        console.log('=== RAW AGENT DATA ===');
+        console.log('rawAgentData:', rawAgentData);
+        console.log('rawAgentData keys:', Object.keys(rawAgentData));
+        
+        if (rawAgentData.roofAgentResponse) {
+            console.log('=== ROOF AGENT RESPONSE ===');
+            console.log('roofAgentResponse:', rawAgentData.roofAgentResponse);
+            console.log('roofAgentResponse keys:', Object.keys(rawAgentData.roofAgentResponse));
+            
+            if (rawAgentData.roofAgentResponse.extractedData) {
+                console.log('=== EXTRACTED DATA ===');
+                console.log('extractedData:', rawAgentData.roofAgentResponse.extractedData);
+                console.log('extractedData keys:', Object.keys(rawAgentData.roofAgentResponse.extractedData));
+                
+                if (rawAgentData.roofAgentResponse.extractedData.roofMeasurements) {
+                    console.log('=== ROOF MEASUREMENTS ===');
+                    console.log('roofMeasurements:', rawAgentData.roofAgentResponse.extractedData.roofMeasurements);
+                    console.log('roofMeasurements keys:', Object.keys(rawAgentData.roofAgentResponse.extractedData.roofMeasurements));
+                    
+                    // Look for Total Ridges/Hips Length
+                    const ridgesHips = rawAgentData.roofAgentResponse.extractedData.roofMeasurements["Total Ridges/Hips Length"];
+                    console.log('Total Ridges/Hips Length:', ridgesHips);
+                }
+            }
+            
+            // Also check the response text
+            if (rawAgentData.roofAgentResponse.response) {
+                console.log('=== RESPONSE TEXT (first 1000 chars) ===');
+                console.log(rawAgentData.roofAgentResponse.response.substring(0, 1000));
+                
+                // Look for Total Ridges/Hips Length in the text
+                const ridgesHipsMatch = rawAgentData.roofAgentResponse.response.match(/"Total Ridges\/Hips Length"[:\s]*\{[^}]*"value"[:\s]*(\d+(?:\.\d+)?)/i);
+                console.log('Ridges/Hips Length match:', ridgesHipsMatch);
+            }
+        }
+        
+        // Display results
+        document.getElementById('output').innerHTML = `
+            <h2>Raw Agent Data Keys:</h2>
+            <pre>${JSON.stringify(Object.keys(rawAgentData), null, 2)}</pre>
+            
+            <h2>Roof Agent Response:</h2>
+            <pre>${JSON.stringify(rawAgentData.roofAgentResponse, null, 2)}</pre>
+        `;
+    </script>
+</body>
+</html>

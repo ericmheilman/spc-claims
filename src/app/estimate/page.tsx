@@ -47,6 +47,25 @@ export default function EstimatePage() {
   // Claim waste percentage state
   const [claimWasteResult, setClaimWasteResult] = useState<any>(null);
   const [isCalculatingClaimWaste, setIsCalculatingClaimWaste] = useState(false);
+
+  // Python Rule Engine state
+  const [ruleResults, setRuleResults] = useState<any>(null);
+  const [isRunningRules, setIsRunningRules] = useState(false);
+  const [showRuleResults, setShowRuleResults] = useState(false);
+  const [extractedRoofMeasurements, setExtractedRoofMeasurements] = useState<any>({});
+
+  // User Prompt Workflow state
+  const [promptResults, setPromptResults] = useState<any>(null);
+  const [isRunningPrompts, setIsRunningPrompts] = useState(false);
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [userResponses, setUserResponses] = useState<any>({});
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const [currentFollowUpStep, setCurrentFollowUpStep] = useState(0);
+
+  // Custom Price Justification state
+  const [showPriceEditModal, setShowPriceEditModal] = useState(false);
+  const [editingPriceItem, setEditingPriceItem] = useState<any>(null);
+  const [priceJustification, setPriceJustification] = useState({ unit_price: 0, justification_text: '' });
   
   // RMM Unit Cost Comparator state
   const [rmmAdjustedClaim, setRmmAdjustedClaim] = useState<any>(null);
@@ -108,6 +127,86 @@ export default function EstimatePage() {
     setLoading(false);
     console.log('=== ESTIMATE PAGE DEBUG END ===');
   }, []);
+
+  // Helper function to extract roof measurements from rawAgentData
+  const extractRoofMeasurements = (rawAgentData: any): any => {
+    if (!rawAgentData?.roofAgentResponse?.response) {
+      console.log('⚠️ No roof agent response found');
+      return null;
+    }
+
+    const roofResponseStr = rawAgentData.roofAgentResponse.response;
+    let roofMeasurementsObj = null;
+    
+    console.log('=== EXTRACTING ROOF MEASUREMENTS ===');
+    console.log('Roof response type:', typeof roofResponseStr);
+    console.log('Roof response preview:', roofResponseStr?.substring(0, 500));
+    
+    try {
+      let rawContent = roofResponseStr;
+      
+      // Step 1: Try to parse as JSON object (might have "response" key)
+      try {
+        const outerJson = JSON.parse(roofResponseStr);
+        console.log('Parsed outer JSON:', outerJson);
+        if (outerJson && typeof outerJson === 'object' && 'response' in outerJson) {
+          rawContent = outerJson.response;
+          console.log('Extracted response from outer JSON object');
+        }
+      } catch (e) {
+        console.log('Not a JSON object, using as-is');
+      }
+      
+      // Step 2: Extract JSON from markdown code block (```json\n{...}\n```)
+      const markdownMatch = rawContent.match(/```json\s*\n([\s\S]*?)\n```/);
+      if (markdownMatch && markdownMatch[1]) {
+        try {
+          roofMeasurementsObj = JSON.parse(markdownMatch[1]);
+          console.log('✅ Successfully parsed JSON from markdown code block');
+          console.log('Parsed roof measurements:', roofMeasurementsObj);
+        } catch (e) {
+          console.warn('Failed to parse JSON from markdown block:', e);
+        }
+      }
+      
+      // Step 3: If no markdown block, try to find a standalone JSON object
+      if (!roofMeasurementsObj) {
+        const jsonMatch = rawContent.match(/(\{[\s\S]*?\})/);
+        if (jsonMatch && jsonMatch[1]) {
+          try {
+            roofMeasurementsObj = JSON.parse(jsonMatch[1]);
+            console.log('✅ Successfully parsed standalone JSON object');
+            console.log('Parsed roof measurements:', roofMeasurementsObj);
+          } catch (e) {
+            console.warn('Failed to parse standalone JSON object:', e);
+          }
+        }
+      }
+      
+      // Step 4: Try parsing the raw content directly
+      if (!roofMeasurementsObj) {
+        try {
+          roofMeasurementsObj = JSON.parse(rawContent);
+          console.log('✅ Successfully parsed raw content as JSON');
+          console.log('Parsed roof measurements:', roofMeasurementsObj);
+        } catch (e) {
+          console.warn('Failed to parse raw content as JSON:', e);
+        }
+      }
+      
+    } catch (e) {
+      console.error('Error in roof measurements parsing:', e);
+    }
+
+    if (!roofMeasurementsObj) {
+      console.error('❌ Could not parse roof measurements');
+      console.error('Full roof response:', roofResponseStr);
+      return null;
+    }
+    
+    console.log('✅ Final roof measurements object:', roofMeasurementsObj);
+    return roofMeasurementsObj;
+  };
 
   // Run RMM Unit Cost Comparator
   const runRmmComparator = async () => {
@@ -630,6 +729,247 @@ export default function EstimatePage() {
     }).format(amount);
   };
 
+  // Python Rule Engine function
+  const runRuleEngine = async () => {
+    console.log('=== RUNNING PYTHON RULE ENGINE ===');
+    setIsRunningRules(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningRules(false);
+        return;
+      }
+
+      // Get roof measurements using the helper function
+      const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
+      
+      if (!roofMeasurementsObj) {
+        alert('Could not extract roof measurements. Please check that roof report was processed correctly.');
+        setIsRunningRules(false);
+        return;
+      }
+
+      // Convert to the format expected by Python script
+      let roofMeasurements: Record<string, any> = {};
+      
+      // Map the extracted data to the expected format
+      if (roofMeasurementsObj.roofMeasurements) {
+        roofMeasurements = roofMeasurementsObj.roofMeasurements;
+      } else {
+        // If the data is at the root level, use it directly
+        roofMeasurements = roofMeasurementsObj;
+      }
+      
+      console.log('📊 Using extracted roof measurements:', roofMeasurements);
+      
+      // Store the extracted measurements for UI display
+      setExtractedRoofMeasurements(roofMeasurements);
+      
+      // If we have individual ridge/hip lengths but no combined field, create it
+      if (roofMeasurements.ridgeLength !== undefined && roofMeasurements.hipLength !== undefined && !roofMeasurements["Total Ridges/Hips Length"]) {
+        const combinedLength = roofMeasurements.ridgeLength + roofMeasurements.hipLength;
+        roofMeasurements["Total Ridges/Hips Length"] = { value: combinedLength };
+      }
+
+      console.log('📊 Using LIVE roof measurements:', roofMeasurements);
+
+      // Prepare data for Python script
+      const pythonInputData = {
+        line_items: extractedLineItems.map(item => ({
+          line_number: item.line_number,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unit_price: item.unit_price,
+          RCV: item.RCV,
+          age_life: item.age_life,
+          condition: item.condition,
+          dep_percent: item.dep_percent,
+          depreciation_amount: item.depreciation_amount,
+          ACV: item.ACV,
+          location_room: item.location_room,
+          category: item.category,
+          page_number: item.page_number
+        })),
+        roof_measurements: roofMeasurements
+      };
+
+      console.log('Sending data to Python script:', pythonInputData);
+
+      // Call the Python rule engine API endpoint
+      const response = await fetch('/api/run-python-rules', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pythonInputData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Python rule engine failed: ${errorData.error || response.statusText}`);
+      }
+
+      const ruleData = await response.json();
+      console.log('Python rule engine results:', ruleData);
+
+      if (!ruleData.success) {
+        throw new Error(`Python rule engine error: ${ruleData.error}`);
+      }
+
+      // Store the results
+      setRuleResults(ruleData.data);
+      setShowRuleResults(true);
+
+    } catch (error) {
+      console.error('Error running Python rule engine:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningRules(false);
+    }
+  };
+
+  // User Prompt Workflow function
+  const runUserPromptWorkflow = async () => {
+    console.log('=== RUNNING USER PROMPT WORKFLOW ===');
+    setIsRunningPrompts(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningPrompts(false);
+        return;
+      }
+
+      // Get roof measurements using the helper function
+      const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
+      
+      if (!roofMeasurementsObj) {
+        alert('Could not extract roof measurements. Please check that roof report was processed correctly.');
+        setIsRunningPrompts(false);
+        return;
+      }
+
+      // Convert to the format expected by User Prompt Workflow
+      let roofMeasurements: Record<string, any> = {};
+      
+      // Map the extracted data to the expected format
+      if (roofMeasurementsObj.roofMeasurements) {
+        roofMeasurements = roofMeasurementsObj.roofMeasurements;
+      } else {
+        // If the data is at the root level, use it directly
+        roofMeasurements = roofMeasurementsObj;
+      }
+      
+      console.log('📊 Using extracted roof measurements for User Prompt Workflow:', roofMeasurements);
+      
+      // If we have individual ridge/hip lengths but no combined field, create it
+      if (roofMeasurements.ridgeLength !== undefined && roofMeasurements.hipLength !== undefined && !roofMeasurements["Total Ridges/Hips Length"]) {
+        const combinedLength = roofMeasurements.ridgeLength + roofMeasurements.hipLength;
+        roofMeasurements["Total Ridges/Hips Length"] = { value: combinedLength };
+      }
+
+      console.log('📊 Using LIVE roof measurements for User Prompt Workflow:', roofMeasurements);
+
+      // Prepare data for user prompt workflow
+      const promptInputData = {
+        line_items: extractedLineItems.map(item => ({
+          line_number: item.line_number,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unit_price: item.unit_price,
+          RCV: item.RCV,
+          age_life: item.age_life,
+          condition: item.condition,
+          dep_percent: item.dep_percent,
+          depreciation_amount: item.depreciation_amount,
+          ACV: item.ACV,
+          location_room: item.location_room,
+          category: item.category,
+          page_number: item.page_number
+        })),
+        roof_measurements: roofMeasurements
+      };
+
+      console.log('Sending data to user prompt workflow:', promptInputData);
+
+      // Call the user prompt workflow API endpoint
+      const response = await fetch('/api/user-prompt-workflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(promptInputData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`User prompt workflow failed: ${errorData.error || response.statusText}`);
+      }
+
+      const promptData = await response.json();
+      console.log('User prompt workflow results:', promptData);
+
+      if (!promptData.success) {
+        throw new Error(`User prompt workflow error: ${promptData.error}`);
+      }
+
+      // Store the prompts for display in modal
+      setPromptResults(promptData.data);
+      setCurrentPromptIndex(0);
+      setShowPromptModal(true);
+
+    } catch (error) {
+      console.error('Error running user prompt workflow:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningPrompts(false);
+    }
+  };
+
+  // Handle price editing
+  const handlePriceEdit = (item: any) => {
+    setEditingPriceItem(item);
+    setPriceJustification({
+      unit_price: item.unit_price || 0,
+      justification_text: ''
+    });
+    setShowPriceEditModal(true);
+  };
+
+  const handlePriceSave = () => {
+    if (!priceJustification.justification_text.trim()) {
+      alert('Please provide justification text for the price change.');
+      return;
+    }
+
+    if (!editingPriceItem) return;
+
+    // Update the line item with new price
+    setExtractedLineItems(prev => prev.map(item => 
+      item.line_number === editingPriceItem.line_number 
+        ? { 
+            ...item, 
+            unit_price: priceJustification.unit_price,
+            RCV: priceJustification.unit_price * item.quantity,
+            ACV: priceJustification.unit_price * item.quantity * (1 - (item.dep_percent || 0) / 100)
+          }
+        : item
+    ));
+    
+    setShowPriceEditModal(false);
+    setEditingPriceItem(null);
+    setPriceJustification({ unit_price: 0, justification_text: '' });
+  };
+
+  const handlePriceCancel = () => {
+    setShowPriceEditModal(false);
+    setEditingPriceItem(null);
+    setPriceJustification({ unit_price: 0, justification_text: '' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -676,38 +1016,35 @@ export default function EstimatePage() {
               <button
                 onClick={runRmmComparator}
                 disabled={isRunningRmmComparator || !rawAgentData}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isRunningRmmComparator || !rawAgentData
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-slate-700 text-white hover:bg-slate-800 border border-slate-600'
                 }`}
               >
-                <span className="text-xl mr-2">💰</span>
                 {isRunningRmmComparator ? 'Comparing...' : 'RMM Unit Cost Comparator'}
               </button>
               <button
-                onClick={calculateClaimWaste}
-                disabled={isCalculatingClaimWaste || !rawAgentData}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isCalculatingClaimWaste || !rawAgentData
+                onClick={runRuleEngine}
+                disabled={isRunningRules || !rawAgentData}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isRunningRules || !rawAgentData
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-amber-700 text-white hover:bg-amber-800 border border-amber-600'
+                    : 'bg-green-700 text-white hover:bg-green-800 border border-green-600'
                 }`}
               >
-                <span className="text-xl mr-2">📊</span>
-                {isCalculatingClaimWaste ? 'Calculating...' : 'Calculate Claim Waste %'}
+                {isRunningRules ? 'Processing...' : 'Python Rule Engine'}
               </button>
               <button
-                onClick={runAdjustmentAgent}
-                disabled={isRunningAdjustmentAgent || !rawAgentData || extractedLineItems.length === 0}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isRunningAdjustmentAgent || !rawAgentData || extractedLineItems.length === 0
+                onClick={runUserPromptWorkflow}
+                disabled={isRunningPrompts || !rawAgentData}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isRunningPrompts || !rawAgentData
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-700 text-white hover:bg-blue-800 border border-blue-600'
+                    : 'bg-purple-700 text-white hover:bg-purple-800 border border-purple-600'
                 }`}
               >
-                <Settings className="w-5 h-5 mr-2" />
-                {isRunningAdjustmentAgent ? 'Processing...' : 'Apply AI Adjustments'}
+                {isRunningPrompts ? 'Processing...' : 'User Prompt Workflow'}
               </button>
               <button 
                 onClick={() => router.push('/')}
@@ -1734,7 +2071,218 @@ export default function EstimatePage() {
             </div>
           </div>
 
-          {/* Debug Section */}
+          {/* Python Rule Engine Results */}
+          {showRuleResults && ruleResults && (
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-8">
+              <div className="bg-gradient-to-r from-green-700 to-green-800 px-8 py-6 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">🐍 Python Rule Engine Results</h2>
+                    <p className="text-green-200">
+                      Automated adjustments based on roof measurements and line items
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowRuleResults(false)}
+                    className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                  >
+                    Hide Results
+                  </button>
+                </div>
+              </div>
+
+              {/* Roof Variables Used */}
+              <div className="bg-blue-50 px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">📏 Roof Variables Used</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="bg-white rounded p-3">
+                    <div className="font-semibold text-gray-700">Total Roof Area</div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {extractedRoofMeasurements["Total Roof Area"]?.value || 
+                       extractedRoofMeasurements.totalArea || 
+                       extractedRoofMeasurements.netArea || 0} sq ft
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-3">
+                    <div className="font-semibold text-gray-700">Total Eaves Length</div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {extractedRoofMeasurements["Total Eaves Length"]?.value || 
+                       extractedRoofMeasurements.eaveLength || 0} ft
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-3">
+                    <div className="font-semibold text-gray-700">Total Rakes Length</div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {extractedRoofMeasurements["Total Rakes Length"]?.value || 
+                       extractedRoofMeasurements.rakeLength || 0} ft
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-3">
+                    <div className="font-semibold text-gray-700">Total Ridges/Hips</div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 
+                       (extractedRoofMeasurements.ridgeLength || 0) + (extractedRoofMeasurements.hipLength || 0) || 0} ft
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Adjusted Line Items */}
+              {ruleResults.adjusted_line_items && ruleResults.adjusted_line_items.length > 0 && (
+                <div className="p-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">📋 Adjusted Line Items</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Line</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Qty</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {ruleResults.adjusted_line_items.map((item: any, index: number) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {item.line_number}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <div className="font-medium">{item.description}</div>
+                              <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {item.quantity?.toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {item.unit}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(item.RCV || 0)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {formatCurrency(item.depreciation_amount || 0)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(item.ACV || 0)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <button
+                                onClick={() => handlePriceEdit(item)}
+                                className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
+                                title="Edit unit price"
+                              >
+                                ✏️
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Adjustment Results */}
+              {ruleResults.adjustment_results && (ruleResults.adjustment_results.adjustments?.length > 0 || ruleResults.adjustment_results.additions?.length > 0 || ruleResults.adjustment_results.warnings?.length > 0) && (
+                <div className="px-8 pb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">🔧 Adjustment Results</h3>
+                  <div className="space-y-4">
+                    {/* Quantity Adjustments */}
+                    {ruleResults.adjustment_results.adjustments?.map((adjustment: any, index: number) => (
+                      <div key={`adj-${index}`} className="p-4 rounded-lg border-l-4 bg-blue-50 border-blue-400">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-2">{adjustment.description}</h4>
+                            <p className="text-sm text-gray-700 mb-2">{adjustment.reason}</p>
+                            <div className="text-xs text-gray-600 bg-white p-2 rounded border">
+                              <div>Old Quantity: {adjustment.old_quantity}</div>
+                              <div>New Quantity: {adjustment.new_quantity}</div>
+                              {adjustment.savings > 0 && <div>Estimated Savings: ${adjustment.savings.toFixed(2)}</div>}
+                            </div>
+                          </div>
+                          <div className="ml-4 text-right">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                              {adjustment.type}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Additions */}
+                    {ruleResults.adjustment_results.additions?.map((addition: any, index: number) => (
+                      <div key={`add-${index}`} className="p-4 rounded-lg border-l-4 bg-green-50 border-green-400">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-2">{addition.description}</h4>
+                            <p className="text-sm text-gray-700 mb-2">{addition.reason}</p>
+                            <div className="text-xs text-gray-600 bg-white p-2 rounded border">
+                              <div>Quantity: {addition.quantity}</div>
+                            </div>
+                          </div>
+                          <div className="ml-4 text-right">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              {addition.type}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Warnings */}
+                    {ruleResults.adjustment_results.warnings?.map((warning: any, index: number) => (
+                      <div key={`warn-${index}`} className="p-4 rounded-lg border-l-4 bg-yellow-50 border-yellow-400">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-2">{warning.description}</h4>
+                            <p className="text-sm text-gray-700 mb-2">{warning.reason}</p>
+                          </div>
+                          <div className="ml-4 text-right">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                              {warning.type}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Debug Output */}
+              {ruleResults.debug_output && (
+                <div className="px-8 pb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">🐛 Python Script Debug Output</h3>
+                  <div className="bg-gray-900 text-green-400 p-6 rounded-lg font-mono text-sm overflow-x-auto">
+                    <div className="mb-4">
+                      <span className="text-yellow-400">Execution Time:</span> {new Date(ruleResults.debug_output.execution_time).toLocaleString()}
+                    </div>
+                    <div className="mb-4">
+                      <span className="text-yellow-400">STDOUT:</span>
+                      <pre className="mt-2 whitespace-pre-wrap">{ruleResults.debug_output.stdout}</pre>
+                    </div>
+                    {ruleResults.debug_output.stderr && (
+                      <div>
+                        <span className="text-red-400">STDERR:</span>
+                        <pre className="mt-2 whitespace-pre-wrap text-red-400">{ruleResults.debug_output.stderr}</pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Debug Section - Moved below Original Line Items */}
           {rawAgentData && (
             <div className="mb-8">
               <details className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
@@ -2190,6 +2738,324 @@ export default function EstimatePage() {
                       </tr>
                     </tfoot>
                   </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Debug Section */}
+          {rawAgentData && (
+            <div className="mb-8">
+              <details className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                <summary className="bg-slate-800 px-6 py-4 cursor-pointer hover:bg-slate-700 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-white mb-1">Debug Information</h2>
+                      <p className="text-gray-300 text-sm">Click to view agent outputs and combined payload</p>
+                    </div>
+                    <span className="text-white text-3xl">▼</span>
+                  </div>
+                </summary>
+              </details>
+            </div>
+          )}
+
+          {/* User Prompt Workflow Modal */}
+          {showPromptModal && promptResults && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                {/* Header */}
+                <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">💬 User Prompt Workflow</h2>
+                      <p className="text-gray-300 text-sm">Interactive decision-making based on line item analysis</p>
+                    </div>
+                    <button
+                      onClick={() => setShowPromptModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progress Indicator */}
+                <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Question {currentPromptIndex + 1} of {promptResults.prompts?.length || 0}
+                    </div>
+                    <div className="flex space-x-1">
+                      {promptResults.prompts?.map((_: any, index: number) => (
+                        <div
+                          key={index}
+                          className={`w-2 h-2 rounded-full ${
+                            index === currentPromptIndex ? 'bg-purple-600' : 
+                            index < currentPromptIndex ? 'bg-green-500' : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 overflow-y-auto max-h-[60vh]">
+                  {promptResults.prompts && promptResults.prompts[currentPromptIndex] && (
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {promptResults.prompts[currentPromptIndex].title}
+                        </h3>
+                        <p className="text-gray-700 mb-4">
+                          {promptResults.prompts[currentPromptIndex].message}
+                        </p>
+                      </div>
+
+                      {/* Question */}
+                      {promptResults.prompts[currentPromptIndex].question && (
+                        <div className="mb-4">
+                          <p className="font-medium text-gray-900 mb-3">
+                            {promptResults.prompts[currentPromptIndex].question}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Options */}
+                      {promptResults.prompts[currentPromptIndex].options && (
+                        <div className="space-y-2">
+                          {promptResults.prompts[currentPromptIndex].options.map((option: string, index: number) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                setUserResponses((prev: any) => ({
+                                  ...prev,
+                                  [promptResults.prompts[currentPromptIndex].id]: option
+                                }));
+                                if (currentPromptIndex < promptResults.prompts.length - 1) {
+                                  setCurrentPromptIndex(currentPromptIndex + 1);
+                                }
+                              }}
+                              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors text-left"
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Custom Field */}
+                      {promptResults.prompts[currentPromptIndex].customField && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            {promptResults.prompts[currentPromptIndex].customField.label}
+                          </label>
+                          <input
+                            type={promptResults.prompts[currentPromptIndex].customField.type || 'text'}
+                            placeholder={promptResults.prompts[currentPromptIndex].customField.label}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            onChange={(e) => {
+                              setUserResponses((prev: any) => ({
+                                ...prev,
+                                [promptResults.prompts[currentPromptIndex].id]: e.target.value
+                              }));
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Checkboxes */}
+                      {promptResults.prompts[currentPromptIndex].checkboxes && (
+                        <div className="space-y-2">
+                          {promptResults.prompts[currentPromptIndex].checkboxes.map((checkbox: string, index: number) => (
+                            <label key={index} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                onChange={(e) => {
+                                  setUserResponses((prev: any) => ({
+                                    ...prev,
+                                    [promptResults.prompts[currentPromptIndex].id]: {
+                                      ...prev[promptResults.prompts[currentPromptIndex].id],
+                                      [checkbox]: e.target.checked
+                                    }
+                                  }));
+                                }}
+                              />
+                              <span className="text-sm text-gray-700">{checkbox}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Calculations */}
+                      {promptResults.prompts[currentPromptIndex].calculations && (
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <h4 className="font-semibold text-blue-900 mb-2">Calculations</h4>
+                          <div className="text-sm text-blue-800">
+                            <pre className="whitespace-pre-wrap">
+                              {JSON.stringify(promptResults.prompts[currentPromptIndex].calculations, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between">
+                  <button
+                    onClick={() => {
+                      if (currentPromptIndex > 0) {
+                        setCurrentPromptIndex(currentPromptIndex - 1);
+                      }
+                    }}
+                    disabled={currentPromptIndex === 0}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ← Previous
+                  </button>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowPromptModal(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                    >
+                      Close
+                    </button>
+                    {currentPromptIndex < (promptResults.prompts?.length || 0) - 1 ? (
+                      <button
+                        onClick={() => setCurrentPromptIndex(currentPromptIndex + 1)}
+                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
+                      >
+                        Next →
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          console.log('User responses:', userResponses);
+                          setShowPromptModal(false);
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                      >
+                        Finish
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Price Edit Modal */}
+          {showPriceEditModal && editingPriceItem && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+                {/* Header */}
+                <div className="bg-blue-800 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✏️ Edit Unit Price</h2>
+                      <p className="text-gray-300 text-sm">Line {editingPriceItem.line_number}: {editingPriceItem.description}</p>
+                    </div>
+                    <button
+                      onClick={handlePriceCancel}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="px-6 py-6">
+                  <div className="space-y-4">
+                    {/* Current Price Display */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="text-sm text-gray-600 mb-1">Current Price</div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(editingPriceItem.unit_price || 0)}
+                      </div>
+                    </div>
+
+                    {/* New Price Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        New Unit Price
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={priceJustification.unit_price}
+                        onChange={(e) => setPriceJustification(prev => ({
+                          ...prev,
+                          unit_price: parseFloat(e.target.value) || 0
+                        }))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    {/* Justification Textarea */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Justification for Price Change <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        placeholder="Explain why this price adjustment is necessary..."
+                        value={priceJustification.justification_text}
+                        onChange={(e) => setPriceJustification(prev => ({
+                          ...prev,
+                          justification_text: e.target.value
+                        }))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                        rows={4}
+                        spellCheck={true}
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        This justification will be recorded for audit purposes.
+                      </div>
+                    </div>
+
+                    {/* Price Impact Preview */}
+                    {priceJustification.unit_price !== (editingPriceItem.unit_price || 0) && (
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <div className="text-sm font-medium text-blue-800 mb-2">Price Impact Preview</div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <div className="text-gray-600">New RCV:</div>
+                            <div className="font-semibold text-blue-700">
+                              {formatCurrency(priceJustification.unit_price * editingPriceItem.quantity)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">New ACV:</div>
+                            <div className="font-semibold text-blue-700">
+                              {formatCurrency(priceJustification.unit_price * editingPriceItem.quantity * (1 - (editingPriceItem.dep_percent || 0) / 100))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end space-x-3">
+                  <button
+                    onClick={handlePriceCancel}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePriceSave}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                  >
+                    Save Changes
+                  </button>
                 </div>
               </div>
             </div>
