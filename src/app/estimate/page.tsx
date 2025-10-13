@@ -81,14 +81,17 @@ export default function EstimatePage() {
   const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
   const [selectedShingleRemoval, setSelectedShingleRemoval] = useState('');
   const [shingleRemovalQuantity, setShingleRemovalQuantity] = useState('');
+  const [shingleRemovalSkipped, setShingleRemovalSkipped] = useState(false);
 
   // O&P Check state
   const [showOPModal, setShowOPModal] = useState(false);
+  const [opSkipped, setOPSkipped] = useState(false);
 
   // Ridge Vent Check state
   const [showRidgeVentModal, setShowRidgeVentModal] = useState(false);
   const [selectedRidgeVent, setSelectedRidgeVent] = useState('');
   const [ridgeVentQuantity, setRidgeVentQuantity] = useState('');
+  const [ridgeVentSkipped, setRidgeVentSkipped] = useState(false);
 
   useEffect(() => {
     console.log('=== ESTIMATE PAGE DEBUG START ===');
@@ -982,10 +985,16 @@ export default function EstimatePage() {
     'Remove Laminated comp. shingle rfg. - w/ felt'
   ];
 
-  // Ridge Vent Options
+  // Ridge Vent Options (with display names and macro names)
   const ridgeVentOptions = [
-    'Continuous ridge vent shingle-over style',
-    'Continuous ridge vent aluminum'
+    {
+      displayName: 'Continuous ridge vent shingle-over style',
+      macroName: '49b. Continuous ridge vent shingle-over style'
+    },
+    {
+      displayName: 'Continuous ridge vent aluminum', 
+      macroName: '50b. Continuous ridge vent aluminum'
+    }
   ];
 
   // Check if shingle removal items are present
@@ -1066,7 +1075,9 @@ export default function EstimatePage() {
   // Check if ridge vent items are present
   const checkRidgeVentItems = (items: LineItem[]) => {
     return items.some(item => 
-      ridgeVentOptions.includes(item.description)
+      ridgeVentOptions.some(option => 
+        option.displayName === item.description || option.macroName === item.description
+      )
     );
   };
 
@@ -1121,9 +1132,16 @@ export default function EstimatePage() {
       return;
     }
 
-    const macroData = roofMasterMacro.get(selectedRidgeVent);
+    // Find the macro name for the selected ridge vent
+    const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedRidgeVent);
+    if (!selectedOption) {
+      alert(`Ridge vent option "${selectedRidgeVent}" not found`);
+      return;
+    }
+
+    const macroData = roofMasterMacro.get(selectedOption.macroName);
     if (!macroData) {
-      alert(`Item "${selectedRidgeVent}" not found in Roof Master Macro`);
+      alert(`Item "${selectedOption.macroName}" not found in Roof Master Macro`);
       return;
     }
 
@@ -1168,11 +1186,11 @@ export default function EstimatePage() {
 
   // Continue User Prompt Workflow after adding shingle removal
   const continueUserPromptWorkflow = async (itemsToUse: LineItem[]) => {
-    // Check for ridge vents first
+    // Check for ridge vents first (only if not previously skipped)
     const hasRidgeVent = checkRidgeVentItems(itemsToUse);
     const ridgeLength = extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0;
     
-    if (!hasRidgeVent && ridgeLength > 0) {
+    if (!hasRidgeVent && ridgeLength > 0 && !ridgeVentSkipped) {
       console.log('⚠️ No ridge vent found but ridge length > 0 - showing modal');
       // Calculate quantity from ridge length / 100
       const calculatedQuantity = (ridgeLength / 100).toFixed(2);
@@ -1181,15 +1199,15 @@ export default function EstimatePage() {
       return;
     }
 
-    // Check for O&P before proceeding
+    // Check for O&P before proceeding (only if not previously skipped)
     const hasOP = checkOPPresent(itemsToUse);
-    if (!hasOP) {
+    if (!hasOP && !opSkipped) {
       console.log('⚠️ No O&P found - showing modal');
       setShowOPModal(true);
       return;
     }
 
-    console.log('✅ O&P found - proceeding with workflow');
+    console.log('✅ O&P check complete - proceeding with workflow');
     setIsRunningPrompts(true);
     
     try {
@@ -1288,9 +1306,9 @@ export default function EstimatePage() {
         return;
       }
 
-      // Check for shingle removal items - only show modal if NONE exist
+      // Check for shingle removal items - only show modal if NONE exist and not previously skipped
       const hasShingleRemoval = checkShingleRemovalItems();
-      if (!hasShingleRemoval) {
+      if (!hasShingleRemoval && !shingleRemovalSkipped) {
         console.log('⚠️ No shingle removal items found - showing modal');
         setShowShingleRemovalModal(true);
         return;
@@ -3594,6 +3612,7 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowShingleRemovalModal(false);
+                        setShingleRemovalSkipped(true);
                         console.log('⏭️ Skipping shingle removal - continuing workflow');
                         continueUserPromptWorkflow(extractedLineItems);
                       }}
@@ -3669,6 +3688,7 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowOPModal(false);
+                      setOPSkipped(true);
                       console.log('⏭️ Skipping O&P - continuing workflow');
                       continueUserPromptWorkflow(extractedLineItems);
                     }}
@@ -3748,8 +3768,8 @@ export default function EstimatePage() {
                       >
                         <option value="">-- Select a type --</option>
                         {ridgeVentOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
+                          <option key={option.macroName} value={option.displayName}>
+                            {option.displayName}
                           </option>
                         ))}
                       </select>
@@ -3772,29 +3792,33 @@ export default function EstimatePage() {
                     </div>
 
                     {/* Price Preview */}
-                    {selectedRidgeVent && ridgeVentQuantity && roofMasterMacro.get(selectedRidgeVent) && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <div className="text-gray-600">Unit Price:</div>
-                            <div className="font-semibold">
-                              ${roofMasterMacro.get(selectedRidgeVent).unit_price.toFixed(2)}
+                    {selectedRidgeVent && ridgeVentQuantity && (() => {
+                      const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedRidgeVent);
+                      const macroData = selectedOption ? roofMasterMacro.get(selectedOption.macroName) : null;
+                      return macroData ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-gray-600">Unit Price:</div>
+                              <div className="font-semibold">
+                                ${macroData.unit_price.toFixed(2)}
+                              </div>
                             </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600">Quantity:</div>
-                            <div className="font-semibold">{ridgeVentQuantity} LF</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600">Total RCV:</div>
-                            <div className="font-semibold text-green-700">
-                              ${(roofMasterMacro.get(selectedRidgeVent).unit_price * parseFloat(ridgeVentQuantity)).toFixed(2)}
+                            <div>
+                              <div className="text-gray-600">Quantity:</div>
+                              <div className="font-semibold">{ridgeVentQuantity} LF</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600">Total RCV:</div>
+                              <div className="font-semibold text-green-700">
+                                ${(macroData.unit_price * parseFloat(ridgeVentQuantity)).toFixed(2)}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
                   </div>
                 </div>
 
@@ -3810,6 +3834,7 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowRidgeVentModal(false);
+                        setRidgeVentSkipped(true);
                         console.log('⏭️ Skipping ridge vent - continuing workflow');
                         continueUserPromptWorkflow(extractedLineItems);
                       }}
