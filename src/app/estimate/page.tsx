@@ -85,6 +85,11 @@ export default function EstimatePage() {
   // O&P Check state
   const [showOPModal, setShowOPModal] = useState(false);
 
+  // Ridge Vent Check state
+  const [showRidgeVentModal, setShowRidgeVentModal] = useState(false);
+  const [selectedRidgeVent, setSelectedRidgeVent] = useState('');
+  const [ridgeVentQuantity, setRidgeVentQuantity] = useState('');
+
   useEffect(() => {
     console.log('=== ESTIMATE PAGE DEBUG START ===');
     
@@ -228,27 +233,59 @@ export default function EstimatePage() {
         const response = await fetch('/roof_master_macro.txt');
         const text = await response.text();
         
-        // Parse CSV
+        // Parse Roof Master Macro structured text format
         const lines = text.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
         const macroMap = new Map();
         
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',');
-          const description = values[0]?.trim();
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i].trim();
           
-          if (description) {
-            macroMap.set(description, {
-              description,
-              unit_price: parseFloat(values[1] || '0'),
-              rcv: parseFloat(values[2] || '0'),
-              acv: parseFloat(values[3] || '0'),
-              unit: values[4]?.trim() || 'SQ'
-            });
+          // Look for lines that start with a number and contain item descriptions
+          if (line.match(/^\d+\./)) {
+            let description = line.replace(/^\d+\.\s*/, '').trim();
+            
+            // Handle multi-line descriptions (some items span multiple lines)
+            let j = i + 1;
+            while (j < lines.length && !lines[j].trim().match(/^\d+\./) && !lines[j].trim().match(/^\d+\.\d+/) && lines[j].trim() !== '' && !lines[j].trim().match(/^\d+\.\d+ [A-Z]/)) {
+              description += ' ' + lines[j].trim();
+              j++;
+            }
+            
+            // Find the quantity line (next line after description)
+            if (j < lines.length) {
+              const quantityLine = lines[j].trim();
+              
+              // Extract unit from quantity line (e.g., "0.00 SQ")
+              const unitMatch = quantityLine.match(/(\d+\.\d+)\s+(SQ|LF|SF|EA|HR)/);
+              const unit = unitMatch ? unitMatch[2] : 'SQ';
+              
+              // Price is on the line after quantity line
+              if (j + 1 < lines.length) {
+                const priceLine = lines[j + 1].trim();
+                const price = parseFloat(priceLine) || 0;
+                
+                if (description && price > 0) {
+                  macroMap.set(description, {
+                    description,
+                    unit_price: price,
+                    rcv: price,
+                    acv: price,
+                    unit: unit
+                  });
+                }
+              }
+            }
+            
+            i = j + 1;
+          } else {
+            i++;
           }
         }
         
         console.log('✅ Loaded Roof Master Macro:', macroMap.size, 'items');
+        console.log('Sample items:', Array.from(macroMap.keys()).slice(0, 10));
+        console.log('Shingle removal items found:', Array.from(macroMap.keys()).filter(key => key.includes('Remove')));
         setRoofMasterMacro(macroMap);
       } catch (error) {
         console.error('Error loading Roof Master Macro:', error);
@@ -945,6 +982,12 @@ export default function EstimatePage() {
     'Remove Laminated comp. shingle rfg. - w/ felt'
   ];
 
+  // Ridge Vent Options
+  const ridgeVentOptions = [
+    'Continuous ridge vent shingle-over style',
+    'Continuous ridge vent aluminum'
+  ];
+
   // Check if shingle removal items are present
   const checkShingleRemovalItems = () => {
     const hasShingleRemoval = extractedLineItems.some(item => 
@@ -1020,6 +1063,13 @@ export default function EstimatePage() {
     );
   };
 
+  // Check if ridge vent items are present
+  const checkRidgeVentItems = (items: LineItem[]) => {
+    return items.some(item => 
+      ridgeVentOptions.includes(item.description)
+    );
+  };
+
   // Add O&P line item
   const handleAddOP = (items: LineItem[]) => {
     // Calculate 20% of total RCV (excluding O&P itself)
@@ -1064,8 +1114,73 @@ export default function EstimatePage() {
     continueUserPromptWorkflow(updatedItems);
   };
 
+  // Add ridge vent line item
+  const handleAddRidgeVent = (items: LineItem[]) => {
+    if (!selectedRidgeVent || !ridgeVentQuantity) {
+      alert('Please select a ridge vent type and enter quantity');
+      return;
+    }
+
+    const macroData = roofMasterMacro.get(selectedRidgeVent);
+    if (!macroData) {
+      alert(`Item "${selectedRidgeVent}" not found in Roof Master Macro`);
+      return;
+    }
+
+    const quantity = parseFloat(ridgeVentQuantity);
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...items.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    const newRidgeVentItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: selectedRidgeVent,
+      quantity: quantity,
+      unit_price: macroData.unit_price,
+      unit: macroData.unit,
+      RCV: macroData.unit_price * quantity,
+      ACV: macroData.unit_price * quantity,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      location_room: 'Roof',
+      category: 'Ventilation',
+      page_number: Math.max(...items.map(item => item.page_number || 0), 1)
+    };
+
+    const updatedItems = [...items, newRidgeVentItem];
+    setExtractedLineItems(updatedItems);
+
+    console.log('✅ Added Ridge Vent:', newRidgeVentItem);
+    
+    // Reset form and close modal
+    setSelectedRidgeVent('');
+    setRidgeVentQuantity('');
+    setShowRidgeVentModal(false);
+    
+    // Continue workflow
+    continueUserPromptWorkflow(updatedItems);
+  };
+
   // Continue User Prompt Workflow after adding shingle removal
   const continueUserPromptWorkflow = async (itemsToUse: LineItem[]) => {
+    // Check for ridge vents first
+    const hasRidgeVent = checkRidgeVentItems(itemsToUse);
+    const ridgeLength = extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0;
+    
+    if (!hasRidgeVent && ridgeLength > 0) {
+      console.log('⚠️ No ridge vent found but ridge length > 0 - showing modal');
+      // Calculate quantity from ridge length / 100
+      const calculatedQuantity = (ridgeLength / 100).toFixed(2);
+      setRidgeVentQuantity(calculatedQuantity);
+      setShowRidgeVentModal(true);
+      return;
+    }
+
     // Check for O&P before proceeding
     const hasOP = checkOPPresent(itemsToUse);
     if (!hasOP) {
@@ -3567,6 +3682,148 @@ export default function EstimatePage() {
                   >
                     Add O&P (20%)
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ridge Vent Modal */}
+          {showRidgeVentModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-green-600 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏠 Ridge Vent Required</h2>
+                      <p className="text-green-100 text-sm">No ridge vent found but ridge length detected</p>
+                    </div>
+                    <button
+                      onClick={() => setShowRidgeVentModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700">
+                        The estimate should include a ridge vent since ridge length is detected. 
+                        Please select a ridge vent type and enter the quantity:
+                      </p>
+                    </div>
+
+                    {/* Ridge Length Info */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-2">Ridge Length Information</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-gray-600">Total Ridge Length:</div>
+                          <div className="font-semibold">
+                            {extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0} LF
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Calculated Quantity:</div>
+                          <div className="font-semibold text-green-700">
+                            {((extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0) / 100).toFixed(2)} LF
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ridge Vent Type Selection */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Ridge Vent Type *
+                      </label>
+                      <select
+                        value={selectedRidgeVent}
+                        onChange={(e) => setSelectedRidgeVent(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                      >
+                        <option value="">-- Select a type --</option>
+                        {ridgeVentOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Quantity Input */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity (LF) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={ridgeVentQuantity}
+                        onChange={(e) => setRidgeVentQuantity(e.target.value)}
+                        placeholder="Enter quantity"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                      />
+                    </div>
+
+                    {/* Price Preview */}
+                    {selectedRidgeVent && ridgeVentQuantity && roofMasterMacro.get(selectedRidgeVent) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="text-gray-600">Unit Price:</div>
+                            <div className="font-semibold">
+                              ${roofMasterMacro.get(selectedRidgeVent).unit_price.toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">Quantity:</div>
+                            <div className="font-semibold">{ridgeVentQuantity} LF</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">Total RCV:</div>
+                            <div className="font-semibold text-green-700">
+                              ${(roofMasterMacro.get(selectedRidgeVent).unit_price * parseFloat(ridgeVentQuantity)).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => setShowRidgeVentModal(false)}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowRidgeVentModal(false);
+                        console.log('⏭️ Skipping ridge vent - continuing workflow');
+                        continueUserPromptWorkflow(extractedLineItems);
+                      }}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                    >
+                      Skip & Continue
+                    </button>
+                    <button
+                      onClick={() => handleAddRidgeVent(extractedLineItems)}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                    >
+                      Add to Estimate
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

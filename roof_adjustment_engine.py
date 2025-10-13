@@ -80,29 +80,79 @@ class RoofAdjustmentEngine:
         self.roof_master_macro = self.load_roof_master_macro()
         
     def load_roof_master_macro(self) -> Dict[str, Dict[str, Any]]:
-        """Load Roof Master Macro CSV and create lookup dictionary."""
+        """Load Roof Master Macro text file and create lookup dictionary."""
         macro_data = {}
         try:
-            # Try to find the CSV file in the current directory
-            csv_path = os.path.join(os.path.dirname(__file__), 'roof_master_macro.csv')
-            if not os.path.exists(csv_path):
-                csv_path = 'roof_master_macro.csv'
+            # Try to find the text file in the public directory
+            txt_path = os.path.join(os.path.dirname(__file__), '..', 'public', 'roof_master_macro.txt')
+            if not os.path.exists(txt_path):
+                txt_path = os.path.join(os.path.dirname(__file__), 'public', 'roof_master_macro.txt')
+            if not os.path.exists(txt_path):
+                txt_path = os.path.join('public', 'roof_master_macro.txt')
+            if not os.path.exists(txt_path):
+                txt_path = 'roof_master_macro.txt'
             
-            if os.path.exists(csv_path):
-                with open(csv_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        description = row.get('DESCRIPTION', '').strip()
-                        if description:
-                            macro_data[description] = {
-                                'unit_price': float(row.get('UNIT_PRICE', 0)),
-                                'rcv': float(row.get('RCV', 0)),
-                                'acv': float(row.get('ACV', 0)),
-                                'unit': row.get('QUANTITY', 'SQ')  # Using QUANTITY column as unit
-                            }
+            if os.path.exists(txt_path):
+                with open(txt_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                
+                i = 0
+                while i < len(lines):
+                    line = lines[i].strip()
+                    
+                    # Look for lines that start with a number and contain item descriptions
+                    if line and line[0].isdigit() and '. ' in line:
+                        # Extract description (remove number and dot)
+                        description = line.split('. ', 1)[1].strip()
+                        
+                        # Handle multi-line descriptions
+                        j = i + 1
+                        while j < len(lines) and not lines[j].strip().startswith(('0.00', '1.00', '2.00', '3.00', '4.00', '5.00', '6.00', '7.00', '8.00', '9.00')) and lines[j].strip() != '' and not (lines[j].strip() and lines[j].strip()[0].isdigit() and '. ' in lines[j].strip()):
+                            description += ' ' + lines[j].strip()
+                            j += 1
+                        
+                        # Find the quantity line (next line after description)
+                        if j < len(lines):
+                            quantity_line = lines[j].strip()
+                            
+                            # Extract unit from quantity line (e.g., "0.00 SQ")
+                            unit_match = None
+                            if 'SQ' in quantity_line:
+                                unit_match = 'SQ'
+                            elif 'LF' in quantity_line:
+                                unit_match = 'LF'
+                            elif 'SF' in quantity_line:
+                                unit_match = 'SF'
+                            elif 'EA' in quantity_line:
+                                unit_match = 'EA'
+                            elif 'HR' in quantity_line:
+                                unit_match = 'HR'
+                            else:
+                                unit_match = 'SQ'  # Default
+                            
+                            # Price is on the line after quantity line
+                            if j + 1 < len(lines):
+                                price_line = lines[j + 1].strip()
+                                try:
+                                    unit_price = float(price_line)
+                                    
+                                    if description and unit_price > 0:
+                                        macro_data[description] = {
+                                            'unit_price': unit_price,
+                                            'rcv': unit_price,
+                                            'acv': unit_price,
+                                            'unit': unit_match
+                                        }
+                                except ValueError:
+                                    pass
+                        
+                        i = j + 1
+                    else:
+                        i += 1
+                
                 print(f"✅ Loaded {len(macro_data)} items from Roof Master Macro")
             else:
-                print(f"⚠️ Roof Master Macro CSV not found at {csv_path}")
+                print(f"⚠️ Roof Master Macro text file not found at {txt_path}")
         except Exception as e:
             print(f"⚠️ Error loading Roof Master Macro: {e}")
         
@@ -171,6 +221,9 @@ class RoofAdjustmentEngine:
         macro_data = self.lookup_unit_price(desc)
         unit_price = macro_data['unit_price']
         
+        # Use the unit from macro data if available, otherwise use the provided unit
+        macro_unit = macro_data.get('unit', unit)
+        
         # Calculate RCV and ACV
         rcv = unit_price * rounded_qty
         acv = rcv  # Assuming no depreciation for new items
@@ -179,7 +232,7 @@ class RoofAdjustmentEngine:
             "line_number": str(max_line),
             "description": desc,
             "quantity": rounded_qty,
-            "unit": unit,
+            "unit": macro_unit,
             "unit_price": unit_price,
             "RCV": rcv,
             "age_life": "0/NA",
@@ -192,6 +245,8 @@ class RoofAdjustmentEngine:
             "page_number": max(int(item.get("page_number", 0)) for item in line_items)
         }
         line_items.append(new_item)
+        print(f"    ✅ Added: {desc} - Qty: {rounded_qty} {macro_unit} @ ${unit_price:.2f}/{macro_unit} = ${rcv:.2f}")
+        print(f"       📊 Unit Price: ${unit_price:.2f}, RCV: ${rcv:.2f}, ACV: ${acv:.2f}")
         self.results.add_addition(desc, qty, f"Added missing line item based on roof measurements")
         return new_item
 
