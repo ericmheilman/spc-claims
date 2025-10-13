@@ -1882,11 +1882,6 @@ export default function EstimatePage() {
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white">
                                           💰 RMM ADJUSTED
                                         </span>
-                                        {auditEntry.similarity_score && (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
-                                            {auditEntry.similarity_score.toFixed(0)}% Match
-                                          </span>
-                                        )}
                                       </div>
                                     )}
                                     {/* Show match information only if there was a match AND changes were made */}
