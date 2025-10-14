@@ -1250,11 +1250,11 @@ export default function EstimatePage() {
   const ridgeVentOptions = [
     {
       displayName: 'Continuous ridge vent shingle-over style',
-      macroName: '49b. Continuous ridge vent shingle-over style'
+      macroName: 'Continuous ridge vent - shingle-over style'
     },
     {
       displayName: 'Continuous ridge vent aluminum', 
-      macroName: '50b. Continuous ridge vent aluminum'
+      macroName: 'Continuous ridge vent - aluminum'
     }
   ];
 
