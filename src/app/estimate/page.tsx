@@ -1381,7 +1381,8 @@ export default function EstimatePage() {
     console.log('✅ Added shingle removal item:', newItem);
     console.log('🔄 Continuing User Prompt Workflow...');
     
-    // Continue with the workflow using updated items
+    // Mark step as completed and continue with the workflow using updated items
+    setShingleRemovalSkipped(true);
     continueUserPromptWorkflow(updatedItems);
   };
 
@@ -1441,7 +1442,8 @@ export default function EstimatePage() {
     console.log('✅ Added installation shingle item:', newItem);
     console.log('🔄 Continuing User Prompt Workflow...');
     
-    // Continue with the workflow using updated items
+    // Mark step as completed and continue with the workflow using updated items
+    setInstallationShinglesSkipped(true);
     continueUserPromptWorkflow(updatedItems);
   };
 
@@ -1681,6 +1683,12 @@ export default function EstimatePage() {
   const runUserPromptWorkflow = async () => {
     console.log('=== RUNNING USER PROMPT WORKFLOW ===');
     
+    // Reset all skip flags to ensure workflow runs from beginning
+    setShingleRemovalSkipped(false);
+    setInstallationShinglesSkipped(false);
+    setOPSkipped(false);
+    setRidgeVentSkipped(false);
+    
     try {
       if (extractedLineItems.length === 0) {
         alert('No line items available. Please upload and process documents first.');
@@ -1698,18 +1706,19 @@ export default function EstimatePage() {
       console.log('  - Found items:', shingleRemovalCheck.foundItems.map(item => item.description));
       console.log('  - Has shingle removal:', shingleRemovalCheck.hasShingleRemoval);
       
-      if (!shingleRemovalCheck.hasShingleRemoval && !shingleRemovalSkipped) {
-        console.log('⚠️ No shingle removal items found - showing modal');
-        setFoundShingleRemovalItems([]);
-        setShowShingleRemovalModal(true);
-        return;
-      }
-
-      // If shingle removal exists, show found items and continue with workflow
-      if (shingleRemovalCheck.hasShingleRemoval) {
+      // Always show shingle removal modal (unless previously skipped) - either for missing items or confirmation
+      if (!shingleRemovalSkipped) {
         const foundItemNames = shingleRemovalCheck.foundItems.map(item => item.description);
         setFoundShingleRemovalItems(foundItemNames);
-        console.log(`✅ Shingle removal items found: ${foundItemNames.join(', ')} - continuing workflow`);
+        
+        if (shingleRemovalCheck.hasShingleRemoval) {
+          console.log(`✅ Shingle removal items found: ${foundItemNames.join(', ')} - showing confirmation modal`);
+        } else {
+          console.log('⚠️ No shingle removal items found - showing modal');
+        }
+        
+        setShowShingleRemovalModal(true);
+        return;
       }
 
       // Check for installation shingles - only show modal if NONE exist and not previously skipped
@@ -1722,18 +1731,19 @@ export default function EstimatePage() {
       console.log('  - Found items:', installationShinglesCheck.foundItems.map(item => item.description));
       console.log('  - Has installation shingles:', installationShinglesCheck.hasInstallationShingles);
       
-      if (!installationShinglesCheck.hasInstallationShingles && !installationShinglesSkipped) {
-        console.log('⚠️ No installation shingles found - showing modal');
-        setFoundInstallationShingleItems([]);
-        setShowInstallationShinglesModal(true);
-        return;
-      }
-
-      // If installation shingles exist, show found items and continue with workflow
-      if (installationShinglesCheck.hasInstallationShingles) {
+      // Always show installation shingles modal (unless previously skipped) - either for missing items or confirmation
+      if (!installationShinglesSkipped) {
         const foundItemNames = installationShinglesCheck.foundItems.map(item => item.description);
         setFoundInstallationShingleItems(foundItemNames);
-        console.log(`✅ Installation shingles found: ${foundItemNames.join(', ')} - continuing workflow`);
+        
+        if (installationShinglesCheck.hasInstallationShingles) {
+          console.log(`✅ Installation shingles found: ${foundItemNames.join(', ')} - showing confirmation modal`);
+        } else {
+          console.log('⚠️ No installation shingles found - showing modal');
+        }
+        
+        setShowInstallationShinglesModal(true);
+        return;
       }
       
       continueUserPromptWorkflow(extractedLineItems);
@@ -4312,6 +4322,7 @@ export default function EstimatePage() {
                       <button
                         onClick={() => {
                           setShowShingleRemovalModal(false);
+                          setShingleRemovalSkipped(true); // Mark as completed
                           console.log('✅ Proceeding to next step - shingle removal items found');
                           continueUserPromptWorkflow(extractedLineItems);
                         }}
@@ -4480,6 +4491,7 @@ export default function EstimatePage() {
                       <button
                         onClick={() => {
                           setShowInstallationShinglesModal(false);
+                          setInstallationShinglesSkipped(true); // Mark as completed
                           console.log('✅ Proceeding to next step - installation shingles found');
                           continueUserPromptWorkflow(extractedLineItems);
                         }}
