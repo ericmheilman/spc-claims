@@ -3695,22 +3695,6 @@ export default function EstimatePage() {
             </div>
           )}
 
-          {/* Debug Section */}
-          {rawAgentData && (
-            <div className="mb-8">
-              <details className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-                <summary className="bg-slate-800 px-6 py-4 cursor-pointer hover:bg-slate-700 transition-all">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-white mb-1">Debug Information</h2>
-                      <p className="text-gray-300 text-sm">Click to view agent outputs and combined payload</p>
-                    </div>
-                    <span className="text-white text-3xl">▼</span>
-                  </div>
-                </summary>
-              </details>
-            </div>
-          )}
 
           {/* User Prompt Workflow Modal */}
           {showPromptModal && promptResults && (
