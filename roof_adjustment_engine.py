@@ -1190,6 +1190,60 @@ class RoofAdjustmentEngine:
         if replacements_made == 0:
             print(f"  ℹ️  No carrier estimate items found that match replacement patterns")
 
+        # Final check: Compare unit prices against Roof Master Macro
+        print(f"\n💰 FINAL UNIT PRICE COMPARISON AGAINST ROOF MASTER MACRO")
+        unit_price_adjustments = 0
+        
+        for item in line_items:
+            current_price = item.get("unit_price", 0)
+            description = item.get("description", "").strip()
+            
+            if not description:
+                continue
+                
+            # Look up unit price in Roof Master Macro
+            macro_data = self.lookup_unit_price(description)
+            macro_price = macro_data.get('unit_price', 0)
+            
+            if macro_price > 0:
+                # Use the maximum of current price and macro price
+                new_price = max(current_price, macro_price)
+                
+                if new_price > current_price:
+                    old_price = current_price
+                    item["unit_price"] = new_price
+                    
+                    # Recalculate RCV since unit price changed
+                    quantity = float(item.get("quantity", 0))
+                    item["RCV"] = quantity * new_price
+                    
+                    print(f"  ✅ PRICE INCREASED: '{description[:50]}...'")
+                    print(f"     Unit Price: ${old_price:.2f} → ${new_price:.2f}")
+                    print(f"     RCV: ${quantity * old_price:.2f} → ${item['RCV']:.2f}")
+                    
+                    # Add audit log entry for unit price adjustment
+                    self.results.add_audit_entry_for_item(
+                        item, 'unit_price', old_price, new_price,
+                        f"Unit price increased to match Roof Master Macro maximum (${new_price:.2f})",
+                        "Final Unit Price Comparison"
+                    )
+                    unit_price_adjustments += 1
+                elif new_price == current_price:
+                    print(f"  ⏭️  PRICE OK: '{description[:50]}...' - Already at max price (${current_price:.2f})")
+                else:
+                    print(f"  ⏭️  PRICE OK: '{description[:50]}...' - Current price higher than macro (${current_price:.2f} > ${macro_price:.2f})")
+            else:
+                print(f"  ❌ NO MATCH: '{description[:50]}...' - Not found in Roof Master Macro")
+        
+        print(f"\n📊 UNIT PRICE COMPARISON SUMMARY:")
+        print(f"  Total items checked: {len(line_items)}")
+        print(f"  Price adjustments made: {unit_price_adjustments}")
+        
+        if unit_price_adjustments > 0:
+            print(f"  💡 {unit_price_adjustments} line items had their unit prices increased to match Roof Master Macro maximums")
+        else:
+            print(f"  💡 All line items already have optimal unit prices")
+
         return line_items
 
     def process_claim(self, line_items: List[Dict[str, Any]], roof_measurements: Dict[str, Any]) -> Dict[str, Any]:
