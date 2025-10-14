@@ -52,6 +52,7 @@ export default function EstimatePage() {
   const [ruleResults, setRuleResults] = useState<any>(null);
   const [isRunningRules, setIsRunningRules] = useState(false);
   const [showRuleResults, setShowRuleResults] = useState(false);
+  const [showPythonDebugOutput, setShowPythonDebugOutput] = useState(false);
   const [extractedRoofMeasurements, setExtractedRoofMeasurements] = useState<any>({});
 
   // User Prompt Workflow state
@@ -2529,43 +2530,119 @@ export default function EstimatePage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
-                        {ruleResults.adjusted_line_items.map((item: any, index: number) => (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {item.line_number}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              <div className="font-medium">{item.description}</div>
-                              <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {item.quantity?.toFixed(2)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {item.unit}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatCurrency(item.RCV || 0)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <button
-                                onClick={() => handlePriceEdit(item)}
-                                className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
-                                title="Edit unit price"
-                              >
-                                ✏️
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {ruleResults.adjusted_line_items.map((item: any, index: number) => {
+                          // Find if this item has an audit log entry
+                          // Try matching by line number first, then by description as fallback
+                          const auditEntry = ruleResults.audit_log?.find((log: any) => 
+                            String(log.line_number) === String(item.line_number) ||
+                            log.description === item.description
+                          );
+                          
+                          const rowClass = auditEntry ? 'bg-green-50 border-l-4 border-green-500' : 'hover:bg-gray-50';
+                          
+                          return (
+                            <tr key={index} className={rowClass}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {item.line_number}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-900">
+                                <div className="max-w-md">
+                                  <div className="font-medium mb-1">{item.description}</div>
+                                  <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                                  {auditEntry && (
+                                    <>
+                                      <div className="mt-2 flex items-center space-x-2">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white">
+                                          🐍 PYTHON ADJUSTED
+                                        </span>
+                                      </div>
+                                      <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
+                                        <div className="font-semibold text-amber-900 mb-1">📏 Rule Applied:</div>
+                                        <div className="text-gray-700 mb-2 italic">"{auditEntry.rule_applied}"</div>
+                                        <div className="text-gray-600">
+                                          <strong className="text-amber-800">Field Changed:</strong> {auditEntry.field} | 
+                                          <strong className="text-amber-800 ml-2">Explanation:</strong> {auditEntry.explanation}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {(() => {
+                                  const quantityChange = auditEntry?.field === 'quantity';
+                                  
+                                  if (auditEntry && quantityChange) {
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="font-bold text-green-700 bg-green-100 px-2 py-1 rounded inline-block">
+                                          {item.quantity?.toFixed(2)}
+                                        </div>
+                                        <div className="text-xs text-gray-500 line-through">
+                                          Was: {auditEntry.before?.toFixed(2)}
+                                        </div>
+                                      </div>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-gray-900">{item.quantity?.toFixed(2)}</span>
+                                    );
+                                  }
+                                })()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                {item.unit}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {formatCurrency(item.RCV || 0)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <button
+                                  onClick={() => handlePriceEdit(item)}
+                                  className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
+                                  title="Edit unit price"
+                                >
+                                  ✏️
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 </div>
               )}
+
+              {/* Legend */}
+              <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Legend</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-start">
+                    <span className="text-xs text-gray-500 line-through mr-3 mt-1">Old Value</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Green Highlighted Rows</div>
+                      <div className="text-gray-600">Python Rule Engine adjusted items</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-xs text-gray-500 line-through mr-3 mt-1">New Value</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Amber Box</div>
+                      <div className="text-gray-600">Rule explanation and field changes</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-900">
+                    <span className="font-semibold">🐍 Tip:</span> Modified values show the new Python-calculated quantity prominently with the original carrier quantity crossed out below. 
+                    Each adjustment includes the specific rule applied and detailed explanation.
+                  </p>
+                </div>
+              </div>
 
               {/* Adjustment Results */}
               {ruleResults.adjustment_results && (ruleResults.adjustment_results.adjustments?.length > 0 || ruleResults.adjustment_results.additions?.length > 0 || ruleResults.adjustment_results.warnings?.length > 0) && (
@@ -2637,22 +2714,33 @@ export default function EstimatePage() {
               {/* Debug Output */}
               {ruleResults.debug_output && (
                 <div className="px-8 pb-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">🐛 Python Script Debug Output</h3>
-                  <div className="bg-gray-900 text-green-400 p-6 rounded-lg font-mono text-sm overflow-x-auto">
-                    <div className="mb-4">
-                      <span className="text-yellow-400">Execution Time:</span> {new Date(ruleResults.debug_output.execution_time).toLocaleString()}
-                    </div>
-                    <div className="mb-4">
-                      <span className="text-yellow-400">STDOUT:</span>
-                      <pre className="mt-2 whitespace-pre-wrap">{ruleResults.debug_output.stdout}</pre>
-                    </div>
-                    {ruleResults.debug_output.stderr && (
-                      <div>
-                        <span className="text-red-400">STDERR:</span>
-                        <pre className="mt-2 whitespace-pre-wrap text-red-400">{ruleResults.debug_output.stderr}</pre>
+                  <button
+                    onClick={() => setShowPythonDebugOutput(!showPythonDebugOutput)}
+                    className="flex items-center justify-between w-full text-left mb-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <h3 className="text-xl font-bold text-gray-900">🐛 Python Script Debug Output</h3>
+                    <span className={`transform transition-transform duration-200 ${showPythonDebugOutput ? 'rotate-180' : 'rotate-0'}`}>
+                      ▼
+                    </span>
+                  </button>
+                  
+                  {showPythonDebugOutput && (
+                    <div className="bg-gray-900 text-green-400 p-6 rounded-lg font-mono text-sm overflow-x-auto">
+                      <div className="mb-4">
+                        <span className="text-yellow-400">Execution Time:</span> {new Date(ruleResults.debug_output.execution_time).toLocaleString()}
                       </div>
-                    )}
-                  </div>
+                      <div className="mb-4">
+                        <span className="text-yellow-400">STDOUT:</span>
+                        <pre className="mt-2 whitespace-pre-wrap">{ruleResults.debug_output.stdout}</pre>
+                      </div>
+                      {ruleResults.debug_output.stderr && (
+                        <div>
+                          <span className="text-red-400">STDERR:</span>
+                          <pre className="mt-2 whitespace-pre-wrap text-red-400">{ruleResults.debug_output.stderr}</pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

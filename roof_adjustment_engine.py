@@ -31,6 +31,7 @@ class AdjustmentResult:
         self.adjustments: List[Dict[str, Any]] = []
         self.additions: List[Dict[str, Any]] = []
         self.warnings: List[Dict[str, Any]] = []
+        self.audit_log: List[Dict[str, Any]] = []  # New audit log for tracking changes
         self.summary = {
             'total_adjustments': 0,
             'total_additions': 0,
@@ -70,6 +71,37 @@ class AdjustmentResult:
             'reason': reason
         })
         self.summary['total_warnings'] += 1
+
+    def add_audit_entry(self, line_number: str, description: str, field: str, 
+                       before_value: Any, after_value: Any, action: str, 
+                       explanation: str, rule_applied: str):
+        """Add an audit log entry for tracking changes."""
+        self.audit_log.append({
+            'line_number': line_number,
+            'description': description,
+            'field': field,
+            'before': before_value,
+            'after': after_value,
+            'action': action,
+            'explanation': explanation,
+            'rule_applied': rule_applied,
+            'timestamp': None  # Could add timestamp if needed
+        })
+
+    def add_audit_entry_for_item(self, item: Dict[str, Any], field: str, 
+                                before_value: Any, after_value: Any, 
+                                explanation: str, rule_applied: str):
+        """Convenience method to add audit entry for a line item."""
+        self.add_audit_entry(
+            line_number=str(item.get('line_number', 'N/A')),
+            description=item.get('description', 'Unknown'),
+            field=field,
+            before_value=before_value,
+            after_value=after_value,
+            action='adjusted',
+            explanation=explanation,
+            rule_applied=rule_applied
+        )
 
 
 class RoofAdjustmentEngine:
@@ -257,6 +289,19 @@ class RoofAdjustmentEngine:
         print(f"    ✅ Added: {desc} - Qty: {rounded_qty} {macro_unit} @ ${unit_price:.2f}/{macro_unit} = ${rcv:.2f}")
         print(f"       📊 Unit Price: ${unit_price:.2f}, RCV: ${rcv:.2f}, ACV: ${acv:.2f}")
         self.results.add_addition(desc, qty, f"Added missing line item based on roof measurements")
+        
+        # Add audit log entry for new item
+        self.results.add_audit_entry(
+            line_number=str(new_item['line_number']),
+            description=desc,
+            field='quantity',
+            before_value=0,
+            after_value=rounded_qty,
+            action='added',
+            explanation=f"New line item added based on roof measurements and standard roofing practices",
+            rule_applied="Rule: Missing Line Item Addition"
+        )
+        
         return new_item
 
     def apply_logic(self, line_items: List[Dict[str, Any]], roof_metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -366,10 +411,21 @@ class RoofAdjustmentEngine:
                     print(f"  Found: {desc} - Current Qty: {qty}, Target: {total_squares}")
                     if not math.isclose(qty, total_squares):
                         old_qty = qty
-                        item["quantity"] = max(qty, total_squares)
-                        print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
-                        self.results.add_adjustment(desc, old_qty, item["quantity"], 
-                                                  f"Quantity should equal Total Roof Area / 100 ({total_squares:.2f})")
+                        new_qty = max(qty, total_squares)
+                        # Only proceed if the quantity actually changed
+                        if not math.isclose(old_qty, new_qty):
+                            item["quantity"] = new_qty
+                            print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
+                            self.results.add_adjustment(desc, old_qty, item["quantity"], 
+                                                      f"Quantity should equal Total Roof Area / 100 ({total_squares:.2f})")
+                            # Add audit log entry
+                            self.results.add_audit_entry_for_item(
+                                item, 'quantity', old_qty, item["quantity"],
+                                f"Shingle removal quantity adjusted to match roof area calculation (Total Roof Area / 100 = {total_squares:.2f} SQ)",
+                                "Rule 1-4: Shingle Removal Quantity Adjustments"
+                            )
+                        else:
+                            print(f"    ⏭️  No change needed (quantity already sufficient)")
                     else:
                         print(f"    ⏭️  No change needed (already matches)")
                 else:
@@ -400,6 +456,12 @@ class RoofAdjustmentEngine:
                         print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                         self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                                   f"Quantity should equal Total Roof Area / 100 ({total_squares:.2f})")
+                        # Add audit log entry
+                        self.results.add_audit_entry_for_item(
+                            item, 'quantity', old_qty, item["quantity"],
+                            f"Shingle installation quantity adjusted to match roof area calculation (Total Roof Area / 100 = {total_squares:.2f} SQ)",
+                            "Rule 5-8: Shingle Installation Quantity Adjustments"
+                        )
                     else:
                         print(f"    ⏭️  No change needed (already matches)")
                 else:
@@ -420,6 +482,12 @@ class RoofAdjustmentEngine:
                     item["quantity"] = math.ceil(qty * 4) / 4
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               "Laminated shingles should be rounded up to nearest 0.25")
+                    # Add audit log entry
+                    self.results.add_audit_entry_for_item(
+                        item, 'quantity', old_qty, item["quantity"],
+                        "Laminated shingle quantity rounded up to nearest 0.25 (standard roofing practice)",
+                        "Rule: Laminated Shingle Rounding"
+                    )
 
         # Rounding rules for 3 tab (0.33) - Use exact descriptions
         for desc in [
@@ -437,6 +505,12 @@ class RoofAdjustmentEngine:
                     item["quantity"] = math.ceil(qty * 3) / 3
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               "3-tab shingles should be rounded up to nearest 0.33")
+                    # Add audit log entry
+                    self.results.add_audit_entry_for_item(
+                        item, 'quantity', old_qty, item["quantity"],
+                        "3-tab shingle quantity rounded up to nearest 0.33 (standard roofing practice)",
+                        "Rule: 3-Tab Shingle Rounding"
+                    )
 
         # Starter rules for removals - Use exact descriptions
         for remove_desc in [
@@ -457,6 +531,12 @@ class RoofAdjustmentEngine:
                             item["quantity"] = starter_qty
                             self.results.add_adjustment(starter_desc, old_qty, item["quantity"], 
                                                       f"Starter strip quantity should equal (Total Eaves + Total Rakes) / 100 ({starter_qty:.2f})")
+                            # Add audit log entry
+                            self.results.add_audit_entry_for_item(
+                                item, 'quantity', old_qty, item["quantity"],
+                                f"Starter strip quantity adjusted to match roof perimeter calculation ((Eaves + Rakes) / 100 = {starter_qty:.2f} SQ)",
+                                "Rule: Starter Strip Quantity Adjustments"
+                            )
 
         # Steep rules for 7-9
         print(f"\n🏔️ RULE: Steep Roof 7/12-9/12 Charges")
@@ -478,6 +558,12 @@ class RoofAdjustmentEngine:
                         print(f"      ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                         self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                                   f"Steep roof charge should equal (Area 7/12 + 8/12 + 9/12) / 100 ({rounded_qty:.2f})")
+                        # Add audit log entry
+                        self.results.add_audit_entry_for_item(
+                            item, 'quantity', old_qty, item["quantity"],
+                            f"Steep roof charge adjusted to match steep roof area calculation (7/12-9/12 slopes = {rounded_qty:.2f} SQ)",
+                            "Rule: Steep Roof 7/12-9/12 Charges"
+                        )
                     else:
                         print(f"      ⏭️  No change needed (already sufficient)")
                 else:
@@ -633,6 +719,12 @@ class RoofAdjustmentEngine:
                     print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               f"Drip edge quantity should equal (Total Eaves + Total Rakes) = {drip_edge_length:.2f} LF")
+                    # Add audit log entry
+                    self.results.add_audit_entry_for_item(
+                        item, 'quantity', old_qty, item["quantity"],
+                        f"Drip edge quantity adjusted to match roof perimeter calculation (Eaves + Rakes = {drip_edge_length:.2f} LF)",
+                        "Rule: Drip Edge Adjustments"
+                    )
                 else:
                     print(f"    ⏭️  No change needed (already matches)")
                 break
@@ -1064,12 +1156,10 @@ class RoofAdjustmentEngine:
                             print(f"     Unit Price: ${old_price:.2f} → ${macro_data['unit_price']:.2f}")
                             print(f"     Unit: {item['unit']}")
                             
-                            self.results.add_adjustment(
-                                old_desc, 
-                                item.get("quantity", 0), 
-                                item.get("quantity", 0),
-                                f"Replaced carrier item with Roof Master item: {roof_master_desc}"
-                            )
+                            # Only create adjustment record if there's an actual quantity change
+                            # For description/price-only changes, we don't need to log them as quantity adjustments
+                            # since they don't affect the displayed quantities in the frontend
+                            pass
                             replacements_made += 1
                             break  # Only replace first match for this pattern
         
@@ -1211,6 +1301,7 @@ class RoofAdjustmentEngine:
         return {
             'original_line_items': line_items,
             'adjusted_line_items': adjusted_line_items,
+            'audit_log': self.results.audit_log,  # Include audit log for frontend display
             'adjustment_results': {
                 'adjustments': self.results.adjustments,
                 'additions': self.results.additions,
