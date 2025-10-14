@@ -256,62 +256,38 @@ export default function EstimatePage() {
   useEffect(() => {
     const loadRoofMasterMacro = async () => {
       try {
-        const response = await fetch('/roof_master_macro.txt');
-        const text = await response.text();
+        const response = await fetch('/roof_master_macro.csv');
+        const csvText = await response.text();
         
-        // Parse Roof Master Macro structured text format
-        const lines = text.trim().split('\n');
+        // Parse CSV format
+        const lines = csvText.trim().split('\n');
         const macroMap = new Map();
         
-        let i = 0;
-        while (i < lines.length) {
+        // Skip header line
+        for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
+          if (!line) continue;
           
-          // Look for lines that start with a number and contain item descriptions
-          if (line.match(/^\d+\./)) {
-            let description = line.replace(/^\d+\.\s*/, '').trim();
+          // Split by comma or tab
+          const columns = line.includes('\t') ? line.split('\t') : line.split(',');
+          
+          if (columns.length >= 3) {
+            const description = columns[0].trim();
+            const unit = columns[1].trim();
+            const unitPriceStr = columns[2].trim();
             
-            // Handle multi-line descriptions (some items span multiple lines)
-            let j = i + 1;
-            while (j < lines.length && !lines[j].trim().match(/^\d+\./) && !lines[j].trim().match(/^\d+\.\d+/) && lines[j].trim() !== '' && !lines[j].trim().match(/^\d+\.\d+ [A-Z]/)) {
-              description += ' ' + lines[j].trim();
-              j++;
+            // Parse unit price (remove $ and commas)
+            const unitPrice = parseFloat(unitPriceStr.replace(/[$,\s]/g, ''));
+            
+            if (!isNaN(unitPrice) && description) {
+              macroMap.set(description, { unit_price: unitPrice, unit: unit });
             }
-            
-            // Find the quantity line (next line after description)
-            if (j < lines.length) {
-              const quantityLine = lines[j].trim();
-              
-              // Extract unit from quantity line (e.g., "0.00 SQ")
-              const unitMatch = quantityLine.match(/(\d+\.\d+)\s+(SQ|LF|SF|EA|HR)/);
-              const unit = unitMatch ? unitMatch[2] : 'SQ';
-              
-              // Price is on the line after quantity line
-              if (j + 1 < lines.length) {
-                const priceLine = lines[j + 1].trim();
-                const price = parseFloat(priceLine) || 0;
-                
-                if (description && price > 0) {
-                  macroMap.set(description, {
-                    description,
-                    unit_price: price,
-                    rcv: price,
-                    acv: price,
-                    unit: unit
-                  });
-                }
-              }
-            }
-            
-            i = j + 1;
-          } else {
-            i++;
           }
         }
         
-        console.log('✅ Loaded Roof Master Macro:', macroMap.size, 'items');
+        console.log('✅ Loaded Roof Master Macro from CSV:', macroMap.size, 'items');
         console.log('Sample items:', Array.from(macroMap.keys()).slice(0, 10));
-        console.log('Shingle removal items found:', Array.from(macroMap.keys()).filter(key => key.includes('Remove')));
+        console.log('Ridge vent items found:', Array.from(macroMap.keys()).filter(key => key.includes('ridge vent')));
         setRoofMasterMacro(macroMap);
       } catch (error) {
         console.error('Error loading Roof Master Macro:', error);
@@ -4560,6 +4536,19 @@ export default function EstimatePage() {
                   </button>
                   
                   <div className="flex gap-3">
+                    {/* Skip Button - Available for all steps except the last one */}
+                    {currentWorkflowStep < workflowData.totalSteps - 1 && (
+                      <button
+                        onClick={() => {
+                          console.log(`⏭️ Skipping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep].title}`);
+                          setCurrentWorkflowStep(currentWorkflowStep + 1);
+                        }}
+                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium transition-colors"
+                      >
+                        Skip Step
+                      </button>
+                    )}
+                    
                     {currentWorkflowStep > 0 && (
                       <button
                         onClick={() => setCurrentWorkflowStep(currentWorkflowStep - 1)}
