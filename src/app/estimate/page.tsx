@@ -48,7 +48,7 @@ export default function EstimatePage() {
   const [claimWasteResult, setClaimWasteResult] = useState<any>(null);
   const [isCalculatingClaimWaste, setIsCalculatingClaimWaste] = useState(false);
 
-  // Python Rule Engine state
+  // SPC Adjustment Engine state
   const [ruleResults, setRuleResults] = useState<any>(null);
   const [isRunningRules, setIsRunningRules] = useState(false);
   const [showRuleResults, setShowRuleResults] = useState(false);
@@ -1025,13 +1025,13 @@ export default function EstimatePage() {
 
       console.log('RMM Results:', rmmData);
 
-      // Step 2: Run Python Rules Engine on RMM-adjusted items
-      console.log('Step 2: Running Python Rules Engine on RMM-adjusted items...');
+      // Step 2: Run SPC Adjustment Engine on RMM-adjusted items
+      console.log('Step 2: Running SPC Adjustment Engine on RMM-adjusted items...');
       
       // Get roof measurements (same as individual Python function)
       const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
       if (!roofMeasurementsObj) {
-        throw new Error('Could not extract roof measurements for Python rules');
+        throw new Error('Could not extract roof measurements for SPC Adjustment Engine');
       }
 
       let roofMeasurements: Record<string, any> = {};
@@ -1072,7 +1072,7 @@ export default function EstimatePage() {
 
       if (!pythonResponse.ok) {
         const errorData = await pythonResponse.json();
-        throw new Error(`Python Rules Engine failed: ${errorData.error || pythonResponse.statusText}`);
+        throw new Error(`SPC Adjustment Engine failed: ${errorData.error || pythonResponse.statusText}`);
       }
 
       const pythonResult = await pythonResponse.json();
@@ -1097,7 +1097,7 @@ export default function EstimatePage() {
           })),
           ...(pythonData.audit_log || []).map((entry: any) => ({
             ...entry,
-            source: 'Python Rules',
+            source: 'SPC Adjustment Engine',
             badge_color: 'bg-green-600'
           }))
         ],
@@ -1121,7 +1121,7 @@ export default function EstimatePage() {
     }
   };
 
-  // Python Rule Engine function
+  // SPC Adjustment Engine function
   const runRuleEngine = async () => {
     console.log('=== RUNNING PYTHON RULE ENGINE ===');
     setIsRunningRules(true);
@@ -1691,7 +1691,7 @@ export default function EstimatePage() {
                     : 'bg-green-700 text-white hover:bg-green-800 border border-green-600'
                 }`}
               >
-                {isRunningRules ? 'Processing...' : 'Python Rule Engine'}
+                {isRunningRules ? 'Processing...' : 'SPC Adjustment Engine'}
               </button>
               <button
                 onClick={runCombinedWorkflow}
@@ -2657,13 +2657,13 @@ export default function EstimatePage() {
             </div>
           </div>
 
-          {/* Python Rule Engine Results */}
+          {/* SPC Adjustment Engine Results */}
           {showRuleResults && ruleResults && (
             <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-8">
               <div className="bg-gradient-to-r from-green-700 to-green-800 px-8 py-6 rounded-t-2xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">🐍 Python Rule Engine Results</h2>
+                    <h2 className="text-2xl font-bold text-white mb-2">🐍 SPC Adjustment Engine Results</h2>
                     <p className="text-green-200">
                       Automated adjustments based on roof measurements and line items
                     </p>
@@ -2803,7 +2803,7 @@ export default function EstimatePage() {
                             return {
                               rowClass: 'bg-gray-50 border-l-4 border-gray-500',
                               badgeColor: 'bg-gray-600',
-                              badgeText: '🐍 PYTHON ADJUSTED',
+                              badgeText: '🐍 SPC ADJUSTED',
                               boxClass: 'bg-gray-50 border-l-3 border-gray-500',
                               boxTitle: '📏 Rule Applied:',
                               boxTitleColor: 'text-gray-900',
@@ -2976,7 +2976,7 @@ export default function EstimatePage() {
                     onClick={() => setShowPythonDebugOutput(!showPythonDebugOutput)}
                     className="flex items-center justify-between w-full text-left mb-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <h3 className="text-xl font-bold text-gray-900">🐛 Python Script Debug Output</h3>
+                    <h3 className="text-xl font-bold text-gray-900">🐛 SPC Adjustment Engine Debug Output</h3>
                     <span className={`transform transition-transform duration-200 ${showPythonDebugOutput ? 'rotate-180' : 'rotate-0'}`}>
                       ▼
                     </span>
@@ -3012,7 +3012,7 @@ export default function EstimatePage() {
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-2">🚀 Combined Workflow Results</h2>
                     <p className="text-purple-200">
-                      RMM Unit Cost Comparator + Python Rules Engine combined processing
+                      RMM Unit Cost Comparator + SPC Adjustment Engine combined processing
                     </p>
                   </div>
                   <button
@@ -3104,7 +3104,7 @@ export default function EstimatePage() {
                                     )}
                                     {pythonAuditEntry && (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white">
-                                        🐍 PYTHON ADJUSTED
+                                        🐍 SPC ADJUSTED
                                       </span>
                                     )}
                                   </div>
@@ -3120,7 +3120,7 @@ export default function EstimatePage() {
                                 )}
                                 {pythonAuditEntry && (
                                   <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
-                                    <div className="font-semibold text-amber-900 mb-1">🐍 Python Rule:</div>
+                                    <div className="font-semibold text-amber-900 mb-1">🐍 SPC Rule:</div>
                                     <div className="text-gray-700 mb-2 italic">"{pythonAuditEntry.rule_applied}"</div>
                                     <div className="text-gray-600">
                                       <strong className="text-amber-800">Field Changed:</strong> {pythonAuditEntry.field} | 
@@ -3209,10 +3209,10 @@ export default function EstimatePage() {
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white mr-3 mt-1">🐍 PYTHON</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white mr-3 mt-1">🐍 SPC</span>
                     <div>
                       <div className="text-gray-900 font-bold">Green Highlighted Items</div>
-                      <div className="text-gray-600">Python Rules Engine adjusted quantities</div>
+                      <div className="text-gray-600">SPC Adjustment Engine adjusted quantities</div>
                     </div>
                   </div>
                 </div>
