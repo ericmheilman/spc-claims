@@ -93,6 +93,13 @@
 - ✅ IF "Chimney flashing average (32" x 36")" is present and "Saddle or cricket up to 25 SF" is not present → add it
 - ✅ IF "Chimney flashing - large (32" x 60")" is present and "Saddle or cricket 26 to 50 SF" is not present → add it
 
+#### Roofing Felt Calculations (Pitch-Based)
+- ✅ IF pitch 1/12-4/12 areas != 0 → set "Roofing felt - 15 lb. - double coverage/low slope" QUANTITY = (sum of areas) / 100
+- ✅ IF pitch 5/12-8/12 areas != 0 → set "Roofing felt - 15 lb." QUANTITY = (sum of areas) / 100
+- ✅ IF pitch 9/12-12/12+ areas != 0 → set "Roofing felt - 30 lb." QUANTITY = (sum of areas) / 100
+- ✅ Automatically adds new items if not present in estimate
+- ✅ Adjusts existing items to max(current_qty, calculated_qty)
+
 ---
 
 ## ❌ UNIMPLEMENTED LOGIC (Needs to be Added)
@@ -101,6 +108,7 @@
 
 #### Detach/Reset to Replace Conversion
 - ❌ IF any detach/reset line item (e.g., "Flue cap") is present, change to "replace"
+- **Note:** Line item replacements for standardization are implemented, but not the generic "detach/reset → replace" conversion
 
 ### Category B: Rules with User Notifications
 - ❌ **All notification rules are unimplemented** (no notification system exists)
@@ -200,11 +208,6 @@
 - ❌ SET carrier_waste_percentage = max(carrier_waste_percentage, suggested_waste_percentage)
 - ❌ Adjust for ridge vent and starter quantities
 
-#### Roofing Felt Calculations
-- ❌ IF pitch 1/12-4/12 areas != 0 → set "Roofing felt - 15 lb. - double coverage/low slope"
-- ❌ IF pitch 5/12-8/12 areas != 0 → set "Roofing felt - 15 lb."
-- ❌ IF pitch 9/12-12/12+ areas != 0 → set "Roofing felt - 30 lb."
-
 #### Carrier-Specific Rules
 - ❌ IF carrier_rules["ridge_vent"] == "shingles" → remove Hip/Ridge cap, set ridge vent quantity
 - ❌ IF carrier_rules["ridge_vent"] == "omit" → set ridge vent quantity, adjust Hip/Ridge cap
@@ -220,9 +223,9 @@
 
 ## 📊 SUMMARY STATISTICS
 
-### Implemented: ~85-90 rules
+### Implemented: ~90-95 rules
 - ✅ Category 1: Roof Master Macro Unit Cost - **COMPLETE**
-- ✅ Category A (Automatable): **~75% COMPLETE**
+- ✅ Category A (Automatable): **~80% COMPLETE**
   - Shingle quantities ✅
   - Rounding ✅
   - Starter strips ✅
@@ -233,6 +236,7 @@
   - Valley metal ✅
   - Line item replacements ✅
   - Chimney saddle/cricket ✅
+  - **Roofing felt (pitch-based) ✅** ← NEWLY CONFIRMED
 
 ### Unimplemented: ~100+ rules
 - ❌ Category B (Notifications): **0% COMPLETE**
@@ -259,7 +263,7 @@
 ### Phase 1: High-Impact Automatable Rules (Quick Wins)
 1. Implement detach/reset → replace conversion
 2. Add waste percentage calculator
-3. Add roofing felt pitch-based logic
+3. ~~Add roofing felt pitch-based logic~~ ✅ **ALREADY IMPLEMENTED**
 4. Implement valley type auto-detection (if data available)
 
 ### Phase 2: User Prompt Infrastructure
