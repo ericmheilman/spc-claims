@@ -950,41 +950,139 @@ export default function EstimatePage() {
 
       // Step 1: Run RMM Unit Cost Comparator
       console.log('Step 1: Running RMM Unit Cost Comparator...');
-      const rmmResponse = await fetch('/api/run-python-rules', {
+      
+      // Prepare RMM payload (same as individual RMM function)
+      const lineItemsJson = JSON.stringify(extractedLineItems, null, 2);
+      const agentPayload = {
+        user_id: 'gdnaaccount@lyzr.ai',
+        agent_id: '68eaf673de8385f5b43204d9',
+        session_id: '68eaf673de8385f5b43204d9-' + Date.now(),
+        message: lineItemsJson
+      };
+      
+      const rmmResponse = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          line_items: extractedLineItems,
-          roof_measurements: extractedRoofMeasurements,
-          workflow_type: 'rmm_comparator'
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+        },
+        body: JSON.stringify(agentPayload)
       });
 
       if (!rmmResponse.ok) {
         throw new Error(`RMM Comparator failed: ${rmmResponse.statusText}`);
       }
 
-      const rmmData = await rmmResponse.json();
+      const rmmResult = await rmmResponse.json();
+      console.log('RMM Agent Response:', rmmResult);
+      
+      // Parse RMM response (same logic as individual function)
+      let rmmData = null;
+      if (rmmResult.response) {
+        try {
+          let parsedResponse = null;
+          
+          // Try markdown code block
+          const jsonMatch = rmmResult.response.match(/```json\s*\n([\s\S]*?)\n```/);
+          if (jsonMatch && jsonMatch[1]) {
+            console.log('Found JSON in markdown block');
+            parsedResponse = JSON.parse(jsonMatch[1]);
+          } else {
+            // Try to find array pattern
+            const arrayMatch = rmmResult.response.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+              console.log('Found array pattern');
+              parsedResponse = JSON.parse(arrayMatch[0]);
+            } else {
+              // Try direct JSON parse
+              parsedResponse = JSON.parse(rmmResult.response);
+            }
+          }
+          
+          if (parsedResponse && Array.isArray(parsedResponse)) {
+            rmmData = {
+              updated_line_items: parsedResponse,
+              audit_log: parsedResponse.filter(item => item.audit_log).map(item => ({
+                line_number: item.line_number,
+                description: item.description,
+                field: 'unit_price',
+                before: item.original_unit_price || item.unit_price,
+                after: item.unit_price,
+                explanation: item.price_justification || 'Unit price adjusted based on Roof Master Macro',
+                source: 'RMM Comparator'
+              }))
+            };
+          }
+        } catch (parseError) {
+          console.error('Failed to parse RMM response:', parseError);
+          throw new Error('Failed to parse RMM comparator response');
+        }
+      }
+
+      if (!rmmData) {
+        throw new Error('RMM Comparator did not return valid data');
+      }
+
       console.log('RMM Results:', rmmData);
 
       // Step 2: Run Python Rules Engine on RMM-adjusted items
       console.log('Step 2: Running Python Rules Engine on RMM-adjusted items...');
+      
+      // Get roof measurements (same as individual Python function)
+      const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
+      if (!roofMeasurementsObj) {
+        throw new Error('Could not extract roof measurements for Python rules');
+      }
+
+      let roofMeasurements: Record<string, any> = {};
+      if (roofMeasurementsObj.roofMeasurements) {
+        roofMeasurements = roofMeasurementsObj.roofMeasurements;
+      } else {
+        roofMeasurements = roofMeasurementsObj;
+      }
+
+      // Prepare Python input data (using RMM-adjusted line items)
+      const pythonInputData = {
+        line_items: (rmmData.updated_line_items || extractedLineItems).map(item => ({
+          line_number: item.line_number || 'N/A',
+          description: item.description || 'Unknown',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'EA',
+          unit_price: item.unit_price || 0,
+          RCV: item.RCV || 0,
+          age_life: item.age_life || '',
+          condition: item.condition || '',
+          dep_percent: item.dep_percent || 0,
+          depreciation_amount: item.depreciation_amount || 0,
+          ACV: item.ACV || 0,
+          location_room: item.location_room || 'Unknown',
+          category: item.category || 'Unknown',
+          page_number: item.page_number || 1
+        })),
+        roof_measurements: roofMeasurements
+      };
+
       const pythonResponse = await fetch('/api/run-python-rules', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          line_items: rmmData.updated_line_items || extractedLineItems,
-          roof_measurements: extractedRoofMeasurements,
-          workflow_type: 'python_rules'
-        })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pythonInputData)
       });
 
       if (!pythonResponse.ok) {
-        throw new Error(`Python Rules Engine failed: ${pythonResponse.statusText}`);
+        const errorData = await pythonResponse.json();
+        throw new Error(`Python Rules Engine failed: ${errorData.error || pythonResponse.statusText}`);
       }
 
-      const pythonData = await pythonResponse.json();
-      console.log('Python Results:', pythonData);
+      const pythonResult = await pythonResponse.json();
+      console.log('Python Results:', pythonResult);
+
+      if (!pythonResult.success) {
+        throw new Error(`Python rule engine error: ${pythonResult.error}`);
+      }
+
+      const pythonData = pythonResult.data;
 
       // Combine results
       const combinedData = {
@@ -1071,20 +1169,20 @@ export default function EstimatePage() {
       // Prepare data for Python script
       const pythonInputData = {
         line_items: extractedLineItems.map(item => ({
-          line_number: item.line_number,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          unit_price: item.unit_price,
-          RCV: item.RCV,
-          age_life: item.age_life,
-          condition: item.condition,
-          dep_percent: item.dep_percent,
-          depreciation_amount: item.depreciation_amount,
-          ACV: item.ACV,
-          location_room: item.location_room,
-          category: item.category,
-          page_number: item.page_number
+          line_number: item.line_number || 'N/A',
+          description: item.description || 'Unknown',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'EA',
+          unit_price: item.unit_price || 0,
+          RCV: item.RCV || 0,
+          age_life: item.age_life || '',
+          condition: item.condition || '',
+          dep_percent: item.dep_percent || 0,
+          depreciation_amount: item.depreciation_amount || 0,
+          ACV: item.ACV || 0,
+          location_room: item.location_room || 'Unknown',
+          category: item.category || 'Unknown',
+          page_number: item.page_number || 1
         })),
         roof_measurements: roofMeasurements
       };
@@ -1389,20 +1487,20 @@ export default function EstimatePage() {
       // Prepare data for user prompt workflow
       const promptInputData = {
         line_items: itemsToUse.map(item => ({
-          line_number: item.line_number,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          unit_price: item.unit_price,
-          RCV: item.RCV,
-          age_life: item.age_life,
-          condition: item.condition,
-          dep_percent: item.dep_percent,
-          depreciation_amount: item.depreciation_amount,
-          ACV: item.ACV,
-          location_room: item.location_room,
-          category: item.category,
-          page_number: item.page_number
+          line_number: item.line_number || 'N/A',
+          description: item.description || 'Unknown',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'EA',
+          unit_price: item.unit_price || 0,
+          RCV: item.RCV || 0,
+          age_life: item.age_life || '',
+          condition: item.condition || '',
+          dep_percent: item.dep_percent || 0,
+          depreciation_amount: item.depreciation_amount || 0,
+          ACV: item.ACV || 0,
+          location_room: item.location_room || 'Unknown',
+          category: item.category || 'Unknown',
+          page_number: item.page_number || 1
         })),
         roof_measurements: roofMeasurements
       };

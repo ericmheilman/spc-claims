@@ -253,7 +253,19 @@ class RoofAdjustmentEngine:
     def add_new_item(self, line_items: List[Dict[str, Any]], desc: str, qty: float, 
                     unit: str = "SQ", location_room: str = "Roof", category: str = "Roof") -> Dict[str, Any]:
         """Function to add new item with unit prices from Roof Master Macro."""
-        max_line = max(int(item.get("line_number", 0)) for item in line_items) + 1
+        # Safely extract numeric line numbers, filtering out non-numeric values
+        numeric_line_numbers = []
+        for item in line_items:
+            line_num = item.get("line_number", 0)
+            try:
+                # Try to convert to int, skip if it fails (e.g., 'N/A', None, etc.)
+                numeric_line_numbers.append(int(line_num))
+            except (ValueError, TypeError):
+                # Skip non-numeric line numbers
+                continue
+        
+        # If no numeric line numbers found, start from 1
+        max_line = max(numeric_line_numbers) + 1 if numeric_line_numbers else 1
         
         # Round quantity to 2 decimal places for practicality
         rounded_qty = round(qty, 2)
@@ -1140,7 +1152,7 @@ class RoofAdjustmentEngine:
                         macro_data = self.lookup_unit_price(roof_master_desc)
                         
                         if macro_data['unit_price'] > 0:
-                            old_desc = item["description"]
+                            old_desc = item.get("description", "Unknown")
                             old_price = item.get("unit_price", 0)
                             
                             # Replace with roof master description and pricing
