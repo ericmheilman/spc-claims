@@ -1700,7 +1700,7 @@ export default function EstimatePage() {
     }
   };
 
-  // Unified Workflow Steps
+  // Unified Workflow Steps - All 13+ steps from original workflow
   const workflowSteps = [
     {
       id: 'shingle-removal',
@@ -1723,9 +1723,59 @@ export default function EstimatePage() {
       description: 'Checking for overhead and profit line items'
     },
     {
-      id: 'additional-prompts',
-      title: 'Additional Prompts',
-      description: 'Additional decision-making prompts'
+      id: 'chimney-analysis',
+      title: 'Chimney Analysis',
+      description: 'Analyzing chimney presence and flashing requirements'
+    },
+    {
+      id: 'additional-layers',
+      title: 'Additional Shingle Layers',
+      description: 'Checking for additional shingle layers'
+    },
+    {
+      id: 'stories-analysis',
+      title: 'Building Stories Analysis',
+      description: 'Determining number of building stories'
+    },
+    {
+      id: 'permit-analysis',
+      title: 'Permit Requirements',
+      description: 'Checking for missing permits'
+    },
+    {
+      id: 'depreciation-contest',
+      title: 'Depreciation Contest',
+      description: 'Contesting depreciation calculations'
+    },
+    {
+      id: 'hidden-damages',
+      title: 'Hidden Damages',
+      description: 'Accounting for hidden damages'
+    },
+    {
+      id: 'spaced-decking',
+      title: 'Spaced Decking',
+      description: 'Checking for spaced decking requirements'
+    },
+    {
+      id: 'roof-access',
+      title: 'Roof Access Issues',
+      description: 'Identifying roof access problems'
+    },
+    {
+      id: 'skylights-roof-windows',
+      title: 'Skylights/Roof Windows',
+      description: 'Analyzing skylights and roof windows'
+    },
+    {
+      id: 'valley-metal',
+      title: 'Valley Metal Analysis',
+      description: 'Checking valley metal requirements'
+    },
+    {
+      id: 'labor-calculation',
+      title: 'Labor Calculation',
+      description: 'Calculating labor requirements'
     }
   ];
 
@@ -4240,14 +4290,255 @@ export default function EstimatePage() {
                     </div>
                   )}
 
-                  {/* Additional steps can be added here */}
-                  {currentWorkflowStep >= 4 && (
+                  {/* Step 5: Chimney Analysis */}
+                  {currentWorkflowStep === 4 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Chimney Analysis Required</h3>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          No chimney flashing items found in the estimate.
+                        </p>
+                        <p className="text-gray-700 mb-4">
+                          Is there a chimney present on this roof?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 6: Additional Shingle Layers */}
+                  {currentWorkflowStep === 5 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Shingle Layers</h3>
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Are there additional layers of shingles present?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 7: Building Stories Analysis */}
+                  {currentWorkflowStep === 6 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Building Stories</h3>
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          How many stories does this building have?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors">
+                            1
+                          </button>
+                          <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors">
+                            2
+                          </button>
+                          <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors">
+                            3+
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 8: Permit Analysis */}
+                  {currentWorkflowStep === 7 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Permit Requirements</h3>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Is a permit missing from this estimate?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 9: Depreciation Contest */}
+                  {currentWorkflowStep === 8 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Depreciation Contest</h3>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Do you want to contest the depreciation?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 10: Hidden Damages */}
+                  {currentWorkflowStep === 9 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Hidden Damages</h3>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Are there any hidden damages that need to be accounted for?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 11: Spaced Decking */}
+                  {currentWorkflowStep === 10 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Spaced Decking</h3>
+                      <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Is spaced decking present?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 12: Roof Access Issues */}
+                  {currentWorkflowStep === 11 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Roof Access Issues</h3>
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Are there any roof access issues?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 13: Skylights/Roof Windows */}
+                  {currentWorkflowStep === 12 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Skylights/Roof Windows</h3>
+                      <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Are there skylights or roof windows present?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 font-medium transition-colors">
+                            Yes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 14: Valley Metal Analysis */}
+                  {currentWorkflowStep === 13 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Valley Metal Analysis</h3>
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          No valley metal items found, but valleys were detected.
+                        </p>
+                        <p className="text-gray-700 mb-4">
+                          What type of valley construction?
+                        </p>
+                        <div className="flex gap-3">
+                          <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors">
+                            Open Valley
+                          </button>
+                          <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors">
+                            Closed Valley
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 15: Labor Calculation */}
+                  {currentWorkflowStep === 14 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Labor Calculation</h3>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Labor calculation based on roof area:
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Calculations</h4>
+                          <div className="text-sm space-y-2">
+                            <div>
+                              <span className="text-gray-600">Total Roof Area:</span>
+                              <span className="font-semibold ml-2">
+                                {workflowData.lineItems.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0).toFixed(2)} sq ft
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Estimated Bundles:</span>
+                              <span className="font-semibold ml-2">
+                                {(workflowData.lineItems.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) * 3).toFixed(0)}
+                              </span>
+                            </div>
+                            <div className="text-gray-600 text-xs mt-2">
+                              Labor time will be calculated based on number of stories and bundles
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional steps beyond 15 */}
+                  {currentWorkflowStep >= 15 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        {workflowSteps[currentWorkflowStep].title}
+                        {workflowSteps[currentWorkflowStep]?.title || 'Additional Step'}
                       </h3>
                       <p className="text-gray-600">
-                        {workflowSteps[currentWorkflowStep].description}
+                        {workflowSteps[currentWorkflowStep]?.description || 'This step is being processed.'}
                       </p>
                       <p className="text-sm text-gray-500 mt-4">
                         This step is not yet implemented in the unified workflow.
@@ -4298,6 +4589,7 @@ export default function EstimatePage() {
                             handleAddOP(workflowData.lineItems);
                             return;
                           }
+                          // For steps 4-14, just advance to next step
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-medium transition-colors"
