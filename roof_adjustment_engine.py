@@ -200,7 +200,7 @@ class RoofAdjustmentEngine:
         return macro_data
 
     def lookup_unit_price(self, description: str) -> Dict[str, Any]:
-        """Look up unit price and other details from Roof Master Macro."""
+        """Look up unit price and other details from Roof Master Macro with strict matching."""
         # Try exact match first
         if description in self.roof_master_macro:
             return self.roof_master_macro[description]
@@ -215,9 +215,12 @@ class RoofAdjustmentEngine:
         
         normalized_input = normalize_desc(description)
         
-        # Try normalized partial matches, prioritizing installation over removal
-        installation_matches = []
-        removal_matches = []
+        # Determine if the input is a removal or installation item
+        is_removal_input = description.lower().startswith('remove')
+        
+        # Try normalized partial matches, prioritizing same operation type
+        same_operation_matches = []
+        opposite_operation_matches = []
         
         for macro_desc, data in self.roof_master_macro.items():
             normalized_macro = normalize_desc(macro_desc)
@@ -227,17 +230,19 @@ class RoofAdjustmentEngine:
                 normalized_macro in normalized_input or
                 normalized_input == normalized_macro):
                 
-                # Prioritize installation items over removal items
-                if macro_desc.lower().startswith('remove'):
-                    removal_matches.append((macro_desc, data))
+                is_removal_macro = macro_desc.lower().startswith('remove')
+                
+                # Prioritize same operation type (removal matches removal, installation matches installation)
+                if is_removal_input == is_removal_macro:
+                    same_operation_matches.append((macro_desc, data))
                 else:
-                    installation_matches.append((macro_desc, data))
+                    opposite_operation_matches.append((macro_desc, data))
         
-        # Return installation match first, then removal match
-        if installation_matches:
-            return installation_matches[0][1]  # Return first installation match
-        elif removal_matches:
-            return removal_matches[0][1]  # Return first removal match
+        # Return same operation type match first, then opposite operation match
+        if same_operation_matches:
+            return same_operation_matches[0][1]  # Return first same operation match
+        elif opposite_operation_matches:
+            return opposite_operation_matches[0][1]  # Return first opposite operation match
         
         # Fallback to original partial matching (case-insensitive)
         description_lower = description.lower()
