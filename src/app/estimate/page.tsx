@@ -1518,7 +1518,11 @@ export default function EstimatePage() {
     console.log('🔄 Continuing User Prompt Workflow...');
     
     // Continue workflow with updated items
-    continueUserPromptWorkflow(updatedItems);
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(4); // Move to next step (additional prompts)
+    } else {
+      continueUserPromptWorkflow(updatedItems);
+    }
   };
 
   // Add ridge vent line item
@@ -1577,7 +1581,11 @@ export default function EstimatePage() {
     setShowRidgeVentModal(false);
     
     // Continue workflow
-    continueUserPromptWorkflow(updatedItems);
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(3); // Move to O&P step
+    } else {
+      continueUserPromptWorkflow(updatedItems);
+    }
   };
 
   // Continue User Prompt Workflow after adding shingle removal
@@ -4096,8 +4104,144 @@ export default function EstimatePage() {
                     </div>
                   )}
 
+                  {currentWorkflowStep === 2 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        {workflowData.hasRidgeVent ? '✅ Ridge Vent Found' : '⚠️ Missing Ridge Vent'}
+                      </h3>
+                      
+                      {workflowData.hasRidgeVent ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-3">
+                            <strong>Great! Ridge vent items found in estimate.</strong>
+                          </p>
+                          <p className="text-gray-600 text-sm mt-3">
+                            This step is not needed. Click "Next" to continue with the workflow.
+                          </p>
+                        </div>
+                      ) : workflowData.ridgeLength > 0 ? (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-4">
+                            Neither "Continuous ridge vent shingle-over style" nor "Continuous ridge vent aluminum" is present, but ridges were detected ({workflowData.ridgeLength} ft). Please select a ridge vent type:
+                          </p>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Ridge Vent Type *
+                              </label>
+                              <select
+                                value={selectedRidgeVent}
+                                onChange={(e) => setSelectedRidgeVent(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                              >
+                                <option value="">-- Select a type --</option>
+                                {ridgeVentOptions.map((option) => (
+                                  <option key={option.macroName} value={option.displayName}>
+                                    {option.displayName}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Quantity (LF) *
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={ridgeVentQuantity}
+                                onChange={(e) => setRidgeVentQuantity(e.target.value)}
+                                placeholder="Enter quantity"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                              />
+                            </div>
+
+                            {selectedRidgeVent && ridgeVentQuantity && (() => {
+                              const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedRidgeVent);
+                              const macroData = selectedOption ? roofMasterMacro.get(selectedOption.macroName) : null;
+                              return macroData ? (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                  <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                                  <div className="grid grid-cols-3 gap-4 text-sm">
+                                    <div>
+                                      <div className="text-gray-600">Unit Price:</div>
+                                      <div className="font-semibold">
+                                        ${macroData.unit_price.toFixed(2)}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-gray-600">Quantity:</div>
+                                      <div className="font-semibold">{ridgeVentQuantity} LF</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-gray-600">Total RCV:</div>
+                                      <div className="font-semibold text-blue-700">
+                                        ${(macroData.unit_price * parseFloat(ridgeVentQuantity)).toFixed(2)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700">
+                            No ridge length detected. Ridge vent is not needed for this estimate.
+                          </p>
+                          <p className="text-gray-600 text-sm mt-3">
+                            Click "Next" to continue with the workflow.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {currentWorkflowStep === 3 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        {workflowData.hasOP ? '✅ O&P Found' : '⚠️ Missing O&P'}
+                      </h3>
+                      
+                      {workflowData.hasOP ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-3">
+                            <strong>Great! O&P (Overhead & Profit) found in estimate.</strong>
+                          </p>
+                          <p className="text-gray-600 text-sm mt-3">
+                            This step is not needed. Click "Next" to continue with the workflow.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-4">
+                            No O&P line item found in estimate. O&P is typically 20% of the total RCV.
+                          </p>
+                          
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h4 className="font-semibold text-gray-900 mb-2">O&P Calculation</h4>
+                            <div className="text-sm">
+                              <div className="text-gray-600">Total RCV (excluding O&P):</div>
+                              <div className="font-semibold">
+                                ${workflowData.lineItems.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0).toFixed(2)}
+                              </div>
+                              <div className="text-gray-600 mt-2">O&P Amount (20%):</div>
+                              <div className="font-semibold text-blue-700">
+                                ${(workflowData.lineItems.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) * 0.20).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Additional steps can be added here */}
-                  {currentWorkflowStep >= 2 && (
+                  {currentWorkflowStep >= 4 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         {workflowSteps[currentWorkflowStep].title}
@@ -4146,6 +4290,14 @@ export default function EstimatePage() {
                             handleAddInstallationShingle();
                             return;
                           }
+                          if (currentWorkflowStep === 2 && !workflowData.hasRidgeVent && workflowData.ridgeLength > 0 && selectedRidgeVent && ridgeVentQuantity) {
+                            handleAddRidgeVent(workflowData.lineItems);
+                            return;
+                          }
+                          if (currentWorkflowStep === 3 && !workflowData.hasOP) {
+                            handleAddOP(workflowData.lineItems);
+                            return;
+                          }
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-medium transition-colors"
@@ -4157,8 +4309,7 @@ export default function EstimatePage() {
                         onClick={() => {
                           setShowUnifiedWorkflow(false);
                           setIsRunningPrompts(false);
-                          // Continue with additional prompts if needed
-                          continueUserPromptWorkflow(extractedLineItems);
+                          // Workflow complete - no need to call continueUserPromptWorkflow
                         }}
                         className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                       >
