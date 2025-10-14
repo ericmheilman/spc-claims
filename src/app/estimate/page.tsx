@@ -1245,9 +1245,32 @@ export default function EstimatePage() {
 
   // Check if shingle removal items are present and return found items
   const checkShingleRemovalItems = () => {
-    const foundItems = extractedLineItems.filter(item => 
-      shingleRemovalOptions.includes(item.description)
-    );
+    const foundItems = extractedLineItems.filter(item => {
+      const itemDesc = item.description.toLowerCase();
+      
+      // Check for exact matches first
+      if (shingleRemovalOptions.includes(item.description)) {
+        return true;
+      }
+      
+      // Check for partial matches to handle variations in formatting
+      // Look for "remove" + "shingle" + specific shingle types
+      if (itemDesc.includes('remove') && itemDesc.includes('shingle')) {
+        
+        // Pattern 1: Laminated shingles (with or without felt)
+        if (itemDesc.includes('laminated') && itemDesc.includes('comp')) {
+          return true;
+        }
+        
+        // Pattern 2: 3 tab shingles (with or without felt)
+        if (itemDesc.includes('3 tab') && itemDesc.includes('25 yr') && itemDesc.includes('comp')) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
     return {
       hasShingleRemoval: foundItems.length > 0,
       foundItems: foundItems
@@ -1557,6 +1580,15 @@ export default function EstimatePage() {
 
       // Check for shingle removal items - only show modal if NONE exist and not previously skipped
       const shingleRemovalCheck = checkShingleRemovalItems();
+      
+      // Debug logging
+      console.log('🔍 Shingle Removal Detection Debug:');
+      console.log('  - Total line items:', extractedLineItems.length);
+      console.log('  - Looking for patterns:', shingleRemovalOptions);
+      console.log('  - All line item descriptions:', extractedLineItems.map(item => item.description));
+      console.log('  - Found items:', shingleRemovalCheck.foundItems.map(item => item.description));
+      console.log('  - Has shingle removal:', shingleRemovalCheck.hasShingleRemoval);
+      
       if (!shingleRemovalCheck.hasShingleRemoval && !shingleRemovalSkipped) {
         console.log('⚠️ No shingle removal items found - showing modal');
         setFoundShingleRemovalItems([]);
