@@ -94,6 +94,13 @@ export default function EstimatePage() {
   const [shingleRemovalSkipped, setShingleRemovalSkipped] = useState(false);
   const [foundShingleRemovalItems, setFoundShingleRemovalItems] = useState<string[]>([]);
 
+  // Installation Shingles Check state
+  const [showInstallationShinglesModal, setShowInstallationShinglesModal] = useState(false);
+  const [selectedInstallationShingle, setSelectedInstallationShingle] = useState('');
+  const [installationShingleQuantity, setInstallationShingleQuantity] = useState('');
+  const [installationShinglesSkipped, setInstallationShinglesSkipped] = useState(false);
+  const [foundInstallationShingleItems, setFoundInstallationShingleItems] = useState<string[]>([]);
+
   // O&P Check state
   const [showOPModal, setShowOPModal] = useState(false);
   const [opSkipped, setOPSkipped] = useState(false);
@@ -1231,6 +1238,14 @@ export default function EstimatePage() {
     'Remove Laminated - comp. shingle rfg. - w/ felt'
   ];
 
+  // Installation Shingle Options - MUST match Roof Master Macro exactly
+  const installationShingleOptions = [
+    'Laminated - comp. shingle rfg. - w/out felt',
+    '3 tab - 25 yr. - comp. shingle roofing - w/out felt',
+    '3 tab - 25 yr. - composition shingle roofing - incl. felt',
+    'Laminated - comp. shingle rfg. - w/ felt'
+  ];
+
   // Ridge Vent Options (with display names and macro names)
   const ridgeVentOptions = [
     {
@@ -1273,6 +1288,40 @@ export default function EstimatePage() {
     
     return {
       hasShingleRemoval: foundItems.length > 0,
+      foundItems: foundItems
+    };
+  };
+
+  // Check if installation shingle items are present and return found items
+  const checkInstallationShingleItems = () => {
+    const foundItems = extractedLineItems.filter(item => {
+      const itemDesc = item.description.toLowerCase();
+      
+      // Check for exact matches first
+      if (installationShingleOptions.includes(item.description)) {
+        return true;
+      }
+      
+      // Check for partial matches to handle variations in formatting
+      // Look for "shingle" + specific shingle types (without "remove")
+      if (itemDesc.includes('shingle') && !itemDesc.includes('remove')) {
+        
+        // Pattern 1: Laminated shingles (with or without felt)
+        if (itemDesc.includes('laminated') && itemDesc.includes('comp')) {
+          return true;
+        }
+        
+        // Pattern 2: 3 tab shingles (with or without felt)
+        if (itemDesc.includes('3 tab') && itemDesc.includes('25 yr') && itemDesc.includes('comp')) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
+    return {
+      hasInstallationShingles: foundItems.length > 0,
       foundItems: foundItems
     };
   };
@@ -1330,6 +1379,66 @@ export default function EstimatePage() {
     setShingleRemovalQuantity('');
     
     console.log('✅ Added shingle removal item:', newItem);
+    console.log('🔄 Continuing User Prompt Workflow...');
+    
+    // Continue with the workflow using updated items
+    continueUserPromptWorkflow(updatedItems);
+  };
+
+  // Add installation shingle item and continue workflow
+  const handleAddInstallationShingle = async () => {
+    if (!selectedInstallationShingle) {
+      alert('Please select an installation shingle type');
+      return;
+    }
+
+    if (!installationShingleQuantity) {
+      alert('Please enter a quantity');
+      return;
+    }
+
+    // Get unit price from Roof Master Macro
+    const macroData = roofMasterMacro.get(selectedInstallationShingle);
+    if (!macroData) {
+      alert('Selected installation shingle type not found in Roof Master Macro');
+      return;
+    }
+
+    // Get the highest line number and add 1
+    const quantity = parseFloat(installationShingleQuantity);
+    const maxLineNumber = Math.max(
+      ...extractedLineItems.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item
+    const newItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: selectedInstallationShingle,
+      quantity: quantity,
+      unit: macroData.unit || 'SQ',
+      unit_price: macroData.unit_price,
+      RCV: quantity * macroData.unit_price,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: quantity * macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...extractedLineItems.map(item => item.page_number || 0), 1)
+    };
+    
+    // Add to line items
+    const updatedItems = [...extractedLineItems, newItem];
+    setExtractedLineItems(updatedItems);
+    
+    // Close modal and reset
+    setShowInstallationShinglesModal(false);
+    setSelectedInstallationShingle('');
+    setInstallationShingleQuantity('');
+    
+    console.log('✅ Added installation shingle item:', newItem);
     console.log('🔄 Continuing User Prompt Workflow...');
     
     // Continue with the workflow using updated items
@@ -1602,6 +1711,31 @@ export default function EstimatePage() {
         setFoundShingleRemovalItems(foundItemNames);
         console.log(`✅ Shingle removal items found: ${foundItemNames.join(', ')} - continuing workflow`);
       }
+
+      // Check for installation shingles - only show modal if NONE exist and not previously skipped
+      const installationShinglesCheck = checkInstallationShingleItems();
+      
+      // Debug logging
+      console.log('🔍 Installation Shingles Detection Debug:');
+      console.log('  - Total line items:', extractedLineItems.length);
+      console.log('  - Looking for patterns:', installationShingleOptions);
+      console.log('  - Found items:', installationShinglesCheck.foundItems.map(item => item.description));
+      console.log('  - Has installation shingles:', installationShinglesCheck.hasInstallationShingles);
+      
+      if (!installationShinglesCheck.hasInstallationShingles && !installationShinglesSkipped) {
+        console.log('⚠️ No installation shingles found - showing modal');
+        setFoundInstallationShingleItems([]);
+        setShowInstallationShinglesModal(true);
+        return;
+      }
+
+      // If installation shingles exist, show found items and continue with workflow
+      if (installationShinglesCheck.hasInstallationShingles) {
+        const foundItemNames = installationShinglesCheck.foundItems.map(item => item.description);
+        setFoundInstallationShingleItems(foundItemNames);
+        console.log(`✅ Installation shingles found: ${foundItemNames.join(', ')} - continuing workflow`);
+      }
+      
       continueUserPromptWorkflow(extractedLineItems);
 
     } catch (error) {
@@ -4200,6 +4334,174 @@ export default function EstimatePage() {
                         </button>
                         <button
                           onClick={handleAddShingleRemoval}
+                          className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
+                        >
+                          Add to Estimate
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Installation Shingles Modal */}
+          {showInstallationShinglesModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className={`px-6 py-4 rounded-t-2xl ${foundInstallationShingleItems.length > 0 ? 'bg-green-600' : 'bg-orange-600'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">
+                        {foundInstallationShingleItems.length > 0 ? '✅ Installation Shingles Found' : '⚠️ Installation Shingles Required'}
+                      </h2>
+                      <p className={`text-sm ${foundInstallationShingleItems.length > 0 ? 'text-green-100' : 'text-orange-100'}`}>
+                        {foundInstallationShingleItems.length > 0 
+                          ? `${foundInstallationShingleItems.length} installation shingle item(s) found in estimate`
+                          : 'No installation shingle items found in estimate'
+                        }
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowInstallationShinglesModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    {foundInstallationShingleItems.length > 0 ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-3">
+                          <strong>Great! Installation shingle items found in estimate:</strong>
+                        </p>
+                        <ul className="list-disc list-inside space-y-1">
+                          {foundInstallationShingleItems.map((item, index) => (
+                            <li key={index} className="text-gray-700 font-medium">
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-gray-600 text-sm mt-3">
+                          This step is not needed. Click "Proceed to Next" to continue with the workflow.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700">
+                          The estimate must include at least one installation shingle line item. 
+                          Please select one of the following options and enter the quantity:
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Installation Shingle Type Selection - Only show if no items found */}
+                    {foundInstallationShingleItems.length === 0 && (
+                      <>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Select Installation Shingle Type *
+                          </label>
+                          <select
+                            value={selectedInstallationShingle}
+                            onChange={(e) => setSelectedInstallationShingle(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                          >
+                            <option value="">-- Select a type --</option>
+                            {installationShingleOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Quantity Input */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Quantity (SQ) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={installationShingleQuantity}
+                            onChange={(e) => setInstallationShingleQuantity(e.target.value)}
+                            placeholder="Enter quantity"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* Price Preview - Only show if no items found and form is filled */}
+                    {foundInstallationShingleItems.length === 0 && selectedInstallationShingle && installationShingleQuantity && roofMasterMacro.get(selectedInstallationShingle) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="text-gray-600">Unit Price:</div>
+                            <div className="font-semibold">
+                              ${roofMasterMacro.get(selectedInstallationShingle).unit_price.toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">Quantity:</div>
+                            <div className="font-semibold">{installationShingleQuantity} SQ</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600">Total RCV:</div>
+                            <div className="font-semibold text-blue-700">
+                              ${(roofMasterMacro.get(selectedInstallationShingle).unit_price * parseFloat(installationShingleQuantity)).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => setShowInstallationShinglesModal(false)}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <div className="flex gap-3">
+                    {foundInstallationShingleItems.length > 0 ? (
+                      <button
+                        onClick={() => {
+                          setShowInstallationShinglesModal(false);
+                          console.log('✅ Proceeding to next step - installation shingles found');
+                          continueUserPromptWorkflow(extractedLineItems);
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                      >
+                        Proceed to Next
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowInstallationShinglesModal(false);
+                            setInstallationShinglesSkipped(true);
+                            console.log('⏭️ Skipping installation shingles - continuing workflow');
+                            continueUserPromptWorkflow(extractedLineItems);
+                          }}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                        >
+                          Skip & Continue
+                        </button>
+                        <button
+                          onClick={handleAddInstallationShingle}
                           className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
                         >
                           Add to Estimate
