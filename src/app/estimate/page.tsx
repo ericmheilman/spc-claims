@@ -2682,7 +2682,7 @@ export default function EstimatePage() {
               <div className="bg-gradient-to-r from-green-700 to-green-800 px-8 py-6 rounded-t-2xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">🐍 SPC Adjustment Engine Results</h2>
+                    <h2 className="text-2xl font-bold text-white mb-2">SPC Adjustment Engine Results</h2>
                     <p className="text-green-200">
                       Automated adjustments based on roof measurements and line items
                     </p>
@@ -2822,7 +2822,7 @@ export default function EstimatePage() {
                             return {
                               rowClass: 'bg-gray-50 border-l-4 border-gray-500',
                               badgeColor: 'bg-gray-600',
-                              badgeText: '🐍 SPC ADJUSTED',
+                              badgeText: 'SPC ADJUSTED',
                               boxClass: 'bg-gray-50 border-l-3 border-gray-500',
                               boxTitle: '📏 Rule Applied:',
                               boxTitleColor: 'text-gray-900',
@@ -2972,7 +2972,7 @@ export default function EstimatePage() {
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-600 text-white mr-3 mt-1">🐍 OTHER</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-600 text-white mr-3 mt-1">OTHER</span>
                     <div>
                       <div className="text-gray-900 font-bold">Gray Highlighted Rows</div>
                       <div className="text-gray-600">Other adjustments</div>
@@ -3123,7 +3123,7 @@ export default function EstimatePage() {
                                     )}
                                     {pythonAuditEntry && (
                                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white">
-                                        🐍 SPC ADJUSTED
+                                        SPC ADJUSTED
                                       </span>
                                     )}
                                   </div>
@@ -3139,7 +3139,7 @@ export default function EstimatePage() {
                                 )}
                                 {pythonAuditEntry && (
                                   <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
-                                    <div className="font-semibold text-amber-900 mb-1">🐍 SPC Rule:</div>
+                                    <div className="font-semibold text-amber-900 mb-1">SPC Rule:</div>
                                     <div className="text-gray-700 mb-2 italic">"{pythonAuditEntry.rule_applied}"</div>
                                     <div className="text-gray-600">
                                       <strong className="text-amber-800">Field Changed:</strong> {pythonAuditEntry.field} | 
@@ -3228,7 +3228,7 @@ export default function EstimatePage() {
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white mr-3 mt-1">🐍 SPC</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white mr-3 mt-1">SPC</span>
                     <div>
                       <div className="text-gray-900 font-bold">Green Highlighted Items</div>
                       <div className="text-gray-600">SPC Adjustment Engine adjusted quantities</div>
