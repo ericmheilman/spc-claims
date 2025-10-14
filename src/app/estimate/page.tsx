@@ -73,6 +73,11 @@ export default function EstimatePage() {
   const [isRunningRmmComparator, setIsRunningRmmComparator] = useState(false);
   const [showRmmAdjustedClaim, setShowRmmAdjustedClaim] = useState(false);
 
+  // Combined Workflow state
+  const [combinedResults, setCombinedResults] = useState<any>(null);
+  const [isRunningCombined, setIsRunningCombined] = useState(false);
+  const [showCombinedResults, setShowCombinedResults] = useState(false);
+
   // Quick Switch state
   const [roofMasterMacro, setRoofMasterMacro] = useState<Map<string, any>>(new Map());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemIndex: number } | null>(null);
@@ -931,6 +936,93 @@ export default function EstimatePage() {
     }
   };
 
+  // Combined Workflow function
+  const runCombinedWorkflow = async () => {
+    console.log('=== RUNNING COMBINED WORKFLOW (RMM + PYTHON) ===');
+    setIsRunningCombined(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningCombined(false);
+        return;
+      }
+
+      // Step 1: Run RMM Unit Cost Comparator
+      console.log('Step 1: Running RMM Unit Cost Comparator...');
+      const rmmResponse = await fetch('/api/run-python-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          line_items: extractedLineItems,
+          roof_measurements: extractedRoofMeasurements,
+          workflow_type: 'rmm_comparator'
+        })
+      });
+
+      if (!rmmResponse.ok) {
+        throw new Error(`RMM Comparator failed: ${rmmResponse.statusText}`);
+      }
+
+      const rmmData = await rmmResponse.json();
+      console.log('RMM Results:', rmmData);
+
+      // Step 2: Run Python Rules Engine on RMM-adjusted items
+      console.log('Step 2: Running Python Rules Engine on RMM-adjusted items...');
+      const pythonResponse = await fetch('/api/run-python-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          line_items: rmmData.updated_line_items || extractedLineItems,
+          roof_measurements: extractedRoofMeasurements,
+          workflow_type: 'python_rules'
+        })
+      });
+
+      if (!pythonResponse.ok) {
+        throw new Error(`Python Rules Engine failed: ${pythonResponse.statusText}`);
+      }
+
+      const pythonData = await pythonResponse.json();
+      console.log('Python Results:', pythonData);
+
+      // Combine results
+      const combinedData = {
+        rmm_results: rmmData,
+        python_results: pythonData,
+        final_line_items: pythonData.adjusted_line_items || rmmData.updated_line_items || extractedLineItems,
+        combined_audit_log: [
+          ...(rmmData.audit_log || []).map((entry: any) => ({
+            ...entry,
+            source: 'RMM Comparator',
+            badge_color: 'bg-blue-600'
+          })),
+          ...(pythonData.audit_log || []).map((entry: any) => ({
+            ...entry,
+            source: 'Python Rules',
+            badge_color: 'bg-green-600'
+          }))
+        ],
+        summary: {
+          rmm_adjustments: rmmData.audit_log?.length || 0,
+          python_adjustments: pythonData.audit_log?.length || 0,
+          total_adjustments: (rmmData.audit_log?.length || 0) + (pythonData.audit_log?.length || 0),
+          execution_time: new Date().toISOString()
+        }
+      };
+
+      setCombinedResults(combinedData);
+      setShowCombinedResults(true);
+      console.log('Combined workflow completed successfully!');
+
+    } catch (error) {
+      console.error('Combined workflow error:', error);
+      alert(`Combined workflow failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningCombined(false);
+    }
+  };
+
   // Python Rule Engine function
   const runRuleEngine = async () => {
     console.log('=== RUNNING PYTHON RULE ENGINE ===');
@@ -1502,6 +1594,17 @@ export default function EstimatePage() {
                 }`}
               >
                 {isRunningRules ? 'Processing...' : 'Python Rule Engine'}
+              </button>
+              <button
+                onClick={runCombinedWorkflow}
+                disabled={isRunningCombined || isRunningRmmComparator || isRunningRules || !rawAgentData}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isRunningCombined || isRunningRmmComparator || isRunningRules || !rawAgentData
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-purple-700 text-white hover:bg-purple-800 border border-purple-600'
+                }`}
+              >
+                {isRunningCombined ? 'Processing Combined...' : '🚀 Combined Workflow (RMM + Python)'}
               </button>
               <button
                 onClick={runUserPromptWorkflow}
@@ -2612,6 +2715,16 @@ export default function EstimatePage() {
                           );
                         })}
                       </tbody>
+                      <tfoot className="bg-gray-50">
+                        <tr className="font-bold">
+                          <td colSpan={6} className="px-6 py-4 text-right text-sm text-gray-700">
+                            Totals:
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
+                            {formatCurrency(ruleResults.adjusted_line_items?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
+                          </td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>
@@ -2644,72 +2757,6 @@ export default function EstimatePage() {
                 </div>
               </div>
 
-              {/* Adjustment Results */}
-              {ruleResults.adjustment_results && (ruleResults.adjustment_results.adjustments?.length > 0 || ruleResults.adjustment_results.additions?.length > 0 || ruleResults.adjustment_results.warnings?.length > 0) && (
-                <div className="px-8 pb-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">🔧 Adjustment Results</h3>
-                  <div className="space-y-4">
-                    {/* Quantity Adjustments */}
-                    {ruleResults.adjustment_results.adjustments?.map((adjustment: any, index: number) => (
-                      <div key={`adj-${index}`} className="p-4 rounded-lg border-l-4 bg-blue-50 border-blue-400">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-2">{adjustment.description}</h4>
-                            <p className="text-sm text-gray-700 mb-2">{adjustment.reason}</p>
-                            <div className="text-xs text-gray-700 space-y-1">
-                              <div><span className="font-medium">Old Quantity:</span> {adjustment.old_quantity}</div>
-                              <div><span className="font-medium">New Quantity:</span> {adjustment.new_quantity}</div>
-                              {adjustment.savings > 0 && <div><span className="font-medium">Estimated Savings:</span> ${adjustment.savings.toFixed(2)}</div>}
-                            </div>
-                          </div>
-                          <div className="ml-4 text-right">
-                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                              {adjustment.type}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {/* Additions */}
-                    {ruleResults.adjustment_results.additions?.map((addition: any, index: number) => (
-                      <div key={`add-${index}`} className="p-4 rounded-lg border-l-4 bg-green-50 border-green-400">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-2">{addition.description}</h4>
-                            <p className="text-sm text-gray-700 mb-2">{addition.reason}</p>
-                            <div className="text-xs text-gray-700">
-                              <div><span className="font-medium">Quantity:</span> {addition.quantity}</div>
-                            </div>
-                          </div>
-                          <div className="ml-4 text-right">
-                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                              {addition.type}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {/* Warnings */}
-                    {ruleResults.adjustment_results.warnings?.map((warning: any, index: number) => (
-                      <div key={`warn-${index}`} className="p-4 rounded-lg border-l-4 bg-yellow-50 border-yellow-400">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-2">{warning.description}</h4>
-                            <p className="text-sm text-gray-700 mb-2">{warning.reason}</p>
-                          </div>
-                          <div className="ml-4 text-right">
-                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                              {warning.type}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Debug Output */}
               {ruleResults.debug_output && (
@@ -2743,6 +2790,227 @@ export default function EstimatePage() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Combined Workflow Results */}
+          {showCombinedResults && combinedResults && (
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-8">
+              <div className="bg-gradient-to-r from-purple-700 to-purple-800 px-8 py-6 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">🚀 Combined Workflow Results</h2>
+                    <p className="text-purple-200">
+                      RMM Unit Cost Comparator + Python Rules Engine combined processing
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowCombinedResults(false)}
+                    className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                  >
+                    Hide Results
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              <div className="bg-gradient-to-r from-blue-50 to-green-50 px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">📊 Processing Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                  <div className="bg-white rounded p-3 border-l-4 border-blue-500">
+                    <div className="font-semibold text-gray-700">RMM Adjustments</div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {combinedResults.summary.rmm_adjustments}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-3 border-l-4 border-green-500">
+                    <div className="font-semibold text-gray-700">Python Adjustments</div>
+                    <div className="text-lg font-bold text-green-600">
+                      {combinedResults.summary.python_adjustments}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-3 border-l-4 border-purple-500">
+                    <div className="font-semibold text-gray-700">Total Adjustments</div>
+                    <div className="text-lg font-bold text-purple-600">
+                      {combinedResults.summary.total_adjustments}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-3 border-l-4 border-gray-500">
+                    <div className="font-semibold text-gray-700">Final Line Items</div>
+                    <div className="text-lg font-bold text-gray-600">
+                      {combinedResults.final_line_items?.length || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final Line Items */}
+              <div className="px-8 py-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-6">📋 Final Adjusted Line Items</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RCV</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {combinedResults.final_line_items?.map((item: any, index: number) => {
+                        // Find audit entries for this item from both sources
+                        const rmmAuditEntry = combinedResults.rmm_results?.audit_log?.find((log: any) => 
+                          String(log.line_number) === String(item.line_number) ||
+                          log.description === item.description
+                        );
+                        const pythonAuditEntry = combinedResults.python_results?.audit_log?.find((log: any) => 
+                          String(log.line_number) === String(item.line_number) ||
+                          log.description === item.description
+                        );
+                        
+                        const hasAnyAudit = rmmAuditEntry || pythonAuditEntry;
+                        const rowClass = hasAnyAudit ? 'bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-purple-500' : 'hover:bg-gray-50';
+                        
+                        return (
+                          <tr key={index} className={rowClass}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {item.line_number}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <div className="max-w-md">
+                                <div className="font-medium mb-1">{item.description}</div>
+                                <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                                {hasAnyAudit && (
+                                  <div className="mt-2 flex items-center space-x-2">
+                                    {rmmAuditEntry && (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-600 text-white">
+                                        🔧 RMM ADJUSTED
+                                      </span>
+                                    )}
+                                    {pythonAuditEntry && (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white">
+                                        🐍 PYTHON ADJUSTED
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {rmmAuditEntry && (
+                                  <div className="mt-2 p-3 bg-blue-50 border-l-3 border-blue-500 rounded-lg text-xs">
+                                    <div className="font-semibold text-blue-900 mb-1">🔧 RMM Adjustment:</div>
+                                    <div className="text-gray-700 mb-2 italic">"{rmmAuditEntry.explanation || 'Unit price adjusted'}"</div>
+                                    <div className="text-gray-600">
+                                      <strong className="text-blue-800">Field Changed:</strong> {rmmAuditEntry.field || 'unit_price'}
+                                    </div>
+                                  </div>
+                                )}
+                                {pythonAuditEntry && (
+                                  <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
+                                    <div className="font-semibold text-amber-900 mb-1">🐍 Python Rule:</div>
+                                    <div className="text-gray-700 mb-2 italic">"{pythonAuditEntry.rule_applied}"</div>
+                                    <div className="text-gray-600">
+                                      <strong className="text-amber-800">Field Changed:</strong> {pythonAuditEntry.field} | 
+                                      <strong className="text-amber-800 ml-2">Explanation:</strong> {pythonAuditEntry.explanation}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {(() => {
+                                const quantityChange = pythonAuditEntry?.field === 'quantity';
+                                
+                                if (pythonAuditEntry && quantityChange) {
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-green-700 bg-green-100 px-2 py-1 rounded inline-block">
+                                        {item.quantity?.toFixed(2)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 line-through">
+                                        Was: {pythonAuditEntry.before?.toFixed(2)}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="text-gray-900">{item.quantity?.toFixed(2)}</span>
+                                  );
+                                }
+                              })()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {item.unit}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {(() => {
+                                const unitPriceChange = rmmAuditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
+                                
+                                if (rmmAuditEntry && unitPriceChange && unitPriceChange.after > unitPriceChange.before) {
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
+                                        {formatCurrency(unitPriceChange.after)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 line-through">
+                                        Was: {formatCurrency(unitPriceChange.before)}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                                  );
+                                }
+                              })()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(item.RCV || 0)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <button
+                                onClick={() => handlePriceEdit(item)}
+                                className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
+                                title="Edit unit price"
+                              >
+                                ✏️
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Combined Workflow Legend</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-600 text-white mr-3 mt-1">🔧 RMM</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Blue Highlighted Items</div>
+                      <div className="text-gray-600">RMM Unit Cost Comparator adjusted unit prices</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white mr-3 mt-1">🐍 PYTHON</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Green Highlighted Items</div>
+                      <div className="text-gray-600">Python Rules Engine adjusted quantities</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-sm text-purple-900">
+                    <span className="font-semibold">🚀 Combined Workflow:</span> This shows the final result after both RMM unit price adjustments and Python rule-based quantity adjustments have been applied to your claim.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
