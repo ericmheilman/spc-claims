@@ -205,7 +205,41 @@ class RoofAdjustmentEngine:
         if description in self.roof_master_macro:
             return self.roof_master_macro[description]
         
-        # Try partial matches (case-insensitive)
+        # Normalize description for better matching (remove extra dashes and spaces)
+        def normalize_desc(desc):
+            # Remove extra dashes and normalize spaces
+            import re
+            normalized = re.sub(r'\s*-\s*', ' ', desc)  # Replace " - " with " "
+            normalized = re.sub(r'\s+', ' ', normalized)  # Replace multiple spaces with single space
+            return normalized.strip().lower()
+        
+        normalized_input = normalize_desc(description)
+        
+        # Try normalized partial matches, prioritizing installation over removal
+        installation_matches = []
+        removal_matches = []
+        
+        for macro_desc, data in self.roof_master_macro.items():
+            normalized_macro = normalize_desc(macro_desc)
+            
+            # Check if normalized descriptions match or contain each other
+            if (normalized_input in normalized_macro or 
+                normalized_macro in normalized_input or
+                normalized_input == normalized_macro):
+                
+                # Prioritize installation items over removal items
+                if macro_desc.lower().startswith('remove'):
+                    removal_matches.append((macro_desc, data))
+                else:
+                    installation_matches.append((macro_desc, data))
+        
+        # Return installation match first, then removal match
+        if installation_matches:
+            return installation_matches[0][1]  # Return first installation match
+        elif removal_matches:
+            return removal_matches[0][1]  # Return first removal match
+        
+        # Fallback to original partial matching (case-insensitive)
         description_lower = description.lower()
         for macro_desc, data in self.roof_master_macro.items():
             if description_lower in macro_desc.lower() or macro_desc.lower() in description_lower:
