@@ -63,6 +63,11 @@ export default function EstimatePage() {
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [currentFollowUpStep, setCurrentFollowUpStep] = useState(0);
 
+  // Unified Workflow state
+  const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
+  const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
+  const [workflowData, setWorkflowData] = useState<any>(null);
+
   // Custom Price Justification state
   const [showPriceEditModal, setShowPriceEditModal] = useState(false);
   const [editingPriceItem, setEditingPriceItem] = useState<any>(null);
@@ -1381,9 +1386,13 @@ export default function EstimatePage() {
     console.log('✅ Added shingle removal item:', newItem);
     console.log('🔄 Continuing User Prompt Workflow...');
     
-    // Mark step as completed and continue with the workflow using updated items
+    // Mark step as completed and continue with the unified workflow
     setShingleRemovalSkipped(true);
-    continueUserPromptWorkflow(updatedItems);
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(1); // Move to next step
+    } else {
+      continueUserPromptWorkflow(updatedItems);
+    }
   };
 
   // Add installation shingle item and continue workflow
@@ -1442,9 +1451,13 @@ export default function EstimatePage() {
     console.log('✅ Added installation shingle item:', newItem);
     console.log('🔄 Continuing User Prompt Workflow...');
     
-    // Mark step as completed and continue with the workflow using updated items
+    // Mark step as completed and continue with the unified workflow
     setInstallationShinglesSkipped(true);
-    continueUserPromptWorkflow(updatedItems);
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(2); // Move to next step
+    } else {
+      continueUserPromptWorkflow(updatedItems);
+    }
   };
 
   // Check if O&P is present
@@ -1679,9 +1692,38 @@ export default function EstimatePage() {
     }
   };
 
-  // User Prompt Workflow function
+  // Unified Workflow Steps
+  const workflowSteps = [
+    {
+      id: 'shingle-removal',
+      title: 'Shingle Removal Check',
+      description: 'Checking for shingle removal line items'
+    },
+    {
+      id: 'installation-shingles',
+      title: 'Installation Shingles Check', 
+      description: 'Checking for installation shingle line items'
+    },
+    {
+      id: 'ridge-vents',
+      title: 'Ridge Vent Check',
+      description: 'Checking for ridge vent line items'
+    },
+    {
+      id: 'oandp',
+      title: 'O&P Check',
+      description: 'Checking for overhead and profit line items'
+    },
+    {
+      id: 'additional-prompts',
+      title: 'Additional Prompts',
+      description: 'Additional decision-making prompts'
+    }
+  ];
+
+  // Unified Workflow function
   const runUserPromptWorkflow = async () => {
-    console.log('=== RUNNING USER PROMPT WORKFLOW ===');
+    console.log('=== RUNNING UNIFIED USER PROMPT WORKFLOW ===');
     
     // Reset all skip flags to ensure workflow runs from beginning
     setShingleRemovalSkipped(false);
@@ -1695,58 +1737,28 @@ export default function EstimatePage() {
         return;
       }
 
-      // Check for shingle removal items - only show modal if NONE exist and not previously skipped
+      // Prepare workflow data
       const shingleRemovalCheck = checkShingleRemovalItems();
-      
-      // Debug logging
-      console.log('🔍 Shingle Removal Detection Debug:');
-      console.log('  - Total line items:', extractedLineItems.length);
-      console.log('  - Looking for patterns:', shingleRemovalOptions);
-      console.log('  - All line item descriptions:', extractedLineItems.map(item => item.description));
-      console.log('  - Found items:', shingleRemovalCheck.foundItems.map(item => item.description));
-      console.log('  - Has shingle removal:', shingleRemovalCheck.hasShingleRemoval);
-      
-      // Always show shingle removal modal (unless previously skipped) - either for missing items or confirmation
-      if (!shingleRemovalSkipped) {
-        const foundItemNames = shingleRemovalCheck.foundItems.map(item => item.description);
-        setFoundShingleRemovalItems(foundItemNames);
-        
-        if (shingleRemovalCheck.hasShingleRemoval) {
-          console.log(`✅ Shingle removal items found: ${foundItemNames.join(', ')} - showing confirmation modal`);
-        } else {
-          console.log('⚠️ No shingle removal items found - showing modal');
-        }
-        
-        setShowShingleRemovalModal(true);
-        return;
-      }
-
-      // Check for installation shingles - only show modal if NONE exist and not previously skipped
       const installationShinglesCheck = checkInstallationShingleItems();
-      
-      // Debug logging
-      console.log('🔍 Installation Shingles Detection Debug:');
-      console.log('  - Total line items:', extractedLineItems.length);
-      console.log('  - Looking for patterns:', installationShingleOptions);
-      console.log('  - Found items:', installationShinglesCheck.foundItems.map(item => item.description));
-      console.log('  - Has installation shingles:', installationShinglesCheck.hasInstallationShingles);
-      
-      // Always show installation shingles modal (unless previously skipped) - either for missing items or confirmation
-      if (!installationShinglesSkipped) {
-        const foundItemNames = installationShinglesCheck.foundItems.map(item => item.description);
-        setFoundInstallationShingleItems(foundItemNames);
-        
-        if (installationShinglesCheck.hasInstallationShingles) {
-          console.log(`✅ Installation shingles found: ${foundItemNames.join(', ')} - showing confirmation modal`);
-        } else {
-          console.log('⚠️ No installation shingles found - showing modal');
-        }
-        
-        setShowInstallationShinglesModal(true);
-        return;
-      }
-      
-      continueUserPromptWorkflow(extractedLineItems);
+      const hasRidgeVent = checkRidgeVentItems(extractedLineItems);
+      const hasOP = checkOPPresent(extractedLineItems);
+      const ridgeLength = extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0;
+
+      const workflowData = {
+        currentStep: 0,
+        totalSteps: workflowSteps.length,
+        shingleRemoval: shingleRemovalCheck,
+        installationShingles: installationShinglesCheck,
+        hasRidgeVent,
+        hasOP,
+        ridgeLength,
+        lineItems: extractedLineItems
+      };
+
+      setWorkflowData(workflowData);
+      setCurrentWorkflowStep(0);
+      setShowUnifiedWorkflow(true);
+      setIsRunningPrompts(true);
 
     } catch (error) {
       console.error('Error running user prompt workflow:', error);
@@ -3858,6 +3870,306 @@ export default function EstimatePage() {
             </div>
           )}
 
+          {/* Unified Workflow Modal */}
+          {showUnifiedWorkflow && workflowData && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">User Prompt Workflow</h2>
+                      <p className="text-gray-300 text-sm">Interactive decision-making based on line item analysis</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowUnifiedWorkflow(false);
+                        setIsRunningPrompts(false);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progress Indicator */}
+                <div className="px-6 py-4 bg-white border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      Question {currentWorkflowStep + 1} of {workflowData.totalSteps}
+                    </span>
+                    <div className="flex space-x-2">
+                      {workflowSteps.map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-3 h-3 rounded-full ${
+                            index <= currentWorkflowStep ? 'bg-purple-600' : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  {currentWorkflowStep === 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        {workflowData.shingleRemoval.hasShingleRemoval ? '✅ Shingle Removal Found' : '⚠️ Missing Shingle Removal Items'}
+                      </h3>
+                      
+                      {workflowData.shingleRemoval.hasShingleRemoval ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-3">
+                            <strong>Great! Shingle removal items found in estimate:</strong>
+                          </p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {workflowData.shingleRemoval.foundItems.map((item: any, index: number) => (
+                              <li key={index} className="text-gray-700 font-medium">
+                                {item.description}
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-gray-600 text-sm mt-3">
+                            This step is not needed. Click "Next" to continue with the workflow.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-4">
+                            No shingle removal items found in the estimate. Please select one of the following options and enter the quantity:
+                          </p>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Shingle Removal Type *
+                              </label>
+                              <select
+                                value={selectedShingleRemoval}
+                                onChange={(e) => setSelectedShingleRemoval(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                              >
+                                <option value="">-- Select a type --</option>
+                                {shingleRemovalOptions.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Quantity (SQ) *
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={shingleRemovalQuantity}
+                                onChange={(e) => setShingleRemovalQuantity(e.target.value)}
+                                placeholder="Enter quantity"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                              />
+                            </div>
+
+                            {selectedShingleRemoval && shingleRemovalQuantity && roofMasterMacro.get(selectedShingleRemoval) && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <div className="text-gray-600">Unit Price:</div>
+                                    <div className="font-semibold">
+                                      ${roofMasterMacro.get(selectedShingleRemoval).unit_price.toFixed(2)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-600">Quantity:</div>
+                                    <div className="font-semibold">{shingleRemovalQuantity} SQ</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-600">Total RCV:</div>
+                                    <div className="font-semibold text-blue-700">
+                                      ${(roofMasterMacro.get(selectedShingleRemoval).unit_price * parseFloat(shingleRemovalQuantity)).toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {currentWorkflowStep === 1 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        {workflowData.installationShingles.hasInstallationShingles ? '✅ Installation Shingles Found' : '⚠️ Missing Installation Shingles'}
+                      </h3>
+                      
+                      {workflowData.installationShingles.hasInstallationShingles ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-3">
+                            <strong>Great! Installation shingle items found in estimate:</strong>
+                          </p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {workflowData.installationShingles.foundItems.map((item: any, index: number) => (
+                              <li key={index} className="text-gray-700 font-medium">
+                                {item.description}
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-gray-600 text-sm mt-3">
+                            This step is not needed. Click "Next" to continue with the workflow.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <p className="text-gray-700 mb-4">
+                            No installation shingle items found in the estimate. Please select one of the following options and enter the quantity:
+                          </p>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Installation Shingle Type *
+                              </label>
+                              <select
+                                value={selectedInstallationShingle}
+                                onChange={(e) => setSelectedInstallationShingle(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                              >
+                                <option value="">-- Select a type --</option>
+                                {installationShingleOptions.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Quantity (SQ) *
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={installationShingleQuantity}
+                                onChange={(e) => setInstallationShingleQuantity(e.target.value)}
+                                placeholder="Enter quantity"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                              />
+                            </div>
+
+                            {selectedInstallationShingle && installationShingleQuantity && roofMasterMacro.get(selectedInstallationShingle) && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <div className="text-gray-600">Unit Price:</div>
+                                    <div className="font-semibold">
+                                      ${roofMasterMacro.get(selectedInstallationShingle).unit_price.toFixed(2)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-600">Quantity:</div>
+                                    <div className="font-semibold">{installationShingleQuantity} SQ</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-600">Total RCV:</div>
+                                    <div className="font-semibold text-blue-700">
+                                      ${(roofMasterMacro.get(selectedInstallationShingle).unit_price * parseFloat(installationShingleQuantity)).toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Additional steps can be added here */}
+                  {currentWorkflowStep >= 2 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        {workflowSteps[currentWorkflowStep].title}
+                      </h3>
+                      <p className="text-gray-600">
+                        {workflowSteps[currentWorkflowStep].description}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-4">
+                        This step is not yet implemented in the unified workflow.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowUnifiedWorkflow(false);
+                      setIsRunningPrompts(false);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  
+                  <div className="flex gap-3">
+                    {currentWorkflowStep > 0 && (
+                      <button
+                        onClick={() => setCurrentWorkflowStep(currentWorkflowStep - 1)}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                      >
+                        ← Previous
+                      </button>
+                    )}
+                    
+                    {currentWorkflowStep < workflowData.totalSteps - 1 ? (
+                      <button
+                        onClick={() => {
+                          // Handle adding items if needed
+                          if (currentWorkflowStep === 0 && !workflowData.shingleRemoval.hasShingleRemoval && selectedShingleRemoval && shingleRemovalQuantity) {
+                            handleAddShingleRemoval();
+                            return;
+                          }
+                          if (currentWorkflowStep === 1 && !workflowData.installationShingles.hasInstallationShingles && selectedInstallationShingle && installationShingleQuantity) {
+                            handleAddInstallationShingle();
+                            return;
+                          }
+                          setCurrentWorkflowStep(currentWorkflowStep + 1);
+                        }}
+                        className="px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-medium transition-colors"
+                      >
+                        Next →
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowUnifiedWorkflow(false);
+                          setIsRunningPrompts(false);
+                          // Continue with additional prompts if needed
+                          continueUserPromptWorkflow(extractedLineItems);
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                      >
+                        Complete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* User Prompt Workflow Modal */}
           {showPromptModal && promptResults && (
@@ -4188,8 +4500,8 @@ export default function EstimatePage() {
             </div>
           )}
 
-          {/* Shingle Removal Modal */}
-          {showShingleRemovalModal && (
+          {/* Shingle Removal Modal - Hidden when using unified workflow */}
+          {showShingleRemovalModal && !showUnifiedWorkflow && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
                 {/* Header */}
@@ -4357,8 +4669,8 @@ export default function EstimatePage() {
             </div>
           )}
 
-          {/* Installation Shingles Modal */}
-          {showInstallationShinglesModal && (
+          {/* Installation Shingles Modal - Hidden when using unified workflow */}
+          {showInstallationShinglesModal && !showUnifiedWorkflow && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
                 {/* Header */}
