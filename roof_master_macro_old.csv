@@ -1,0 +1,119 @@
+ID,DESCRIPTION,QUANTITY,UNIT_PRICE,TAX,RCV,DEPREC,ACV
+1,"Remove Laminated - comp. shingle rfg. - w/out felt",0.00,SQ,67.40,0.00,0.00,(0.00),0.00
+2,"Laminated - comp. shingle rfg. - w/out felt",0.00,SQ,249.37,0.00,0.00,(0.00),0.00
+3,"Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",0.00,SQ,65.96,0.00,0.00,(0.00),0.00
+4,"3 tab - 25 yr. - comp. shingle roofing - w/out felt",0.00,SQ,235.60,0.00,0.00,(0.00),0.00
+5,"Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt",0.00,SQ,65.96,0.00,0.00,(0.00),0.00
+6,"3 tab - 25 yr. - composition shingle roofing - incl. felt",0.00,SQ,268.60,0.00,0.00,(0.00),0.00
+7,"Remove Laminated - comp. shingle rfg. - w/ felt",0.00,SQ,67.40,0.00,0.00,(0.00),0.00
+8,"Laminated - comp. shingle rfg. - w/ felt",0.00,SQ,284.64,0.00,0.00,(0.00),0.00
+9,"Tear off, haul and dispose of comp. shingles - 3 tab",0.00,SQ,65.96,0.00,0.00,(0.00),0.00
+10,"Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",1.00,EA,6.89,0.00,6.89,(0.00),6.89
+11,"3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",1.00,EA,16.39,0.25,16.64,(0.00),16.64
+12,"Remove Laminated - comp. shingle rfg (per SHINGLE)",1.00,EA,6.89,0.00,6.89,(0.00),6.89
+13,"Laminated - comp. shingle rfg (per SHINGLE)",1.00,EA,16.56,0.26,16.82,(0.00),16.82
+14,"Tear off, haul and dispose of comp. shingles - Laminated",0.00,SQ,67.40,0.00,0.00,(0.00),0.00
+15,"Tear off composition shingles - 3 tab (no haul off)",0.00,SQ,47.43,0.00,0.00,(0.00),0.00
+16,"Tear off composition shingles - Laminated (no haul off)",0.00,SQ,47.43,0.00,0.00,(0.00),0.00
+17,"Add. layer of comp. shingles, remove & disp. - Laminated",0.00,SQ,41.69,0.00,0.00,(0.00),0.00
+18,"Add. layer of comp. shingles, remove & disp. - 3 tab",0.00,SQ,40.25,0.00,0.00,(0.00),0.00
+19,"Additional layer of comp. shingles, remove (no haul off)",0.00,SQ,29.83,0.00,0.00,(0.00),0.00
+20,"Roofing felt - 15 lb.",0.00,SQ,34.68,0.00,0.00,(0.00),0.00
+21,"Roofing felt - 30 lb.",0.00,SQ,42.64,0.00,0.00,(0.00),0.00
+22,"Roofing felt - 15 lb. - double coverage/low slope",0.00,SQ,61.44,0.00,0.00,(0.00),0.00
+23,"Roofing felt - 30 lb. - double coverage/low slope",0.00,SQ,76.55,0.00,0.00,(0.00),0.00
+24,"Roofing felt - synthetic underlayment - Standard grade",0.00,SQ,36.82,0.00,0.00,(0.00),0.00
+25,"Roofing felt - synthetic underlayment",0.00,SQ,47.68,0.00,0.00,(0.00),0.00
+26,"Roofing felt-synthetic- Std. grade- dbl coverage/low slope",0.00,SQ,64.96,0.00,0.00,(0.00),0.00
+27,"Roofing felt - synthetic und. - double coverage/low slope",0.00,SQ,84.99,0.00,0.00,(0.00),0.00
+28,"Ice & water barrier",0.00,SF,1.63,0.00,0.00,(0.00),0.00
+29,"Ice & water barrier - High temp - no material waste incl.",0.00,SF,1.89,0.00,0.00,(0.00),0.00
+30,"Ice & water barrier - High temp",0.00,SF,1.93,0.00,0.00,(0.00),0.00
+31,"Ice & water barrier - no material waste included",0.00,SF,1.61,0.00,0.00,(0.00),0.00
+32,"Asphalt starter - universal starter course",0.00,LF,1.73,0.00,0.00,(0.00),0.00
+33,"Asphalt starter - peel and stick",0.00,LF,1.81,0.00,0.00,(0.00),0.00
+34,"Asphalt starter - laminated double layer starter",0.00,LF,4.25,0.00,0.00,(0.00),0.00
+35,"Add. layer of felt/underlayment, remove (no haul off)",0.00,SQ,7.43,0.00,0.00,(0.00),0.00
+36,"Add. layer of felt/underlayment, remove & disp.",0.00,SQ,8.89,0.00,0.00,(0.00),0.00
+37,"R&R Gable cornice return - 3 tab",1.00,EA,94.07,0.68,94.75,(0.00),94.75
+38,"R&R Gable cornice return - 3 tab - 2 stories or greater",1.00,EA,113.17,0.68,113.85,(0.00),113.85
+39,"R&R Gable cornice return - laminated",1.00,EA,94.69,0.74,95.43,(0.00),95.43
+40,"R&R Gable cornice return - laminated - 2 stories or greater",1.00,EA,113.79,0.74,114.53,(0.00),114.53
+41,"R&R Gable cornice strip - 3 tab",0.00,LF,15.31,0.00,0.00,(0.00),0.00
+42,"R&R Gable cornice strip - 3 tab - 2 stories or greater",0.00,LF,17.96,0.00,0.00,(0.00),0.00
+43,"R&R Gable cornice strip - laminated",0.00,LF,16.00,0.00,0.00,(0.00),0.00
+44,"R&R Gable cornice strip - laminated - 2 stories or greater",0.00,LF,18.65,0.00,0.00,(0.00),0.00
+45,"R&R Hip / Ridge cap - High profile - composition shingles",0.00,LF,9.20,0.00,0.00,(0.00),0.00
+46,"R&R Hip / Ridge cap - cut from 3 tab - composition shingles",0.00,LF,7.20,0.00,0.00,(0.00),0.00
+47,"R&R Hip / Ridge cap - Standard profile - composition shingles",0.00,LF,8.30,0.00,0.00,(0.00),0.00
+48,"Continuous ridge vent - Detach & reset",0.00,LF,7.86,0.00,0.00,(0.00),0.00
+49,"R&R Continuous ridge vent - shingle-over style",0.00,LF,10.87,0.00,0.00,(0.00),0.00
+50,"R&R Continuous ridge vent - aluminum",0.00,LF,10.34,0.00,0.00,(0.00),0.00
+51,"R&R Counterflashing - Apron flashing",0.00,LF,11.00,0.00,0.00,(0.00),0.00
+52,"R&R Valley metal",0.00,LF,6.81,0.00,0.00,(0.00),0.00
+53,"R&R Valley metal - (W) profile",0.00,LF,7.60,0.00,0.00,(0.00),0.00
+54,"R&R Flue cap",0.00,EA,168.80,0.00,0.00,(0.00),0.00
+55,"R&R Furnace vent - rain cap and storm collar, 6""",0.00,EA,116.16,0.00,0.00,(0.00),0.00
+56,"Roof vent - turtle type - Detach & reset",1.00,EA,57.07,0.09,57.16,(0.00),57.16
+57,"R&R Roof vent - turtle type - Plastic",1.00,EA,67.76,1.27,69.03,(0.00),69.03
+58,"R&R Roof vent - turtle type - Metal",1.00,EA,84.79,2.80,87.59,(0.00),87.59
+59,"Roof vent - Detach & reset",1.00,EA,81.29,0.09,81.38,(0.00),81.38
+60,"R&R Roof vent - off ridge type - 8'",1.00,EA,260.52,8.58,269.10,(0.00),269.10
+61,"R&R Roof vent - off ridge type - 6'",1.00,EA,208.77,7.13,215.90,(0.00),215.90
+62,"R&R Roof vent - off ridge type - 4'",1.00,EA,150.88,5.12,156.00,(0.00),156.00
+63,"R&R Roof vent - off ridge type - 2'",1.00,EA,96.03,3.36,99.39,(0.00),99.39
+64,"R&R Roof vent - dormer type - Metal",1.00,EA,93.87,3.41,97.28,(0.00),97.28
+65,"R&R Roof vent - turbine type",1.00,EA,165.13,9.27,174.40,(0.00),174.40
+66,"Roof mount power attic vent - Detach & reset",1.00,EA,168.26,0.00,168.26,(0.00),168.26
+67,"R&R Roof mount power attic vent - Large",1.00,EA,330.28,17.07,347.35,(0.00),347.35
+68,"R&R Roof mount power attic vent",1.00,EA,274.76,12.07,286.83,(0.00),286.83
+69,"R&R Exhaust cap - through roof - up to 4""",1.00,EA,101.98,3.58,105.56,(0.00),105.56
+70,"R&R Exhaust cap - through roof - 6"" to 8""",1.00,EA,113.63,4.63,118.26,(0.00),118.26
+71,"R&R Flashing - rain diverter",1.00,EA,55.70,1.36,57.06,(0.00),57.06
+72,"R&R Flashing - kick-out diverter",1.00,EA,33.21,1.16,34.37,(0.00),34.37
+73,"R&R Flashing - pipe jack - copper",1.00,EA,103.42,5.65,109.07,(0.00),109.07
+74,"R&R Flashing - pipe jack - lead",1.00,EA,93.82,4.78,98.60,(0.00),98.60
+75,"R&R Flashing - pipe jack - 6""",1.00,EA,75.21,3.11,78.32,(0.00),78.32
+76,"R&R Flashing - pipe jack - 8""",1.00,EA,86.68,4.14,90.82,(0.00),90.82
+77,"R&R Flashing - pipe jack - split boot",1.00,EA,96.81,4.63,101.44,(0.00),101.44
+78,"R&R Power attic vent cover only - metal",1.00,EA,113.03,3.45,116.48,(0.00),116.48
+79,"R&R Power attic vent cover only - plastic",1.00,EA,101.29,2.39,103.68,(0.00),103.68
+80,"Power attic vent cover only - Detach & reset",1.00,EA,62.00,0.00,62.00,(0.00),62.00
+81,"R&R Rain cap - 10""",1.00,EA,94.23,6.32,100.55,(0.00),100.55
+82,"R&R Rain cap - 12""",1.00,EA,103.28,7.14,110.42,(0.00),110.42
+83,"R&R Rain cap - 4"" to 5""",1.00,EA,56.46,2.92,59.38,(0.00),59.38
+84,"R&R Rain cap - 6""",1.00,EA,63.48,3.55,67.03,(0.00),67.03
+85,"R&R Rain cap - 8""",1.00,EA,70.28,4.17,74.45,(0.00),74.45
+86,"Step flashing",0.00,LF,10.28,0.00,0.00,(0.00),0.00
+87,"R&R Flashing, 14"" wide",0.00,LF,5.50,0.00,0.00,(0.00),0.00
+88,"R&R Flashing - pipe jack",0.00,EA,59.03,0.00,0.00,(0.00),0.00
+89,"R&R Flashing, 14"" wide - copper",0.00,LF,24.00,0.00,0.00,(0.00),0.00
+90,"R&R Flashing, 20"" wide",0.00,LF,5.77,0.00,0.00,(0.00),0.00
+91,"Digital satellite system - Detach & reset",1.00,EA,52.17,0.00,52.17,(0.00),52.17
+92,"R&R Chimney flashing - small (24"" x 24"")",1.00,EA,343.36,5.75,349.11,(0.00),349.11
+93,"R&R Chimney flashing - average (32"" x 36"")",0.00,EA,447.84,0.00,0.00,(0.00),0.00
+94,"R&R Chimney flashing - large (32"" x 60"")",1.00,EA,596.76,14.73,611.49,(0.00),611.49
+95,"R&R Skylight flashing kit - dome",1.00,EA,135.91,8.34,144.25,(0.00),144.25
+96,"R&R Skylight flashing kit - dome - Large",1.00,EA,168.07,10.30,178.37,(0.00),178.37
+97,"Gutter / downspout - Detach & reset",0.00,LF,5.45,0.00,0.00,(0.00),0.00
+98,"R&R Drip edge/gutter apron",0.00,LF,3.50,0.00,0.00,(0.00),0.00
+99,"R&R Drip edge",0.00,LF,3.22,0.00,0.00,(0.00),0.00
+100,"R&R Drip edge - copper",0.00,LF,10.30,0.00,0.00,(0.00),0.00
+101,"Sheathing - additional cost for H-clips",0.00,SF,0.12,0.00,0.00,(0.00),0.00
+102,"R&R Sheathing - OSB - 5/8""",0.00,SF,3.05,0.00,0.00,(0.00),0.00
+103,"Apply roofing sealant/cement - per LF",0.00,LF,0.72,0.00,0.00,(0.00),0.00
+104,"Re-nailing of roof sheathing - complete re-nail",0.00,SF,0.24,0.00,0.00,(0.00),0.00
+105,"Solar electric panel - Detach & reset",1.00,EA,277.49,0.00,277.49,(0.00),277.49
+106,"Solar panel- mounting hardware- Detach & reset (per panel)",1.00,EA,31.10,0.00,31.10,(0.00),31.10
+107,"Remove Additional charge for steep roof - 7/12 to 9/12 slope",0.00,SQ,16.45,0.00,0.00,(0.00),0.00
+108,"Additional charge for steep roof - 7/12 to 9/12 slope",0.00,SQ,41.33,0.00,0.00,(0.00),0.00
+109,"Remove Additional charge for steep roof - 10/12 - 12/12 slope",0.00,SQ,25.83,0.00,0.00,(0.00),0.00
+110,"Additional charge for steep roof - 10/12 - 12/12 slope",0.00,SQ,64.99,0.00,0.00,(0.00),0.00
+111,"Remove Additional charge for steep roof greater than 12/12 slope",0.00,SQ,33.11,0.00,0.00,(0.00),0.00
+112,"Additional charge for steep roof greater than 12/12 slope",0.00,SQ,84.77,0.00,0.00,(0.00),0.00
+113,"Remove Additional charge for high roof (2 stories or greater)",0.00,SQ,6.68,0.00,0.00,(0.00),0.00
+114,"Additional charge for high roof (2 stories or greater)",0.00,SQ,19.65,0.00,0.00,(0.00),0.00
+115,"Roofing - General Laborer - per hour",0.00,HR,56.25,0.00,0.00,(0.00),0.00
+116,"Roofing (Agreed Price)",1.00,EA,0.00,0.00,0.00,(0.00),0.00
+117,"Roofing (Bid Item)",1.00,EA,0.00,0.00,0.00,(0.00),0.00
+

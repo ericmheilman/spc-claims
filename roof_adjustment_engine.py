@@ -80,81 +80,90 @@ class RoofAdjustmentEngine:
         self.roof_master_macro = self.load_roof_master_macro()
         
     def load_roof_master_macro(self) -> Dict[str, Dict[str, Any]]:
-        """Load Roof Master Macro text file and create lookup dictionary."""
+        """Load Roof Master Macro CSV file (3 columns: description, unit, unit_price)."""
         macro_data = {}
         try:
-            # Try to find the text file in the public directory
-            txt_path = os.path.join(os.path.dirname(__file__), '..', 'public', 'roof_master_macro.txt')
-            if not os.path.exists(txt_path):
-                txt_path = os.path.join(os.path.dirname(__file__), 'public', 'roof_master_macro.txt')
-            if not os.path.exists(txt_path):
-                txt_path = os.path.join('public', 'roof_master_macro.txt')
-            if not os.path.exists(txt_path):
-                txt_path = 'roof_master_macro.txt'
+            # Try multiple paths for the CSV file
+            csv_paths = [
+                os.path.join(os.path.dirname(__file__), 'roof_master_macro.csv'),
+                os.path.join(os.path.dirname(__file__), '..', 'public', 'roof_master_macro.csv'),
+                os.path.join('public', 'roof_master_macro.csv'),
+                'roof_master_macro.csv'
+            ]
             
-            if os.path.exists(txt_path):
-                with open(txt_path, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                
-                i = 0
-                while i < len(lines):
-                    line = lines[i].strip()
+            csv_path = None
+            for path in csv_paths:
+                if os.path.exists(path):
+                    csv_path = path
+                    break
+            
+            if csv_path:
+                print(f"📂 Loading Roof Master Macro from: {csv_path}")
+                with open(csv_path, 'r', encoding='utf-8') as f:
+                    # Auto-detect delimiter (tab or comma)
+                    sample = f.read(1024)
+                    f.seek(0)
+                    sniffer = csv.Sniffer()
+                    try:
+                        dialect = sniffer.sniff(sample)
+                        csv_reader = csv.DictReader(f, dialect=dialect)
+                    except:
+                        # Fallback to comma delimiter
+                        csv_reader = csv.DictReader(f)
                     
-                    # Look for lines that start with a number and contain item descriptions
-                    if line and line[0].isdigit() and '. ' in line:
-                        # Extract description (remove number and dot)
-                        description = line.split('. ', 1)[1].strip()
+                    # Verify required columns are present
+                    if csv_reader.fieldnames:
+                        # Normalize field names (case-insensitive, strip whitespace)
+                        fieldnames = [field.strip().lower().replace(' ', '_') for field in csv_reader.fieldnames]
                         
-                        # Handle multi-line descriptions
-                        j = i + 1
-                        while j < len(lines) and not lines[j].strip().startswith(('0.00', '1.00', '2.00', '3.00', '4.00', '5.00', '6.00', '7.00', '8.00', '9.00')) and lines[j].strip() != '' and not (lines[j].strip() and lines[j].strip()[0].isdigit() and '. ' in lines[j].strip()):
-                            description += ' ' + lines[j].strip()
-                            j += 1
-                        
-                        # Find the quantity line (next line after description)
-                        if j < len(lines):
-                            quantity_line = lines[j].strip()
+                        if 'description' not in fieldnames or 'unit' not in fieldnames or 'unit_price' not in fieldnames:
+                            print(f"⚠️ CSV file missing required columns. Expected: Description, Unit, Unit Price (or description, unit, unit_price)")
+                            print(f"   Found columns: {csv_reader.fieldnames}")
+                            return macro_data
+                    
+                    # Reset reader to process rows
+                    f.seek(0)
+                    try:
+                        csv_reader = csv.DictReader(f, dialect=dialect)
+                    except:
+                        csv_reader = csv.DictReader(f)
+                    
+                    for row in csv_reader:
+                        try:
+                            # Get values with case-insensitive keys (handle spaces in column names)
+                            description = None
+                            unit = None
+                            unit_price = None
                             
-                            # Extract unit from quantity line (e.g., "0.00 SQ")
-                            unit_match = None
-                            if 'SQ' in quantity_line:
-                                unit_match = 'SQ'
-                            elif 'LF' in quantity_line:
-                                unit_match = 'LF'
-                            elif 'SF' in quantity_line:
-                                unit_match = 'SF'
-                            elif 'EA' in quantity_line:
-                                unit_match = 'EA'
-                            elif 'HR' in quantity_line:
-                                unit_match = 'HR'
-                            else:
-                                unit_match = 'SQ'  # Default
+                            for key, value in row.items():
+                                key_normalized = key.strip().lower().replace(' ', '_')
+                                if key_normalized == 'description':
+                                    description = value.strip()
+                                elif key_normalized == 'unit':
+                                    unit = value.strip().upper()
+                                elif key_normalized == 'unit_price':
+                                    unit_price = float(value.strip())
                             
-                            # Price is on the line after quantity line
-                            if j + 1 < len(lines):
-                                price_line = lines[j + 1].strip()
-                                try:
-                                    unit_price = float(price_line)
-                                    
-                                    if description and unit_price > 0:
-                                        macro_data[description] = {
-                                            'unit_price': unit_price,
-                                            'rcv': unit_price,
-                                            'acv': unit_price,
-                                            'unit': unit_match
-                                        }
-                                except ValueError:
-                                    pass
-                        
-                        i = j + 1
-                    else:
-                        i += 1
+                            if description and unit and unit_price is not None and unit_price > 0:
+                                macro_data[description] = {
+                                    'unit_price': unit_price,
+                                    'rcv': unit_price,
+                                    'acv': unit_price,
+                                    'unit': unit
+                                }
+                        except (ValueError, KeyError) as e:
+                            print(f"⚠️ Skipping invalid row: {row} - Error: {e}")
+                            continue
                 
-                print(f"✅ Loaded {len(macro_data)} items from Roof Master Macro")
+                print(f"✅ Loaded {len(macro_data)} items from Roof Master Macro CSV")
             else:
-                print(f"⚠️ Roof Master Macro text file not found at {txt_path}")
+                print(f"⚠️ Roof Master Macro CSV file not found in any of these locations:")
+                for path in csv_paths:
+                    print(f"   - {path}")
         except Exception as e:
-            print(f"⚠️ Error loading Roof Master Macro: {e}")
+            print(f"⚠️ Error loading Roof Master Macro CSV: {e}")
+            import traceback
+            traceback.print_exc()
         
         return macro_data
 
@@ -342,11 +351,12 @@ class RoofAdjustmentEngine:
             self.results.add_warning("Shingle Quantity Adjustments", 
                                    "Total Roof Area is 0 - cannot adjust shingle quantities. Please verify roof measurements are loaded correctly.")
         else:
+            # Use exact descriptions from Roof Master Macro CSV
             removal_descriptions = [
-                "Remove Laminated comp. shingle rfg. - w/out felt",
-                "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
-                "Remove 3 tab 25 yr. composition shingle roofing - incl. felt",
-                "Remove Laminated comp. shingle rfg. - w/ felt"
+                "Remove Laminated - comp. shingle rfg. - w/out felt",
+                "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+                "Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+                "Remove Laminated - comp. shingle rfg. - w/ felt"
             ]
             
             for desc in removal_descriptions:
@@ -371,12 +381,15 @@ class RoofAdjustmentEngine:
         if total_roof_area == 0 or total_squares == 0:
             print(f"  ⚠️  WARNING: Total Roof Area is 0 - skipping shingle quantity adjustments!")
         else:
-            for desc in [
-                "Laminated comp. shingle rfg. w/out felt",
-                "3 tab 25 yr. comp. shingle roofing - w/out felt",
-                "3 tab 25 yr. composition shingle roofing incl. felt",
-                "Laminated comp. shingle rfg. - w/ felt"
-            ]:
+            # Use exact descriptions from Roof Master Macro CSV
+            installation_descriptions = [
+                "Laminated - comp. shingle rfg. - w/out felt",
+                "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+                "3 tab - 25 yr. - composition shingle roofing - incl. felt",
+                "Laminated - comp. shingle rfg. - w/ felt"
+            ]
+            
+            for desc in installation_descriptions:
                 item = self.find_item(line_items, desc)
                 if item:
                     qty = float(item["quantity"])
@@ -392,12 +405,12 @@ class RoofAdjustmentEngine:
                 else:
                     print(f"  ❌ Not found: {desc}")
 
-        # Rounding rules for laminated (0.25)
+        # Rounding rules for laminated (0.25) - Use exact descriptions
         for desc in [
-            "Remove Laminated comp. shingle rfg. - w/out felt",
-            "Laminated comp. shingle rfg. w/out felt",
-            "Remove Laminated comp. shingle rfg. - w/ felt",
-            "Laminated comp. shingle rfg. - w/ felt"
+            "Remove Laminated - comp. shingle rfg. - w/out felt",
+            "Laminated - comp. shingle rfg. - w/out felt",
+            "Remove Laminated - comp. shingle rfg. - w/ felt",
+            "Laminated - comp. shingle rfg. - w/ felt"
         ]:
             item = self.find_item(line_items, desc)
             if item:
@@ -408,12 +421,12 @@ class RoofAdjustmentEngine:
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               "Laminated shingles should be rounded up to nearest 0.25")
 
-        # Rounding rules for 3 tab (0.33)
+        # Rounding rules for 3 tab (0.33) - Use exact descriptions
         for desc in [
-            "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
-            "3 tab 25 yr. comp. shingle roofing - w/out felt",
-            "Remove 3 tab 25 yr. composition shingle roofing - incl. felt",
-            "3 tab 25 yr. composition shingle roofing incl. felt"
+            "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+            "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+            "Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+            "3 tab - 25 yr. - composition shingle roofing - incl. felt"
         ]:
             item = self.find_item(line_items, desc)
             if item:
@@ -425,10 +438,10 @@ class RoofAdjustmentEngine:
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               "3-tab shingles should be rounded up to nearest 0.33")
 
-        # Starter rules for removals
+        # Starter rules for removals - Use exact descriptions
         for remove_desc in [
-            "Remove Laminated comp. shingle rfg. - w/out felt",
-            "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt"
+            "Remove Laminated - comp. shingle rfg. - w/out felt",
+            "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt"
         ]:
             if self.find_item(line_items, remove_desc):
                 for starter_desc in [
@@ -520,10 +533,10 @@ class RoofAdjustmentEngine:
                     self.results.add_adjustment(s, old_qty, item["quantity"], 
                                               f"Starter strip quantity should equal (Total Eaves + Total Rakes) / 100 ({starter_qty:.2f})")
 
-        # Ridge vent add if no hip/ridge
+        # Ridge vent add if no hip/ridge - Use exact descriptions
         hip_ridges = [
-            "Hip/Ridge cap High profile - composition shingles",
-            "Hip/Ridge cap Standard profile - composition shingles"
+            "Hip / Ridge cap - High profile - composition shingles",
+            "Hip / Ridge cap - Standard profile - composition shingles"
         ]
         has_hip_ridge = any(self.find_item(line_items, h) for h in hip_ridges)
         if not has_hip_ridge:
@@ -566,10 +579,10 @@ class RoofAdjustmentEngine:
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               f"Steep roof charge should equal calculated area / 100 ({calc_qty:.2f})")
 
-        # Continuous ridge vent
+        # Continuous ridge vent - Use exact descriptions
         for desc, calc_qty in [
-            ("Continuous ridge vent aluminum", ridges_qty),
-            ("Continuous ridge vent shingle-over style", ridges_qty)
+            ("Continuous ridge vent - aluminum", ridges_qty),
+            ("Continuous ridge vent - shingle-over style", ridges_qty)
         ]:
             item = self.find_item(line_items, desc)
             if item:
@@ -580,11 +593,11 @@ class RoofAdjustmentEngine:
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               f"Ridge vent quantity should equal Total Line Lengths (Ridges) / 100 ({calc_qty:.2f})")
 
-        # Hip/Ridge cap
+        # Hip/Ridge cap - Use exact descriptions
         for desc, calc_qty in [
-            ("Hip/Ridge cap High profile - composition shingles", ridges_hips_qty),
-            ("Hip/Ridge cap cut from 3 tab composition shingles", ridges_hips_qty),
-            ("Hip/Ridge cap Standard profile - composition shingles", ridges_hips_qty)
+            ("Hip / Ridge cap - High profile - composition shingles", ridges_hips_qty),
+            ("Hip / Ridge cap - cut from 3 tab - composition shingles", ridges_hips_qty),
+            ("Hip / Ridge cap - Standard profile - composition shingles", ridges_hips_qty)
         ]:
             item = self.find_item(line_items, desc)
             if item:
@@ -668,12 +681,12 @@ class RoofAdjustmentEngine:
         else:
             print(f"  ❌ Not found: {desc}")
 
-        # Continuous ridge vent shingle-over style additional
-        if self.find_item(line_items, "Continuous ridge vent shingle-over style"):
+        # Continuous ridge vent shingle-over style additional - Use exact descriptions
+        if self.find_item(line_items, "Continuous ridge vent - shingle-over style"):
             for desc, calc_qty in [
-                ("Hip/Ridge cap High profile - composition shingles", ridges_hips_qty),
-                ("Hip/Ridge cap cut from 3 tab composition shingles", ridges_hips_qty),
-                ("Hip/Ridge cap Standard profile - composition shingles", ridges_hips_qty)
+                ("Hip / Ridge cap - High profile - composition shingles", ridges_hips_qty),
+                ("Hip / Ridge cap - cut from 3 tab - composition shingles", ridges_hips_qty),
+                ("Hip / Ridge cap - Standard profile - composition shingles", ridges_hips_qty)
             ]:
                 item = self.find_item(line_items, desc)
                 if item:
@@ -684,12 +697,12 @@ class RoofAdjustmentEngine:
                         self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                                   f"Hip/Ridge cap quantity should equal Total Ridges/Hips Length / 100 ({calc_qty:.2f})")
 
-        # Continuous ridge vent aluminum additional
-        if self.find_item(line_items, "Continuous ridge vent aluminum"):
+        # Continuous ridge vent aluminum additional - Use exact descriptions
+        if self.find_item(line_items, "Continuous ridge vent - aluminum"):
             for desc, calc_qty in [
-                ("Hip/Ridge cap High profile - composition shingles", ridges_hips_qty),
-                ("Hip/Ridge cap cut from 3 tab composition shingles", ridges_hips_qty),
-                ("Hip/Ridge cap Standard profile - composition shingles", ridges_hips_qty)
+                ("Hip / Ridge cap - High profile - composition shingles", ridges_hips_qty),
+                ("Hip / Ridge cap - cut from 3 tab - composition shingles", ridges_hips_qty),
+                ("Hip / Ridge cap - Standard profile - composition shingles", ridges_hips_qty)
             ]:
                 item = self.find_item(line_items, desc)
                 if item:
@@ -698,9 +711,9 @@ class RoofAdjustmentEngine:
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               f"Hip/Ridge cap quantity should equal Total Ridges/Hips Length / 100 ({ridges_hips_qty:.2f})")
 
-        # Specific combinations
-        if self.find_item(line_items, "Continuous ridge vent shingle-over style") and self.find_item(line_items, "3 tab 25 yr. composition shingle roofing incl. felt"):
-            desc = "Hip/Ridge cap cut from 3 tab composition shingles"
+        # Specific combinations - Use exact descriptions
+        if self.find_item(line_items, "Continuous ridge vent - shingle-over style") and self.find_item(line_items, "3 tab - 25 yr. - composition shingle roofing - incl. felt"):
+            desc = "Hip / Ridge cap - cut from 3 tab - composition shingles"
             item = self.find_item(line_items, desc)
             if item:
                 qty = float(item["quantity"])
@@ -712,8 +725,8 @@ class RoofAdjustmentEngine:
             else:
                 self.add_new_item(line_items, desc, ridges_qty)
 
-        if self.find_item(line_items, "Continuous ridge vent shingle-over style") and self.find_item(line_items, "Remove Laminated comp. shingle rfg. - w/out felt"):
-            desc = "Hip/Ridge cap Standard profile - composition shingles"
+        if self.find_item(line_items, "Continuous ridge vent - shingle-over style") and self.find_item(line_items, "Remove Laminated - comp. shingle rfg. - w/out felt"):
+            desc = "Hip / Ridge cap - Standard profile - composition shingles"
             item = self.find_item(line_items, desc)
             if item:
                 qty = float(item["quantity"])
@@ -725,8 +738,8 @@ class RoofAdjustmentEngine:
             else:
                 self.add_new_item(line_items, desc, ridges_qty)
 
-        if self.find_item(line_items, "Continuous ridge vent shingle-over style") and self.find_item(line_items, "Remove Laminated comp. shingle rfg. - w/ felt"):
-            desc = "Hip/Ridge cap Standard profile - composition shingles"
+        if self.find_item(line_items, "Continuous ridge vent - shingle-over style") and self.find_item(line_items, "Remove Laminated - comp. shingle rfg. - w/ felt"):
+            desc = "Hip / Ridge cap - Standard profile - composition shingles"
             item = self.find_item(line_items, desc)
             if item:
                 qty = float(item["quantity"])
@@ -872,6 +885,208 @@ class RoofAdjustmentEngine:
                 print(f"    ✅ Already present: Saddle or cricket 26 to 50 SF")
         else:
             print(f"  ❌ Not found: Chimney flashing- large (32\" x 60\")")
+
+        # LINE ITEM REPLACEMENT RULES
+        # Replace carrier estimate items with proper Roof Master Macro items
+        print(f"\n🔄 RULE: Line Item Replacements (Carrier → Roof Master)")
+        
+        # Define replacement rules: [carrier_patterns, roof_master_description]
+        replacement_rules = [
+            # Ridge vents
+            (["Detach & Reset Continuous ridge vent - shingle-over", "Install Continuous ridge vent - shingle-over style"], 
+             "R&R Continuous ridge vent - shingle-over style"),
+            (["Detach & Reset Continuous ridge vent - aluminum", "Install Continuous ridge vent - aluminum"], 
+             "R&R Continuous ridge vent - aluminum"),
+            
+            # Turtle vents
+            (["Detach & Reset Roof vent - turtle type - Plastic", "Install Roof vent - turtle type - Plastic"], 
+             "R&R Roof vent - turtle type - Plastic"),
+            (["Detach & Reset Roof vent - turtle type - Metal", "Install Roof vent - turtle type - Metal"], 
+             "R&R Roof vent - turtle type - Metal"),
+            
+            # Off ridge vents
+            (["Detach & Reset Roof vent - off ridge type - 8'", "Install Roof vent - off ridge type - 8'"], 
+             "R&R Roof vent - off ridge type - 8'"),
+            (["Detach & Reset Roof vent - off ridge type - 6'", "Install Roof vent - off ridge type - 6'"], 
+             "R&R Roof vent - off ridge type - 6'"),
+            (["Detach & Reset Roof vent - off ridge type - 4'", "Install Roof vent - off ridge type - 4'"], 
+             "R&R Roof vent - off ridge type - 4'"),
+            (["Detach & Reset Roof vent - off ridge type - 2'", "Install Roof vent - off ridge type - 2'"], 
+             "R&R Roof vent - off ridge type - 2'"),
+            
+            # Dormer and turbine vents
+            (["Detach & Reset Roof vent - dormer type - Metal", "Install Roof vent - dormer type - Metal"], 
+             "R&R Roof vent - dormer type - Metal"),
+            (["Detach & Reset Roof vent - turbine type", "Install Roof vent - turbine type"], 
+             "R&R Roof vent - turbine type"),
+            
+            # Power attic vents
+            (["Detach & Reset Roof mount power attic vent - Large", "Install Roof mount power attic vent - Large"], 
+             "R&R Roof mount power attic vent - Large"),
+            (["Detach & Reset Roof mount power attic vent", "Install Roof mount power attic vent"], 
+             "R&R Roof mount power attic vent"),
+            
+            # Exhaust caps
+            (["Detach & Reset Exhaust cap - through roof - up to 4\"", "Install Exhaust cap - through roof - up to 4\""], 
+             "R&R Exhaust cap - through roof - up to 4\""),
+            (["Detach & Reset Exhaust cap - through roof - 6\" to 8\"", "Install Exhaust cap - through roof - 6\" to 8\""], 
+             "R&R Exhaust cap - through roof - 6\" to 8\""),
+            
+            # Power attic vent covers
+            (["Detach & Reset Power attic vent cover only - metal", "Install Power attic vent cover only - metal"], 
+             "R&R Power attic vent cover only - metal"),
+            (["Detach & Reset Power attic vent cover only - plastic", "Install Power attic vent cover only - plastic"], 
+             "R&R Power attic vent cover only - plastic"),
+            
+            # Flashing items
+            (["Install Counterflashing - Apron flashing"], 
+             "R&R Counterflashing - Apron flashing"),
+            (["Install Valley metal"], 
+             "R&R Valley metal"),
+            (["Install Valley metal - (W) profile"], 
+             "R&R Valley metal - (W) profile"),
+            (["Install Furnace vent - rain cap and storm collar, 6\""], 
+             "R&R Furnace vent - rain cap and storm collar, 6\""),
+            (["Install Flashing - rain diverter"], 
+             "R&R Flashing - rain diverter"),
+            (["Install Flashing - kick-out diverter"], 
+             "R&R Flashing - kick-out diverter"),
+            (["Install Flashing - pipe jack - copper"], 
+             "R&R Flashing - pipe jack - copper"),
+            (["Install Flashing - pipe jack - lead"], 
+             "R&R Flashing - pipe jack - lead"),
+            (["Install Flashing - pipe jack - 6\""], 
+             "R&R Flashing - pipe jack - 6\""),
+            (["Install Flashing - pipe jack - 8\""], 
+             "R&R Flashing - pipe jack - 8\""),
+            (["Install Flashing - pipe jack - split boot"], 
+             "R&R Flashing - pipe jack - split boot"),
+            (["Install Flashing - pipe jack"], 
+             "R&R Flashing - pipe jack"),
+            
+            # Rain caps
+            (["Install Rain cap - 10\""], 
+             "R&R Rain cap - 10\""),
+            (["Install Rain cap - 12\""], 
+             "R&R Rain cap - 12\""),
+            (["Install Rain cap - 4\" to 5\""], 
+             "R&R Rain cap - 4\" to 5\""),
+            (["Install Rain cap - 6\""], 
+             "R&R Rain cap - 6\""),
+            (["Install Rain cap - 8\""], 
+             "R&R Rain cap - 8\""),
+            
+            # Step flashing and aluminum
+            (["Install Step flashing"], 
+             "Step flashing"),
+            (["Install Aluminum sidewall/endwall flashing - mill"], 
+             "Aluminum sidewall/endwall flashing - mill finish"),
+            (["Install Flashing, 14\" wide"], 
+             "R&R Flashing, 14\" wide"),
+            (["Install Flashing, 14\" wide - copper"], 
+             "R&R Flashing, 14\" wide - copper"),
+            (["Install Flashing, 20\" wide"], 
+             "R&R Flashing, 20\" wide"),
+            
+            # Evaporative cooler
+            (["Install Evaporative cooler - Detach & reset"], 
+             "Evaporative cooler - Detach & reset"),
+            
+            # Chimney flashing
+            (["Install Chimney flashing - small (24\" x 24\")"], 
+             "R&R Chimney flashing - small (24\" x 24\")"),
+            (["Install Chimney flashing - average (32\" x 36\")"], 
+             "R&R Chimney flashing - average (32\" x 36\")"),
+            (["Install Chimney flashing - large (32\" x 60\")"], 
+             "R&R Chimney flashing - large (32\" x 60\")"),
+            
+            # Saddle/cricket
+            (["Install Saddle or cricket - up to 25 SF"], 
+             "Saddle or cricket - up to 25 SF"),
+            (["Install Saddle or cricket - 26 to 50 SF"], 
+             "Saddle or cricket - 26 to 50 SF"),
+            
+            # Skylight flashing kits
+            (["Install Skylight flashing kit - dome"], 
+             "R&R Skylight flashing kit - dome"),
+            (["Install Skylight flashing kit - dome - High grade"], 
+             "R&R Skylight flashing kit - dome - High grade"),
+            (["Install Skylight flashing kit - dome - Large - High"], 
+             "R&R Skylight flashing kit - dome - Large - High grade"),
+            (["Install Skylight flashing kit - dome - Large"], 
+             "R&R Skylight flashing kit - dome - Large"),
+            (["Install Roof window step flashing kit"], 
+             "R&R Roof window step flashing kit"),
+            (["Install Roof window step flashing kit - Large"], 
+             "R&R Roof window step flashing kit - Large"),
+            
+            # Gutter and drip edge
+            (["Install Gutter / downspout - Detach & reset"], 
+             "Gutter / downspout - Detach & reset"),
+            (["Install Drip edge/gutter apron"], 
+             "R&R Drip edge/gutter apron"),
+            (["Install Drip edge"], 
+             "R&R Drip edge"),
+            (["Install Drip edge - copper"], 
+             "R&R Drip edge - copper"),
+        ]
+        
+        # Apply replacement rules
+        replacements_made = 0
+        for carrier_patterns, roof_master_desc in replacement_rules:
+            for carrier_pattern in carrier_patterns:
+                # Find items matching carrier pattern (partial match to handle variations)
+                for item in line_items:
+                    item_desc = item.get("description", "").strip()
+                    
+                    # Check for exact match or close match
+                    if (item_desc == carrier_pattern or 
+                        carrier_pattern in item_desc or 
+                        item_desc in carrier_pattern):
+                        
+                        # Get the roof master macro data
+                        macro_data = self.lookup_unit_price(roof_master_desc)
+                        
+                        if macro_data['unit_price'] > 0:
+                            old_desc = item["description"]
+                            old_price = item.get("unit_price", 0)
+                            
+                            # Replace with roof master description and pricing
+                            item["description"] = roof_master_desc
+                            item["unit_price"] = macro_data['unit_price']
+                            item["unit"] = macro_data.get('unit', item.get("unit", "EA"))
+                            
+                            # Recalculate costs
+                            self.update_item_costs(item)
+                            
+                            print(f"  ✅ REPLACED: '{old_desc}'")
+                            print(f"     → '{roof_master_desc}'")
+                            print(f"     Unit Price: ${old_price:.2f} → ${macro_data['unit_price']:.2f}")
+                            print(f"     Unit: {item['unit']}")
+                            
+                            self.results.add_adjustment(
+                                old_desc, 
+                                item.get("quantity", 0), 
+                                item.get("quantity", 0),
+                                f"Replaced carrier item with Roof Master item: {roof_master_desc}"
+                            )
+                            replacements_made += 1
+                            break  # Only replace first match for this pattern
+        
+        print(f"\n  📊 Total replacements made: {replacements_made}")
+        
+        # Note: The following items from user's request are NOT in the current Roof Master Macro CSV:
+        # - Items 106b-131b (various skylight items)
+        # - Gutter guard/screen
+        # - Flue cap
+        # - Skylight flashing kit - dome - High grade (102b)
+        # - Skylight flashing kit - dome - Large - High grade (103b)
+        # - Roof window step flashing kit (105b)
+        # - Roof window step flashing kit - Large (107b)
+        # These would need to be added to the roof_master_macro.csv file first
+        
+        if replacements_made == 0:
+            print(f"  ℹ️  No carrier estimate items found that match replacement patterns")
 
         return line_items
 

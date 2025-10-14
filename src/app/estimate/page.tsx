@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2 } from 'lucide-react';
+import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2, Upload } from 'lucide-react';
 import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
 
 interface LineItem {
@@ -76,6 +76,10 @@ export default function EstimatePage() {
   const [roofMasterMacro, setRoofMasterMacro] = useState<Map<string, any>>(new Map());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemIndex: number } | null>(null);
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
+
+  // Roof Master Macro Upload state
+  const [isUploadingRMM, setIsUploadingRMM] = useState(false);
+  const [rmmUploadStatus, setRmmUploadStatus] = useState<{ success: boolean; message: string; itemCount?: number } | null>(null);
 
   // Shingle Removal Check state
   const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
@@ -876,6 +880,56 @@ export default function EstimatePage() {
     }).format(amount);
   };
 
+  // Roof Master Macro Upload function
+  const handleRmmUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingRMM(true);
+    setRmmUploadStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-roof-master', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setRmmUploadStatus({
+          success: true,
+          message: result.message,
+          itemCount: result.itemCount
+        });
+        
+        // Store upload info in localStorage
+        localStorage.setItem('rmmUploadInfo', JSON.stringify({
+          uploadedAt: new Date().toISOString(),
+          fileName: file.name,
+          itemCount: result.itemCount
+        }));
+
+        console.log('✅ Roof Master Macro uploaded successfully:', result);
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading Roof Master Macro:', error);
+      setRmmUploadStatus({
+        success: false,
+        message: error instanceof Error ? error.message : 'Upload failed'
+      });
+    } finally {
+      setIsUploadingRMM(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
   // Python Rule Engine function
   const runRuleEngine = async () => {
     console.log('=== RUNNING PYTHON RULE ENGINE ===');
@@ -1409,6 +1463,23 @@ export default function EstimatePage() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              {/* Upload Roof Master Macro Button */}
+              <label className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                isUploadingRMM
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 border border-blue-500'
+              }`}>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleRmmUpload}
+                  disabled={isUploadingRMM}
+                  className="hidden"
+                />
+                <Upload className="inline-block w-4 h-4 mr-2" />
+                {isUploadingRMM ? 'Uploading...' : 'Upload Roof Master Macro'}
+              </label>
+              
               <button
                 onClick={runRmmComparator}
                 disabled={isRunningRmmComparator || !rawAgentData}
@@ -1455,6 +1526,52 @@ export default function EstimatePage() {
 
       <main className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Roof Master Macro Upload Status */}
+          {rmmUploadStatus && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              rmmUploadStatus.success 
+                ? 'bg-green-50 border border-green-200' 
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  {rmmUploadStatus.success ? (
+                    <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+                  ) : (
+                    <FileText className="w-5 h-5 text-red-600 mr-3" />
+                  )}
+                  <div>
+                    <h3 className={`font-semibold ${
+                      rmmUploadStatus.success ? 'text-green-900' : 'text-red-900'
+                    }`}>
+                      {rmmUploadStatus.success ? 'Success!' : 'Upload Failed'}
+                    </h3>
+                    <p className={`text-sm ${
+                      rmmUploadStatus.success ? 'text-green-700' : 'text-red-700'
+                    }`}>
+                      {rmmUploadStatus.message}
+                      {rmmUploadStatus.itemCount && (
+                        <span className="ml-2 font-medium">
+                          ({rmmUploadStatus.itemCount} items loaded)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRmmUploadStatus(null)}
+                  className={`text-sm font-medium ${
+                    rmmUploadStatus.success 
+                      ? 'text-green-600 hover:text-green-800' 
+                      : 'text-red-600 hover:text-red-800'
+                  }`}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Adjusted Estimate Display */}
           {adjustmentAgentResult && showAdjustedEstimate && (
             <div className="mb-8 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
@@ -1535,8 +1652,6 @@ export default function EstimatePage() {
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                       </tr>
                     </thead>
@@ -1651,34 +1766,6 @@ export default function EstimatePage() {
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {updateInfo?.changes?.depreciation_amount ? (
-                                <div className="space-y-1">
-                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
-                                    {formatCurrency(item.depreciation_amount || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 line-through">
-                                    Was: {formatCurrency(updateInfo.changes.depreciation_amount.before || 0)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-700">{formatCurrency(item.depreciation_amount || 0)}</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {updateInfo?.changes?.acv ? (
-                                <div className="space-y-1">
-                                  <div className="font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded inline-block">
-                                    {formatCurrency(item.ACV || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 line-through">
-                                    Was: {formatCurrency(updateInfo.changes.acv.before || 0)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-900">{formatCurrency(item.ACV || 0)}</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {(isAdded || updateInfo) && updateInfo?.changes && (
                                 <button 
                                   className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-xs"
@@ -1705,12 +1792,6 @@ export default function EstimatePage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-blue-50">
                           {formatCurrency(adjustmentAgentResult.modified_estimate?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
-                          {formatCurrency(adjustmentAgentResult.modified_estimate?.reduce((sum: number, item: any) => sum + (item.depreciation_amount || 0), 0) || 0)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
-                          {formatCurrency(adjustmentAgentResult.modified_estimate?.reduce((sum: number, item: any) => sum + (item.ACV || 0), 0) || 0)}
                         </td>
                         <td></td>
                       </tr>
@@ -1840,8 +1921,7 @@ export default function EstimatePage() {
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
@@ -1961,70 +2041,13 @@ export default function EstimatePage() {
                               })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {(() => {
-                                const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
-                                const originalDepreciation = depreciationChange?.before || 0;
-                                
-                                // Override depreciation to 0 if original was 0
-                                const displayDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
-                                
-                                // Show adjustment styling only if original depreciation was > 0
-                                if (auditEntry && depreciationChange && originalDepreciation > 0) {
-                                  return (
-                                    <div className="space-y-1">
-                                      <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
-                                        {formatCurrency(displayDepreciation)}
-                                      </div>
-                                      <div className="text-xs text-gray-500 line-through">
-                                        Was: {formatCurrency(originalDepreciation)}
-                                      </div>
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <span className="text-gray-700">{formatCurrency(displayDepreciation)}</span>
-                                  );
-                                }
-                              })()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {(() => {
-                                const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
-                                const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
-                                const acvChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'ACV');
-                                const originalDepreciation = depreciationChange?.before || 0;
-                                
-                                // Use corrected unit price for RCV calculation
-                                const correctedUnitPrice = unitPriceChange && unitPriceChange.after > unitPriceChange.before 
-                                  ? unitPriceChange.after 
-                                  : (unitPriceChange ? unitPriceChange.before : (item.unit_price || 0));
-                                
-                                const correctedRCV = (item.quantity || 0) * correctedUnitPrice;
-                                
-                                // Calculate corrected ACV: RCV - (depreciation forced to 0 if original was 0)
-                                const correctedDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
-                                const correctedACV = correctedRCV - correctedDepreciation;
-                                
-                                // Only show adjustment if there were valid changes
-                                const hasValidChanges = validChanges.length > 0;
-                                
-                                if (auditEntry && acvChange && hasValidChanges) {
-                                  return (
-                                    <div className="space-y-1">
-                                      <div className="font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded inline-block">
-                                        {formatCurrency(correctedACV)}
-                                      </div>
-                                      <div className="text-xs text-gray-500 line-through">
-                                        Was: {formatCurrency(acvChange.before || 0)}
-                                      </div>
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <span className="text-gray-900">{formatCurrency(correctedACV)}</span>
-                                  );
-                                }
-                              })()}
+                              <button
+                                onClick={() => handlePriceEdit(item)}
+                                className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
+                                title="Edit unit price"
+                              >
+                                ✏️
+                              </button>
                             </td>
                           </tr>
                         );
@@ -2032,7 +2055,7 @@ export default function EstimatePage() {
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr className="font-bold">
-                        <td colSpan={5} className="px-6 py-4 text-right text-sm text-gray-700">
+                        <td colSpan={6} className="px-6 py-4 text-right text-sm text-gray-700">
                           Totals:
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-purple-50">
@@ -2051,37 +2074,7 @@ export default function EstimatePage() {
                             return sum + correctedRCV;
                           }, 0) || 0)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
-                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => {
-                            const auditEntry = rmmAdjustedClaim.audit_log?.find((log: any) => 
-                              String(log.line_number) === String(item.line_number)
-                            );
-                            const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
-                            const originalDepreciation = depreciationChange?.before || 0;
-                            const correctedDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
-                            return sum + correctedDepreciation;
-                          }, 0) || 0)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
-                          {formatCurrency(rmmAdjustedClaim.updated_line_items?.reduce((sum: number, item: any) => {
-                            const auditEntry = rmmAdjustedClaim.audit_log?.find((log: any) => 
-                              String(log.line_number) === String(item.line_number)
-                            );
-                            const unitPriceChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'unit_price');
-                            const depreciationChange = auditEntry?.fields_changed?.find((c: any) => c.field === 'depreciation_amount');
-                            const originalDepreciation = depreciationChange?.before || 0;
-                            
-                            // Use corrected unit price for RCV calculation
-                            const correctedUnitPrice = unitPriceChange && unitPriceChange.after > unitPriceChange.before 
-                              ? unitPriceChange.after 
-                              : (unitPriceChange ? unitPriceChange.before : (item.unit_price || 0));
-                            
-                            const correctedRCV = (item.quantity || 0) * correctedUnitPrice;
-                            const correctedDepreciation = originalDepreciation === 0 ? 0 : (item.depreciation_amount || 0);
-                            const correctedACV = correctedRCV - correctedDepreciation;
-                            return sum + correctedACV;
-                          }, 0) || 0)}
-                        </td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   </table>
@@ -2532,8 +2525,6 @@ export default function EstimatePage() {
                           <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
                           <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
                           <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
                           <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
@@ -2558,12 +2549,6 @@ export default function EstimatePage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {formatCurrency(item.RCV || 0)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {formatCurrency(item.depreciation_amount || 0)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatCurrency(item.ACV || 0)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <button
@@ -3075,8 +3060,6 @@ export default function EstimatePage() {
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Price</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RCV</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Depr.</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACV</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
@@ -3125,12 +3108,6 @@ export default function EstimatePage() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {formatCurrency(item.RCV || 0)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            {formatCurrency(item.depreciation_amount || 0)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(item.ACV || 0)}
-                          </td>
                         </tr>
                       );
                       })}
@@ -3142,12 +3119,6 @@ export default function EstimatePage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-blue-50">
                           {formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.RCV || 0), 0))}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-gray-100">
-                          {formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.depreciation_amount || 0), 0))}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
-                          {formatCurrency(extractedLineItems.reduce((sum, item) => sum + (item.ACV || 0), 0))}
                         </td>
                       </tr>
                     </tfoot>
@@ -3407,7 +3378,7 @@ export default function EstimatePage() {
                           ...prev,
                           unit_price: parseFloat(e.target.value) || 0
                         }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="0.00"
                       />
                     </div>
@@ -3424,7 +3395,7 @@ export default function EstimatePage() {
                           ...prev,
                           justification_text: e.target.value
                         }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                         rows={4}
                         spellCheck={true}
                       />

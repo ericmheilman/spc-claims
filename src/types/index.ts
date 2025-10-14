@@ -293,6 +293,7 @@ export interface BundleLogicResponse {
   bundleLogic: BundleLogic;
   savings: number;
   efficiencyGains: number;
+  processingTime?: number;
 }
 
 export interface TrustLayerResponse {
