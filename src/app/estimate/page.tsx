@@ -1672,17 +1672,6 @@ export default function EstimatePage() {
               </label>
               
               <button
-                onClick={runRmmComparator}
-                disabled={isRunningRmmComparator || !rawAgentData}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isRunningRmmComparator || !rawAgentData
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-slate-700 text-white hover:bg-slate-800 border border-slate-600'
-                }`}
-              >
-                {isRunningRmmComparator ? 'Comparing...' : 'RMM Unit Cost Comparator'}
-              </button>
-              <button
                 onClick={runRuleEngine}
                 disabled={isRunningRules || !rawAgentData}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -1692,17 +1681,6 @@ export default function EstimatePage() {
                 }`}
               >
                 {isRunningRules ? 'Processing...' : 'SPC Adjustment Engine'}
-              </button>
-              <button
-                onClick={runCombinedWorkflow}
-                disabled={isRunningCombined || isRunningRmmComparator || isRunningRules || !rawAgentData}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isRunningCombined || isRunningRmmComparator || isRunningRules || !rawAgentData
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-purple-700 text-white hover:bg-purple-800 border border-purple-600'
-                }`}
-              >
-                {isRunningCombined ? 'Processing Combined...' : '🚀 Combined Workflow (RMM + Python)'}
               </button>
               <button
                 onClick={runUserPromptWorkflow}
