@@ -92,6 +92,7 @@ export default function EstimatePage() {
   const [selectedShingleRemoval, setSelectedShingleRemoval] = useState('');
   const [shingleRemovalQuantity, setShingleRemovalQuantity] = useState('');
   const [shingleRemovalSkipped, setShingleRemovalSkipped] = useState(false);
+  const [foundShingleRemovalItems, setFoundShingleRemovalItems] = useState<string[]>([]);
 
   // O&P Check state
   const [showOPModal, setShowOPModal] = useState(false);
@@ -1222,12 +1223,12 @@ export default function EstimatePage() {
     }
   };
 
-  // Shingle Removal Options
+  // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
-    'Remove Laminated comp. shingle rfg. - w/out felt',
-    'Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt',
-    'Remove 3 tab 25 yr. composition shingle roofing - incl. felt',
-    'Remove Laminated comp. shingle rfg. - w/ felt'
+    'Remove Laminated - comp. shingle rfg. - w/out felt',
+    'Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt',
+    'Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt',
+    'Remove Laminated - comp. shingle rfg. - w/ felt'
   ];
 
   // Ridge Vent Options (with display names and macro names)
@@ -1242,12 +1243,15 @@ export default function EstimatePage() {
     }
   ];
 
-  // Check if shingle removal items are present
+  // Check if shingle removal items are present and return found items
   const checkShingleRemovalItems = () => {
-    const hasShingleRemoval = extractedLineItems.some(item => 
+    const foundItems = extractedLineItems.filter(item => 
       shingleRemovalOptions.includes(item.description)
     );
-    return hasShingleRemoval;
+    return {
+      hasShingleRemoval: foundItems.length > 0,
+      foundItems: foundItems
+    };
   };
 
   // Add shingle removal item and continue workflow
@@ -1552,15 +1556,20 @@ export default function EstimatePage() {
       }
 
       // Check for shingle removal items - only show modal if NONE exist and not previously skipped
-      const hasShingleRemoval = checkShingleRemovalItems();
-      if (!hasShingleRemoval && !shingleRemovalSkipped) {
+      const shingleRemovalCheck = checkShingleRemovalItems();
+      if (!shingleRemovalCheck.hasShingleRemoval && !shingleRemovalSkipped) {
         console.log('⚠️ No shingle removal items found - showing modal');
+        setFoundShingleRemovalItems([]);
         setShowShingleRemovalModal(true);
         return;
       }
 
-      // If shingle removal exists, continue with workflow
-      console.log('✅ Shingle removal item found - continuing workflow');
+      // If shingle removal exists, show found items and continue with workflow
+      if (shingleRemovalCheck.hasShingleRemoval) {
+        const foundItemNames = shingleRemovalCheck.foundItems.map(item => item.description);
+        setFoundShingleRemovalItems(foundItemNames);
+        console.log(`✅ Shingle removal items found: ${foundItemNames.join(', ')} - continuing workflow`);
+      }
       continueUserPromptWorkflow(extractedLineItems);
 
     } catch (error) {
@@ -4008,11 +4017,18 @@ export default function EstimatePage() {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
                 {/* Header */}
-                <div className="bg-orange-600 px-6 py-4 rounded-t-2xl">
+                <div className={`px-6 py-4 rounded-t-2xl ${foundShingleRemovalItems.length > 0 ? 'bg-green-600' : 'bg-orange-600'}`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Shingle Removal Required</h2>
-                      <p className="text-orange-100 text-sm">No shingle removal items found in estimate</p>
+                      <h2 className="text-xl font-semibold text-white mb-1">
+                        {foundShingleRemovalItems.length > 0 ? '✅ Shingle Removal Found' : '⚠️ Shingle Removal Required'}
+                      </h2>
+                      <p className={`text-sm ${foundShingleRemovalItems.length > 0 ? 'text-green-100' : 'text-orange-100'}`}>
+                        {foundShingleRemovalItems.length > 0 
+                          ? `${foundShingleRemovalItems.length} shingle removal item(s) found in estimate`
+                          : 'No shingle removal items found in estimate'
+                        }
+                      </p>
                     </div>
                     <button
                       onClick={() => setShowShingleRemovalModal(false)}
@@ -4026,50 +4042,72 @@ export default function EstimatePage() {
                 {/* Body */}
                 <div className="p-6">
                   <div className="mb-6">
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                      <p className="text-gray-700">
-                        The estimate must include at least one shingle removal line item. 
-                        Please select one of the following options and enter the quantity:
-                      </p>
-                    </div>
+                    {foundShingleRemovalItems.length > 0 ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-3">
+                          <strong>Great! Shingle removal items found in estimate:</strong>
+                        </p>
+                        <ul className="list-disc list-inside space-y-1">
+                          {foundShingleRemovalItems.map((item, index) => (
+                            <li key={index} className="text-gray-700 font-medium">
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-gray-600 text-sm mt-3">
+                          This step is not needed. Click "Proceed to Next" to continue with the workflow.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700">
+                          The estimate must include at least one shingle removal line item. 
+                          Please select one of the following options and enter the quantity:
+                        </p>
+                      </div>
+                    )}
 
-                    {/* Shingle Type Selection */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Shingle Removal Type *
-                      </label>
-                      <select
-                        value={selectedShingleRemoval}
-                        onChange={(e) => setSelectedShingleRemoval(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
-                      >
-                        <option value="">-- Select a type --</option>
-                        {shingleRemovalOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Shingle Type Selection - Only show if no items found */}
+                    {foundShingleRemovalItems.length === 0 && (
+                      <>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Select Shingle Removal Type *
+                          </label>
+                          <select
+                            value={selectedShingleRemoval}
+                            onChange={(e) => setSelectedShingleRemoval(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                          >
+                            <option value="">-- Select a type --</option>
+                            {shingleRemovalOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                    {/* Quantity Input */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Quantity (SQ) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={shingleRemovalQuantity}
-                        onChange={(e) => setShingleRemovalQuantity(e.target.value)}
-                        placeholder="Enter quantity"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
-                      />
-                    </div>
+                        {/* Quantity Input */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Quantity (SQ) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={shingleRemovalQuantity}
+                            onChange={(e) => setShingleRemovalQuantity(e.target.value)}
+                            placeholder="Enter quantity"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                          />
+                        </div>
+                      </>
+                    )}
 
-                    {/* Price Preview */}
-                    {selectedShingleRemoval && shingleRemovalQuantity && roofMasterMacro.get(selectedShingleRemoval) && (
+                    {/* Price Preview - Only show if no items found and form is filled */}
+                    {foundShingleRemovalItems.length === 0 && selectedShingleRemoval && shingleRemovalQuantity && roofMasterMacro.get(selectedShingleRemoval) && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
                         <div className="grid grid-cols-3 gap-4 text-sm">
@@ -4104,23 +4142,38 @@ export default function EstimatePage() {
                     Cancel
                   </button>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setShowShingleRemovalModal(false);
-                        setShingleRemovalSkipped(true);
-                        console.log('⏭️ Skipping shingle removal - continuing workflow');
-                        continueUserPromptWorkflow(extractedLineItems);
-                      }}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
-                    >
-                      Skip & Continue
-                    </button>
-                    <button
-                      onClick={handleAddShingleRemoval}
-                      className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
-                    >
-                      Add to Estimate
-                    </button>
+                    {foundShingleRemovalItems.length > 0 ? (
+                      <button
+                        onClick={() => {
+                          setShowShingleRemovalModal(false);
+                          console.log('✅ Proceeding to next step - shingle removal items found');
+                          continueUserPromptWorkflow(extractedLineItems);
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                      >
+                        Proceed to Next
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowShingleRemovalModal(false);
+                            setShingleRemovalSkipped(true);
+                            console.log('⏭️ Skipping shingle removal - continuing workflow');
+                            continueUserPromptWorkflow(extractedLineItems);
+                          }}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                        >
+                          Skip & Continue
+                        </button>
+                        <button
+                          onClick={handleAddShingleRemoval}
+                          className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
+                        >
+                          Add to Estimate
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
