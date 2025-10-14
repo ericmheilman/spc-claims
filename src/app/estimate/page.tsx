@@ -2739,7 +2739,80 @@ export default function EstimatePage() {
                             log.description === item.description
                           );
                           
-                          const rowClass = auditEntry ? 'bg-green-50 border-l-4 border-green-500' : 'hover:bg-gray-50';
+                          // Determine color scheme based on type of change
+                          const getColorScheme = (auditEntry: any) => {
+                            if (!auditEntry) return null;
+                            
+                            const field = auditEntry.field;
+                            const rule = auditEntry.rule_applied;
+                            const action = auditEntry.action;
+                            
+                            // New items (added)
+                            if (action === 'added' || rule.includes('Missing Line Item') || rule.includes('Added missing')) {
+                              return {
+                                rowClass: 'bg-purple-50 border-l-4 border-purple-500',
+                                badgeColor: 'bg-purple-600',
+                                badgeText: '🆕 NEW ITEM',
+                                boxClass: 'bg-purple-50 border-l-3 border-purple-500',
+                                boxTitle: '📦 New Item Added:',
+                                boxTitleColor: 'text-purple-900',
+                                boxTextColor: 'text-purple-800'
+                              };
+                            }
+                            
+                            // Quantity changes
+                            if (field === 'quantity') {
+                              return {
+                                rowClass: 'bg-blue-50 border-l-4 border-blue-500',
+                                badgeColor: 'bg-blue-600',
+                                badgeText: '📏 QUANTITY ADJUSTED',
+                                boxClass: 'bg-blue-50 border-l-3 border-blue-500',
+                                boxTitle: '📏 Quantity Adjustment:',
+                                boxTitleColor: 'text-blue-900',
+                                boxTextColor: 'text-blue-800'
+                              };
+                            }
+                            
+                            // Unit price changes
+                            if (field === 'unit_price') {
+                              return {
+                                rowClass: 'bg-green-50 border-l-4 border-green-500',
+                                badgeColor: 'bg-green-600',
+                                badgeText: '💰 PRICE ADJUSTED',
+                                boxClass: 'bg-green-50 border-l-3 border-green-500',
+                                boxTitle: '💰 Price Adjustment:',
+                                boxTitleColor: 'text-green-900',
+                                boxTextColor: 'text-green-800'
+                              };
+                            }
+                            
+                            // Description changes (replacements)
+                            if (field === 'description' || rule.includes('Line Item Replacements') || rule.includes('REPLACED')) {
+                              return {
+                                rowClass: 'bg-orange-50 border-l-4 border-orange-500',
+                                badgeColor: 'bg-orange-600',
+                                badgeText: '🔄 ITEM REPLACED',
+                                boxClass: 'bg-orange-50 border-l-3 border-orange-500',
+                                boxTitle: '🔄 Item Replacement:',
+                                boxTitleColor: 'text-orange-900',
+                                boxTextColor: 'text-orange-800'
+                              };
+                            }
+                            
+                            // Default for other changes
+                            return {
+                              rowClass: 'bg-gray-50 border-l-4 border-gray-500',
+                              badgeColor: 'bg-gray-600',
+                              badgeText: '🐍 PYTHON ADJUSTED',
+                              boxClass: 'bg-gray-50 border-l-3 border-gray-500',
+                              boxTitle: '📏 Rule Applied:',
+                              boxTitleColor: 'text-gray-900',
+                              boxTextColor: 'text-gray-800'
+                            };
+                          };
+                          
+                          const colorScheme = getColorScheme(auditEntry);
+                          const rowClass = colorScheme ? colorScheme.rowClass : 'hover:bg-gray-50';
                           
                           return (
                             <tr key={index} className={rowClass}>
@@ -2750,19 +2823,19 @@ export default function EstimatePage() {
                                 <div className="max-w-md">
                                   <div className="font-medium mb-1">{item.description}</div>
                                   <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
-                                  {auditEntry && (
+                                  {auditEntry && colorScheme && (
                                     <>
                                       <div className="mt-2 flex items-center space-x-2">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white">
-                                          🐍 PYTHON ADJUSTED
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${colorScheme.badgeColor} text-white`}>
+                                          {colorScheme.badgeText}
                                         </span>
                                       </div>
-                                      <div className="mt-2 p-3 bg-amber-50 border-l-3 border-amber-500 rounded-lg text-xs">
-                                        <div className="font-semibold text-amber-900 mb-1">📏 Rule Applied:</div>
+                                      <div className={`mt-2 p-3 ${colorScheme.boxClass} rounded-lg text-xs`}>
+                                        <div className={`font-semibold ${colorScheme.boxTitleColor} mb-1`}>{colorScheme.boxTitle}</div>
                                         <div className="text-gray-700 mb-2 italic">"{auditEntry.rule_applied}"</div>
                                         <div className="text-gray-600">
-                                          <strong className="text-amber-800">Field Changed:</strong> {auditEntry.field} | 
-                                          <strong className="text-amber-800 ml-2">Explanation:</strong> {auditEntry.explanation}
+                                          <strong className={colorScheme.boxTextColor}>Field Changed:</strong> {auditEntry.field} | 
+                                          <strong className={`${colorScheme.boxTextColor} ml-2`}>Explanation:</strong> {auditEntry.explanation}
                                         </div>
                                       </div>
                                     </>
@@ -2773,10 +2846,10 @@ export default function EstimatePage() {
                                 {(() => {
                                   const quantityChange = auditEntry?.field === 'quantity';
                                   
-                                  if (auditEntry && quantityChange) {
+                                  if (auditEntry && quantityChange && colorScheme) {
                                     return (
                                       <div className="space-y-1">
-                                        <div className="font-bold text-green-700 bg-green-100 px-2 py-1 rounded inline-block">
+                                        <div className={`font-bold ${colorScheme.boxTextColor} bg-blue-100 px-2 py-1 rounded inline-block`}>
                                           {item.quantity?.toFixed(2)}
                                         </div>
                                         <div className="text-xs text-gray-500 line-through">
@@ -2795,7 +2868,26 @@ export default function EstimatePage() {
                                 {item.unit}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                                {(() => {
+                                  const priceChange = auditEntry?.field === 'unit_price';
+                                  
+                                  if (auditEntry && priceChange && colorScheme) {
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className={`font-bold ${colorScheme.boxTextColor} bg-green-100 px-2 py-1 rounded inline-block`}>
+                                          {formatCurrency(auditEntry.after || item.unit_price || 0)}
+                                        </div>
+                                        <div className="text-xs text-gray-500 line-through">
+                                          Was: {formatCurrency(auditEntry.before || 0)}
+                                        </div>
+                                      </div>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-gray-900">{formatCurrency(item.unit_price || 0)}</span>
+                                    );
+                                  }
+                                })()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {formatCurrency(item.RCV || 0)}
@@ -2830,27 +2922,48 @@ export default function EstimatePage() {
 
               {/* Legend */}
               <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Legend</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Color-Coded Legend</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   <div className="flex items-start">
-                    <span className="text-xs text-gray-500 line-through mr-3 mt-1">Old Value</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white mr-3 mt-1">💰 PRICE</span>
                     <div>
                       <div className="text-gray-900 font-bold">Green Highlighted Rows</div>
-                      <div className="text-gray-600">Python Rule Engine adjusted items</div>
+                      <div className="text-gray-600">Unit price adjustments</div>
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <span className="text-xs text-gray-500 line-through mr-3 mt-1">New Value</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-600 text-white mr-3 mt-1">📏 QUANTITY</span>
                     <div>
-                      <div className="text-gray-900 font-bold">Amber Box</div>
-                      <div className="text-gray-600">Rule explanation and field changes</div>
+                      <div className="text-gray-900 font-bold">Blue Highlighted Rows</div>
+                      <div className="text-gray-600">Quantity adjustments</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white mr-3 mt-1">🆕 NEW</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Purple Highlighted Rows</div>
+                      <div className="text-gray-600">New items added</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-600 text-white mr-3 mt-1">🔄 REPLACED</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Orange Highlighted Rows</div>
+                      <div className="text-gray-600">Item replacements</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-600 text-white mr-3 mt-1">🐍 OTHER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Gray Highlighted Rows</div>
+                      <div className="text-gray-600">Other adjustments</div>
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-900">
-                    <span className="font-semibold">🐍 Tip:</span> Modified values show the new Python-calculated quantity prominently with the original carrier quantity crossed out below. 
-                    Each adjustment includes the specific rule applied and detailed explanation.
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-900">
+                    <span className="font-semibold">🎨 Color Coding:</span> Each type of adjustment has its own color scheme for easy identification. 
+                    Modified values show prominently with original values crossed out below. Each adjustment includes detailed explanations and rule information.
                   </p>
                 </div>
               </div>
