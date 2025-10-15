@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 USER PROMPT WORKFLOW API CALLED - LATEST VERSION WITH REFACTORED CHIMNEY ANALYSIS');
+    console.log('🚀🚀🚀 USER PROMPT WORKFLOW API CALLED - LATEST VERSION WITH REFACTORED CHIMNEY ANALYSIS - TIMESTAMP:', new Date().toISOString());
     const inputData = await request.json();
     
     console.log('Received request for user prompt workflow with data:', {
@@ -204,12 +204,12 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
 
   // Category C Rule: IF none of the chimney flashing items are present, prompt user to confirm chimney_present
   if (foundChimneyItems.length === 0) {
-    console.log('🔥 Adding chimney analysis step - no chimney flashing items found');
+    console.log('🔥🔥🔥 Adding REFACTORED chimney analysis step - no chimney flashing items found - CURRENT TIME:', new Date().toISOString());
     prompts.push({
       id: 'chimney_analysis',
       type: 'question',
-      title: 'Chimney Analysis Required',
-      message: 'No chimney flashing items found in the estimate.',
+      title: 'Chimney Analysis Required - UPDATED VERSION',
+      message: 'No chimney flashing items found in the estimate. (This is the NEW version with proper follow-up logic)',
       question: 'Is there a chimney present on this roof?',
       action: 'chimney_analysis',
       options: ['Yes', 'No'],
@@ -220,8 +220,8 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     prompts.push({
       id: 'chimney_size_selection',
       type: 'question',
-      title: 'Chimney Size Selection',
-      message: 'Select chimney size or enter dimensions:',
+      title: 'Chimney Size Selection - NEW VERSION',
+      message: 'Select chimney size or enter dimensions: (This will now work properly when you click Yes)',
       question: 'What size chimney or custom dimensions?',
       action: 'chimney_size_selection',
       options: ['Small (24" x 24")', 'Medium (32" x 36")', 'Large (32" x 60")', 'Custom dimensions'],
