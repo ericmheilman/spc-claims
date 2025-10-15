@@ -1677,7 +1677,8 @@ export default function EstimatePage() {
       }
 
       const promptData = await response.json();
-      console.log('User prompt workflow results:', promptData);
+      console.log('🎯🎯🎯 User prompt workflow results - CHECKING FOR CHIMNEY LOGIC:', promptData);
+      console.log('🔍 All prompts received:', promptData.data?.prompts?.map(p => ({ id: p.id, title: p.title, options: p.options })));
 
       if (!promptData.success) {
         throw new Error(`User prompt workflow error: ${promptData.error}`);
@@ -4714,42 +4715,7 @@ export default function EstimatePage() {
                                   return;
                                 }
                                 
-                                // Handle chimney analysis follow-up logic BEFORE updating state
-                                if (currentPrompt.id === 'chimney_analysis' && option === 'Yes') {
-                                  console.log('Chimney analysis - Yes selected, looking for chimney_size_selection prompt');
-                                  // Update user responses first
-                                  setUserResponses((prev: any) => ({
-                                    ...prev,
-                                    [currentPrompt.id]: option
-                                  }));
-                                  // Find the chimney size selection prompt and jump to it
-                                  const chimneySizePromptIndex = promptResults.prompts.findIndex(p => p.id === 'chimney_size_selection');
-                                  if (chimneySizePromptIndex !== -1) {
-                                    console.log('Found chimney_size_selection at index:', chimneySizePromptIndex);
-                                    setTimeout(() => {
-                                      setCurrentPromptIndex(chimneySizePromptIndex);
-                                    }, 150);
-                                    return;
-                                  }
-                                }
-                                
-                                // Handle chimney analysis "No" - skip the chimney size selection
-                                if (currentPrompt.id === 'chimney_analysis' && option === 'No') {
-                                  console.log('Chimney analysis - No selected, skipping chimney_size_selection prompt');
-                                  // Update user responses first
-                                  setUserResponses((prev: any) => ({
-                                    ...prev,
-                                    [currentPrompt.id]: option
-                                  }));
-                                  // Find next prompt after chimney_size_selection and jump there
-                                  const chimneySizePromptIndex = promptResults.prompts.findIndex(p => p.id === 'chimney_size_selection');
-                                  if (chimneySizePromptIndex !== -1 && chimneySizePromptIndex + 1 < promptResults.prompts.length) {
-                                    setTimeout(() => {
-                                      setCurrentPromptIndex(chimneySizePromptIndex + 1);
-                                    }, 150);
-                                    return;
-                                  }
-                                }
+                                // No special chimney_analysis handling needed - now direct size selection
                                 
                                 // Update user responses for normal flow
                                 setUserResponses((prev: any) => {
@@ -4815,29 +4781,12 @@ export default function EstimatePage() {
                                   }
                                 }
                                 
-                                // Handle dependsOn logic for other prompts
-                                let nextIndex = currentPromptIndex + 1;
-                                while (nextIndex < promptResults.prompts.length) {
-                                  const nextPrompt = promptResults.prompts[nextIndex];
-                                  if (nextPrompt.dependsOn) {
-                                    const dependencyResponse = userResponses[nextPrompt.dependsOn];
-                                    console.log('Next prompt depends on:', nextPrompt.dependsOn, 'Response:', dependencyResponse);
-                                    
-                                    // If this is chimney_size_selection and chimney_analysis was not "Yes", skip it
-                                    if (nextPrompt.id === 'chimney_size_selection' && dependencyResponse !== 'Yes') {
-                                      nextIndex++;
-                                      continue;
-                                    }
-                                  }
-                                  break;
-                                }
-                                
-                                // Advance to next question or skip based on dependencies
+                                // Advance to next question
                                 console.log('Advancing to next question for option:', option);
                                 setTimeout(() => {
-                                  if (nextIndex < promptResults.prompts.length) {
-                                    console.log('Setting prompt index from', currentPromptIndex, 'to', nextIndex);
-                                    setCurrentPromptIndex(nextIndex);
+                                  if (currentPromptIndex < promptResults.prompts.length - 1) {
+                                    console.log('Setting prompt index from', currentPromptIndex, 'to', currentPromptIndex + 1);
+                                    setCurrentPromptIndex(currentPromptIndex + 1);
                                   } else {
                                     console.log('Reached end of prompts');
                                   }

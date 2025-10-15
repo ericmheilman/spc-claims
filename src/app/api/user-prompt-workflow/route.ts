@@ -202,31 +202,18 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     lineItems.some(lineItem => lineItem.description === item)
   );
 
-  // Category C Rule: IF none of the chimney flashing items are present, prompt user to confirm chimney_present
+  // Category C Rule: IF none of the chimney flashing items are present, prompt user directly for chimney size
   if (foundChimneyItems.length === 0) {
-    console.log('🔥🔥🔥 Adding REFACTORED chimney analysis step - no chimney flashing items found - CURRENT TIME:', new Date().toISOString());
-    prompts.push({
-      id: 'chimney_analysis',
-      type: 'question',
-      title: 'Chimney Analysis Required - UPDATED VERSION',
-      message: 'No chimney flashing items found in the estimate. (This is the NEW version with proper follow-up logic)',
-      question: 'Is there a chimney present on this roof?',
-      action: 'chimney_analysis',
-      options: ['Yes', 'No'],
-      priority: 'medium'
-    });
-    
-    // Add the follow-up question as a separate prompt that will be triggered
+    console.log('🔥🔥🔥 Adding DIRECT chimney analysis step - no Yes/No, straight to size selection - CURRENT TIME:', new Date().toISOString());
     prompts.push({
       id: 'chimney_size_selection',
       type: 'question',
-      title: 'Chimney Size Selection - NEW VERSION',
-      message: 'Select chimney size or enter dimensions: (This will now work properly when you click Yes)',
-      question: 'What size chimney or custom dimensions?',
+      title: 'Chimney Analysis - Direct Size Selection',
+      message: 'No chimney flashing items found in the estimate. What size chimney is present on this roof?',
+      question: 'Select chimney size or enter custom dimensions:',
       action: 'chimney_size_selection',
-      options: ['Small (24" x 24")', 'Medium (32" x 36")', 'Large (32" x 60")', 'Custom dimensions'],
+      options: ['Small (24" x 24")', 'Medium (32" x 36")', 'Large (32" x 60")', 'Custom dimensions', 'No chimney'],
       priority: 'medium',
-      dependsOn: 'chimney_analysis', // This will only show if chimney_analysis = 'Yes'
       addLineItem: {
         'Small (24" x 24")': null, // Do not add cricket for small
         'Medium (32" x 36")': {
@@ -247,7 +234,8 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
           quantity: 1,
           fromRoofMasterMacro: true,
           requiresCalculation: true
-        }
+        },
+        'No chimney': null // Do not add anything if no chimney
       },
       customField: {
         id: 'chimney_dimensions',
