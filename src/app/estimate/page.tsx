@@ -117,6 +117,11 @@ export default function EstimatePage() {
   const [numberOfStories, setNumberOfStories] = useState('');
   const [roofstockingDelivery, setRoofstockingDelivery] = useState<boolean | null>(null);
 
+  // SPC O&P Check state
+  const [showSPCOPModal, setShowSPCOPModal] = useState(false);
+  const [showSPCOPFoundModal, setShowSPCOPFoundModal] = useState(false);
+  const [foundOPItems, setFoundOPItems] = useState<any[]>([]);
+
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
@@ -1689,6 +1694,35 @@ export default function EstimatePage() {
     setShowSPCRoofAccessModal(true);
   };
 
+  // Check for O&P items
+  const checkOPItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for O&P items in:', updatedLineItems.length, 'line items');
+    
+    // Check for O&P-related items (case insensitive)
+    const foundOPItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking O&P item:', item.description);
+      
+      const description = item.description.toLowerCase();
+      // Look for O&P-related keywords
+      return description.includes('o&p') || 
+             (description.includes('overhead') && description.includes('profit')) ||
+             description.includes('overhead and profit');
+    });
+    
+    console.log('🔍 Found O&P items:', foundOPItems.map((item: any) => item.description));
+    
+    if (foundOPItems.length > 0) {
+      console.log('✅ O&P items found, proceeding to final step');
+      setFoundOPItems(foundOPItems);
+      setShowSPCOPFoundModal(true);
+    } else {
+      console.log('⚠️ No O&P items found, showing O&P confirmation modal');
+      setShowSPCOPModal(true);
+    }
+  };
+
   // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
     'Remove Laminated - comp. shingle rfg. - w/out felt',
@@ -2430,10 +2464,10 @@ export default function EstimatePage() {
   // Add roof access labor cost based on calculations
   const handleAddRoofAccessLabor = async () => {
     if (!roofAccessIssues) {
-      // No roof access issues, just close modal and proceed to final step
+      // No roof access issues, just close modal and proceed to O&P check
       setShowSPCRoofAccessModal(false);
       setTimeout(() => {
-        setShowSPCFinalStepModal(true);
+        checkOPItems(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -2450,10 +2484,10 @@ export default function EstimatePage() {
 
     // Only add labor if both roof access issues and delivery prevention are true
     if (!roofstockingDelivery) {
-      // No delivery prevention, just close modal and proceed to final step
+      // No delivery prevention, just close modal and proceed to O&P check
       setShowSPCRoofAccessModal(false);
       setTimeout(() => {
-        setShowSPCFinalStepModal(true);
+        checkOPItems(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -2532,7 +2566,72 @@ export default function EstimatePage() {
     console.log('✅ Added roof access labor item:', newItem);
     console.log(`Calculations: bundles=${bundles}, laborTime=${laborTime}hrs, laborCost=$${laborCost.toFixed(2)}`);
     
-    // After adding roof access labor item, proceed to final step
+    // After adding roof access labor item, proceed to O&P check
+    setTimeout(() => {
+      const updatedItems = [...(ruleResults?.line_items || []), newItem];
+      checkOPItems(updatedItems);
+    }, 100);
+  };
+
+  // Add O&P item based on 20% of total RCV
+  const handleAddOP = async () => {
+    // Calculate 20% of total RCV (excluding O&P itself if it exists)
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    const totalRCV = currentItems.reduce((sum: number, item: any) => {
+      // Exclude any existing O&P items from the calculation
+      if (item.description && (
+        item.description.toLowerCase().includes('o&p') ||
+        (item.description.toLowerCase().includes('overhead') && item.description.toLowerCase().includes('profit'))
+      )) {
+        return sum;
+      }
+      return sum + (item.RCV || 0);
+    }, 0);
+    
+    const opAmount = totalRCV * 0.20;
+
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new O&P line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: 'O&P',
+      quantity: 1,
+      unit: 'EA',
+      unit_price: opAmount,
+      RCV: opAmount,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: opAmount,
+      location_room: 'General',
+      category: 'O&P',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'op' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal
+    setShowSPCOPModal(false);
+    
+    console.log('✅ Added O&P item:', newItem);
+    console.log(`O&P calculated: 20% of $${totalRCV.toFixed(2)} = $${opAmount.toFixed(2)}`);
+    
+    // After adding O&P item, proceed to final step
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
@@ -2617,50 +2716,6 @@ export default function EstimatePage() {
     );
   };
 
-  // Add O&P line item
-  const handleAddOP = (items: LineItem[]) => {
-    // Calculate 20% of total RCV (excluding O&P itself)
-    const totalRCV = items.reduce((sum, item) => sum + (item.RCV || 0), 0);
-    const opAmount = totalRCV * 0.20;
-
-    // Get max line number
-    const maxLineNumber = Math.max(
-      ...items.map(item => parseInt(item.line_number) || 0),
-      0
-    );
-
-    // Create O&P line item
-    const opItem: LineItem = {
-      line_number: String(maxLineNumber + 1),
-      description: 'O&P',
-      quantity: 1,
-      unit: 'EA',
-      unit_price: opAmount,
-      RCV: opAmount,
-      age_life: '0/NA',
-      condition: 'Avg.',
-      dep_percent: 0,
-      depreciation_amount: 0,
-      ACV: opAmount,
-      location_room: 'General',
-      category: 'General',
-      page_number: Math.max(...items.map(item => item.page_number || 0), 1)
-    };
-
-    // Add O&P at the end
-    const updatedItems = [...items, opItem];
-    setExtractedLineItems(updatedItems);
-    
-    // Close modal
-    setShowOPModal(false);
-    
-    console.log('✅ Added O&P line item:', opItem);
-    
-    // Continue workflow with updated items
-    if (showUnifiedWorkflow) {
-      setCurrentWorkflowStep(4); // Move to next step (additional prompts)
-    }
-  };
 
   // Add ridge vent line item
   const handleAddRidgeVent = (items: LineItem[]) => {
@@ -4016,6 +4071,15 @@ export default function EstimatePage() {
                                   boxTitle: '👤 User Added - Roof Access Step:',
                                   boxTitleColor: 'text-orange-900',
                                   boxTextColor: 'text-orange-800'
+                                },
+                                op: {
+                                  rowClass: 'bg-purple-50 border-l-4 border-purple-500',
+                                  badgeColor: 'bg-purple-600',
+                                  badgeText: '🔄 USER ADDED - O&P',
+                                  boxClass: 'bg-purple-50 border-l-3 border-purple-500',
+                                  boxTitle: '👤 User Added - O&P Step:',
+                                  boxTitleColor: 'text-purple-900',
+                                  boxTextColor: 'text-purple-800'
                                 }
                               };
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
@@ -4301,6 +4365,13 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Orange Highlighted Rows</div>
                       <div className="text-gray-600">User added - Roof access step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Purple Highlighted Rows</div>
+                      <div className="text-gray-600">User added - O&P step</div>
                     </div>
                   </div>
                 </div>
@@ -5399,7 +5470,7 @@ export default function EstimatePage() {
                           <div className="flex justify-center">
                             <button
                               onClick={() => {
-                                handleAddOP(workflowData.lineItems);
+                                handleAddOP();
                                 setCurrentWorkflowStep(currentWorkflowStep + 1);
                               }}
                               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md"
@@ -5720,7 +5791,7 @@ export default function EstimatePage() {
                             return;
                           }
                           if (currentWorkflowStep === 3 && !workflowData.hasOP) {
-                            handleAddOP(workflowData.lineItems);
+                            handleAddOP();
                             return;
                           }
                           // For steps 4-14, just advance to next step
@@ -6292,7 +6363,7 @@ export default function EstimatePage() {
                     Skip & Continue
                   </button>
                   <button
-                    onClick={() => handleAddOP(extractedLineItems)}
+                    onClick={() => handleAddOP()}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
                   >
                     Add O&P (20%)
@@ -8035,9 +8106,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCRoofAccessModal(false);
-                        // Proceed to final step if canceled
+                        // Proceed to O&P check if canceled
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkOPItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -8051,10 +8122,6 @@ export default function EstimatePage() {
                 <div className="p-6">
                   <div className="mb-6">
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                      <p className="text-gray-700 mb-4">
-                        <strong>Is roof_access_issues == True?</strong>
-                      </p>
-                      
                       <div className="space-y-4">
                         {/* Roof access issues selection */}
                         <div>
@@ -8077,7 +8144,7 @@ export default function EstimatePage() {
                                 setRoofAccessIssues(false);
                                 setShowSPCRoofAccessModal(false);
                                 setTimeout(() => {
-                                  setShowSPCFinalStepModal(true);
+                                  checkOPItems(ruleResults?.line_items || []);
                                 }, 100);
                               }}
                               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -8109,7 +8176,7 @@ export default function EstimatePage() {
                             </div>
 
                             <div>
-                              <p className="font-medium text-gray-700 mb-3">Does it prevent roofstocking_delivery == True?</p>
+                              <p className="font-medium text-gray-700 mb-3">Does it prevent roofstocking delivery?</p>
                               <div className="flex space-x-4">
                                 <button
                                   onClick={() => {
@@ -8163,9 +8230,9 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCRoofAccessModal(false);
-                      // Proceed to final step if canceled
+                      // Proceed to O&P check if canceled
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkOPItems(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -8182,6 +8249,181 @@ export default function EstimatePage() {
                     }`}
                   >
                     {roofAccessIssues === false ? 'Continue' : 'Process & Complete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC O&P Confirmation Modal */}
+          {showSPCOPModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-purple-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">💰 O&P Check Required</h2>
+                      <p className="text-purple-100 text-sm">
+                        No O&P (Overhead and Profit) items found - prompt user to add
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCOPModal(false);
+                        // Proceed to final step if canceled
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>No O&P (Overhead and Profit) items were found in your estimate.</strong>
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <p className="text-gray-700">
+                          O&P will be calculated as 20% of the total RCV (excluding any existing O&P items).
+                        </p>
+                        
+                        {/* Show calculation preview */}
+                        {(() => {
+                          const currentItems = ruleResults?.line_items || [];
+                          const totalRCV = currentItems.reduce((sum: number, item: any) => {
+                            // Exclude any existing O&P items from the calculation
+                            if (item.description && (
+                              item.description.toLowerCase().includes('o&p') ||
+                              (item.description.toLowerCase().includes('overhead') && item.description.toLowerCase().includes('profit'))
+                            )) {
+                              return sum;
+                            }
+                            return sum + (item.RCV || 0);
+                          }, 0);
+                          const opAmount = totalRCV * 0.20;
+                          
+                          return (
+                            <div className="mt-4 p-3 bg-purple-100 border border-purple-200 rounded-lg">
+                              <div className="text-sm text-purple-800">
+                                <strong>Will add:</strong> O&P (20% of total RCV)
+                              </div>
+                              <div className="text-sm text-purple-700 mt-1">
+                                Total RCV: ${totalRCV.toFixed(2)} | O&P Amount: ${opAmount.toFixed(2)}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCOPModal(false);
+                      // Proceed to final step if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddOP}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
+                  >
+                    Add O&P (20%) & Complete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC O&P Found Modal */}
+          {showSPCOPFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ O&P Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        O&P items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCOPFoundModal(false);
+                        // Proceed to final step
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following O&P items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundOPItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'EA'})
+                              </span>
+                            )}
+                            {item.RCV && (
+                              <span className="text-green-600 ml-2 font-semibold">
+                                - RCV: ${item.RCV.toFixed(2)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        No additional O&P items need to be added. The SPC Adjustment Engine workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSPCOPFoundModal(false);
+                      // Proceed to final step
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Complete Workflow
                   </button>
                 </div>
               </div>
