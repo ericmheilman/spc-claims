@@ -4704,24 +4704,32 @@ export default function EstimatePage() {
                             <button
                               key={index}
                               onClick={() => {
-                                console.log('Button clicked:', option, 'for prompt:', promptResults.prompts[currentPromptIndex]?.id);
+                                console.log('=== BUTTON CLICK START ===');
+                                console.log('Button clicked:', option);
+                                console.log('Current prompt index:', currentPromptIndex);
+                                console.log('Current prompt:', promptResults.prompts[currentPromptIndex]);
+                                
                                 const currentPrompt = promptResults.prompts[currentPromptIndex];
                                 if (!currentPrompt) {
                                   console.error('No current prompt found');
                                   return;
                                 }
                                 
-                                setUserResponses((prev: any) => ({
-                                  ...prev,
-                                  [currentPrompt.id]: option
-                                }));
+                                // Update user responses first
+                                setUserResponses((prev: any) => {
+                                  console.log('Updating user responses:', prev, 'with', currentPrompt.id, '=', option);
+                                  return {
+                                    ...prev,
+                                    [currentPrompt.id]: option
+                                  };
+                                });
                                 
                                 // Handle follow-up logic for "Yes" responses
-                                console.log('Current prompt followUp:', currentPrompt.followUp);
                                 if (option === 'Yes' && currentPrompt.followUp && currentPrompt.followUp.ifYes) {
-                                  console.log('Triggering follow-up for Yes response');
+                                  console.log('Processing Yes response with follow-up:', currentPrompt.followUp.ifYes);
                                   const followUp = currentPrompt.followUp.ifYes;
-                                  // Create a temporary follow-up prompt object
+                                  
+                                  // Create follow-up prompt
                                   const followUpPrompt = {
                                     ...currentPrompt,
                                     id: `${currentPrompt.id}_followup`,
@@ -4729,26 +4737,37 @@ export default function EstimatePage() {
                                     options: followUp.options,
                                     title: currentPrompt.title,
                                     message: followUp.question,
-                                    followUp: null, // Prevent nested follow-ups
-                                    addLineItem: followUp.addLineItem, // Pass through the line item data
-                                    customField: followUp.customField // Pass through custom field data
+                                    followUp: null,
+                                    addLineItem: followUp.addLineItem,
+                                    customField: followUp.customField
                                   };
                                   
-                                  // Insert the follow-up prompt after the current one
-                                  const newPrompts = [...promptResults.prompts];
-                                  newPrompts.splice(currentPromptIndex + 1, 0, followUpPrompt);
-                                  setPromptResults({...promptResults, prompts: newPrompts});
+                                  console.log('Created follow-up prompt:', followUpPrompt);
                                   
-                                  // Advance to the follow-up question immediately
+                                  // Update prompts with follow-up inserted
+                                  setPromptResults((prevResults: any) => {
+                                    const newPrompts = [...prevResults.prompts];
+                                    newPrompts.splice(currentPromptIndex + 1, 0, followUpPrompt);
+                                    console.log('Updated prompts array length:', newPrompts.length);
+                                    return { ...prevResults, prompts: newPrompts };
+                                  });
+                                  
+                                  // Advance to follow-up question
                                   setTimeout(() => {
+                                    console.log('Advancing to follow-up question, index:', currentPromptIndex + 1);
                                     setCurrentPromptIndex(currentPromptIndex + 1);
                                   }, 100);
                                 } else {
-                                  // For "No" or other options, advance normally
-                                  if (currentPromptIndex < promptResults.prompts.length - 1) {
-                                    setCurrentPromptIndex(currentPromptIndex + 1);
-                                  }
+                                  // Normal advancement for "No" or other options
+                                  console.log('Normal advancement for option:', option);
+                                  setTimeout(() => {
+                                    if (currentPromptIndex < promptResults.prompts.length - 1) {
+                                      console.log('Advancing to next question, index:', currentPromptIndex + 1);
+                                      setCurrentPromptIndex(currentPromptIndex + 1);
+                                    }
+                                  }, 100);
                                 }
+                                console.log('=== BUTTON CLICK END ===');
                               }}
                               className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer ${
                                 userResponses[promptResults.prompts[currentPromptIndex].id] === option
@@ -4756,6 +4775,7 @@ export default function EstimatePage() {
                                   : 'bg-blue-600 text-white hover:bg-blue-700'
                               }`}
                               disabled={false}
+                              type="button"
                             >
                               {option}
                             </button>
