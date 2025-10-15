@@ -4709,17 +4709,6 @@ export default function EstimatePage() {
                         </div>
                       )}
 
-                      {/* DEBUG: Test Button */}
-                      <div className="mb-4 p-2 bg-red-100 border border-red-300 rounded">
-                        <p className="text-sm text-red-600 mb-2">DEBUG: Test if buttons work</p>
-                        <button 
-                          onClick={() => alert('Test button works!')}
-                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                        >
-                          Test Button - Click Me
-                        </button>
-                      </div>
-
                       {/* Options */}
                       {promptResults.prompts[currentPromptIndex].options && (
                         <div className="space-y-2">
@@ -4797,11 +4786,7 @@ export default function EstimatePage() {
                                 onClick={handleButtonClick}
                                 onMouseDown={() => console.log('Mouse down on button:', option)}
                                 onMouseUp={() => console.log('Mouse up on button:', option)}
-                                className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer relative z-10 ${
-                                  userResponses[promptResults.prompts[currentPromptIndex].id] === option
-                                    ? 'bg-blue-700 text-white'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                                }`}
+                                className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer relative z-10 ${userResponses[promptResults.prompts[currentPromptIndex].id] === option ? 'bg-blue-700 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                                 disabled={false}
                                 type="button"
                                 style={{ position: 'relative', zIndex: 10 }}
