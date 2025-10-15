@@ -191,34 +191,72 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     });
   }
   
-  // Rule 6: Chimney Analysis - Direct Size Selection (REFACTORED VERSION)
-  console.log('🔥 Adding REFACTORED chimney analysis step - direct size selection');
-  prompts.push({
-    id: 'chimney_size_analysis',
-    type: 'question',
-    title: 'Chimney Analysis',
-    message: 'What size chimney is present on this roof?',
-    question: 'Select chimney size:',
-    action: 'chimney_size_selection',
-    options: ['Small (24" x 24")', 'Average (32" x 36")', 'Large (32" x 60")', 'No chimney'],
-    priority: 'medium',
-    addLineItem: {
-      'Small (24" x 24")': null, // Do not add anything for small
-      'Average (32" x 36")': {
-        description: 'Saddle or cricket - up to 25 SF',
-        unit: 'EA',
-        quantity: 1,
-        fromRoofMasterMacro: true
+  // Rule 6: Category C Rule - Chimney Analysis and Cricket Logic
+  const chimneyFlashingItems = [
+    "Chimney flashing - small (24\" x 24\")",
+    "Chimney flashing - average (32\" x 36\")",
+    "Chimney flashing - large (32\" x 60\")"
+  ];
+
+  const foundChimneyItems = chimneyFlashingItems.filter(item =>
+    lineItems.some(lineItem => lineItem.description === item)
+  );
+
+  // Category C Rule: IF none of the chimney flashing items are present, prompt user to confirm chimney_present
+  if (foundChimneyItems.length === 0) {
+    console.log('🔥 Adding chimney analysis step - no chimney flashing items found');
+    prompts.push({
+      id: 'chimney_analysis',
+      type: 'question',
+      title: 'Chimney Analysis Required',
+      message: 'No chimney flashing items found in the estimate.',
+      question: 'Is there a chimney present on this roof?',
+      action: 'chimney_analysis',
+      options: ['Yes', 'No'],
+      priority: 'medium'
+    });
+    
+    // Add the follow-up question as a separate prompt that will be triggered
+    prompts.push({
+      id: 'chimney_size_selection',
+      type: 'question',
+      title: 'Chimney Size Selection',
+      message: 'Select chimney size or enter dimensions:',
+      question: 'What size chimney or custom dimensions?',
+      action: 'chimney_size_selection',
+      options: ['Small (24" x 24")', 'Medium (32" x 36")', 'Large (32" x 60")', 'Custom dimensions'],
+      priority: 'medium',
+      dependsOn: 'chimney_analysis', // This will only show if chimney_analysis = 'Yes'
+      addLineItem: {
+        'Small (24" x 24")': null, // Do not add cricket for small
+        'Medium (32" x 36")': {
+          description: 'Saddle or cricket - up to 25 SF',
+          unit: 'EA',
+          quantity: 1,
+          fromRoofMasterMacro: true
+        },
+        'Large (32" x 60")': {
+          description: 'Saddle or cricket - 26 to 50 SF',
+          unit: 'EA',
+          quantity: 1,
+          fromRoofMasterMacro: true
+        },
+        'Custom dimensions': {
+          description: 'Saddle or cricket - up to 25 SF', // Default, will be calculated based on dimensions
+          unit: 'EA',
+          quantity: 1,
+          fromRoofMasterMacro: true,
+          requiresCalculation: true
+        }
       },
-      'Large (32" x 60")': {
-        description: 'Saddle or cricket - 26 to 50 SF',
-        unit: 'EA',
-        quantity: 1,
-        fromRoofMasterMacro: true
-      },
-      'No chimney': null // Do not add anything if no chimney
-    }
-  });
+      customField: {
+        id: 'chimney_dimensions',
+        label: 'Enter dimensions (length x width in inches)',
+        type: 'text',
+        placeholder: 'e.g., 30 x 36'
+      }
+    });
+  }
   
   // Rule 7: Additional Layers Analysis
   prompts.push({

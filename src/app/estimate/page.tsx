@@ -4714,7 +4714,44 @@ export default function EstimatePage() {
                                   return;
                                 }
                                 
-                                // Update user responses first
+                                // Handle chimney analysis follow-up logic BEFORE updating state
+                                if (currentPrompt.id === 'chimney_analysis' && option === 'Yes') {
+                                  console.log('Chimney analysis - Yes selected, looking for chimney_size_selection prompt');
+                                  // Update user responses first
+                                  setUserResponses((prev: any) => ({
+                                    ...prev,
+                                    [currentPrompt.id]: option
+                                  }));
+                                  // Find the chimney size selection prompt and jump to it
+                                  const chimneySizePromptIndex = promptResults.prompts.findIndex(p => p.id === 'chimney_size_selection');
+                                  if (chimneySizePromptIndex !== -1) {
+                                    console.log('Found chimney_size_selection at index:', chimneySizePromptIndex);
+                                    setTimeout(() => {
+                                      setCurrentPromptIndex(chimneySizePromptIndex);
+                                    }, 150);
+                                    return;
+                                  }
+                                }
+                                
+                                // Handle chimney analysis "No" - skip the chimney size selection
+                                if (currentPrompt.id === 'chimney_analysis' && option === 'No') {
+                                  console.log('Chimney analysis - No selected, skipping chimney_size_selection prompt');
+                                  // Update user responses first
+                                  setUserResponses((prev: any) => ({
+                                    ...prev,
+                                    [currentPrompt.id]: option
+                                  }));
+                                  // Find next prompt after chimney_size_selection and jump there
+                                  const chimneySizePromptIndex = promptResults.prompts.findIndex(p => p.id === 'chimney_size_selection');
+                                  if (chimneySizePromptIndex !== -1 && chimneySizePromptIndex + 1 < promptResults.prompts.length) {
+                                    setTimeout(() => {
+                                      setCurrentPromptIndex(chimneySizePromptIndex + 1);
+                                    }, 150);
+                                    return;
+                                  }
+                                }
+                                
+                                // Update user responses for normal flow
                                 setUserResponses((prev: any) => {
                                   console.log('Updating user responses:', prev, 'with', currentPrompt.id, '=', option);
                                   return {
@@ -4725,7 +4762,52 @@ export default function EstimatePage() {
                                 
                                 // Handle addLineItem logic if present
                                 if (currentPrompt.addLineItem && currentPrompt.addLineItem[option]) {
-                                  const lineItemToAdd = currentPrompt.addLineItem[option];
+                                  let lineItemToAdd = currentPrompt.addLineItem[option];
+                                  
+                                  // Special handling for custom dimensions
+                                  if (option === 'Custom dimensions' && currentPrompt.id === 'chimney_size_selection') {
+                                    const dimensionsText = userResponses.chimney_dimensions || '';
+                                    console.log('Processing custom dimensions:', dimensionsText);
+                                    
+                                    // Parse dimensions (e.g., "30 x 36" or "30x36")
+                                    const dimensionsMatch = dimensionsText.match(/(\d+)\s*[x×]\s*(\d+)/i);
+                                    if (dimensionsMatch) {
+                                      const length = parseInt(dimensionsMatch[1]);
+                                      const width = parseInt(dimensionsMatch[2]);
+                                      const area = length * width;
+                                      
+                                      console.log('Parsed dimensions - Length:', length, 'Width:', width, 'Area:', area);
+                                      
+                                      // Apply the logic from your requirements:
+                                      // IF chimney_length < 30 or size == "small", do not add cricket.
+                                      // IF chimney_length > 30 and (chimney_length * chimney_width) < (32 * 60), add "Saddle or cricket - up to 25 SF".
+                                      // IF chimney_length > 30 and (chimney_length * chimney_width) >= (32 * 60), add "Saddle or cricket - 26 to 50 SF".
+                                      
+                                      if (length < 30) {
+                                        console.log('Chimney length < 30, no cricket needed');
+                                        lineItemToAdd = null;
+                                      } else if (area < (32 * 60)) { // 32 * 60 = 1920 square inches
+                                        console.log('Area < (32*60), adding up to 25 SF cricket');
+                                        lineItemToAdd = {
+                                          description: 'Saddle or cricket - up to 25 SF',
+                                          unit: 'EA',
+                                          quantity: 1,
+                                          fromRoofMasterMacro: true
+                                        };
+                                      } else {
+                                        console.log('Area >= (32*60), adding 26 to 50 SF cricket');
+                                        lineItemToAdd = {
+                                          description: 'Saddle or cricket - 26 to 50 SF',
+                                          unit: 'EA',
+                                          quantity: 1,
+                                          fromRoofMasterMacro: true
+                                        };
+                                      }
+                                    } else {
+                                      console.log('Could not parse dimensions, using default');
+                                    }
+                                  }
+                                  
                                   console.log('Adding line item:', lineItemToAdd);
                                   if (lineItemToAdd) {
                                     // TODO: Add the line item to the estimate
@@ -4733,12 +4815,29 @@ export default function EstimatePage() {
                                   }
                                 }
                                 
-                                // Advance to next question
+                                // Handle dependsOn logic for other prompts
+                                let nextIndex = currentPromptIndex + 1;
+                                while (nextIndex < promptResults.prompts.length) {
+                                  const nextPrompt = promptResults.prompts[nextIndex];
+                                  if (nextPrompt.dependsOn) {
+                                    const dependencyResponse = userResponses[nextPrompt.dependsOn];
+                                    console.log('Next prompt depends on:', nextPrompt.dependsOn, 'Response:', dependencyResponse);
+                                    
+                                    // If this is chimney_size_selection and chimney_analysis was not "Yes", skip it
+                                    if (nextPrompt.id === 'chimney_size_selection' && dependencyResponse !== 'Yes') {
+                                      nextIndex++;
+                                      continue;
+                                    }
+                                  }
+                                  break;
+                                }
+                                
+                                // Advance to next question or skip based on dependencies
                                 console.log('Advancing to next question for option:', option);
                                 setTimeout(() => {
-                                  if (currentPromptIndex < promptResults.prompts.length - 1) {
-                                    console.log('Setting prompt index from', currentPromptIndex, 'to', currentPromptIndex + 1);
-                                    setCurrentPromptIndex(currentPromptIndex + 1);
+                                  if (nextIndex < promptResults.prompts.length) {
+                                    console.log('Setting prompt index from', currentPromptIndex, 'to', nextIndex);
+                                    setCurrentPromptIndex(nextIndex);
                                   } else {
                                     console.log('Reached end of prompts');
                                   }
@@ -4783,11 +4882,13 @@ export default function EstimatePage() {
                             placeholder={promptResults.prompts[currentPromptIndex].customField.label}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                             onChange={(e) => {
+                              const customFieldId = promptResults.prompts[currentPromptIndex].customField.id;
                               setUserResponses((prev: any) => ({
                                 ...prev,
-                                [promptResults.prompts[currentPromptIndex].id]: e.target.value
+                                [customFieldId]: e.target.value
                               }));
                             }}
+                            value={userResponses[promptResults.prompts[currentPromptIndex].customField.id] || ''}
                           />
                         </div>
                       )}
