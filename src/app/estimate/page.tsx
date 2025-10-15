@@ -4637,8 +4637,20 @@ export default function EstimatePage() {
 
           {/* User Prompt Workflow Modal */}
           {showPromptModal && promptResults && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4"
+              onClick={(e) => {
+                // Prevent backdrop clicks from interfering
+                e.stopPropagation();
+              }}
+            >
+              <div 
+                className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+                onClick={(e) => {
+                  // Ensure modal content clicks work
+                  e.stopPropagation();
+                }}
+              >
                 {/* Header */}
                 <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
                   <div className="flex items-center justify-between">
@@ -4697,13 +4709,22 @@ export default function EstimatePage() {
                         </div>
                       )}
 
+                      {/* DEBUG: Test Button */}
+                      <div className="mb-4 p-2 bg-red-100 border border-red-300 rounded">
+                        <p className="text-sm text-red-600 mb-2">DEBUG: Test if buttons work</p>
+                        <button 
+                          onClick={() => alert('Test button works!')}
+                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                          Test Button - Click Me
+                        </button>
+                      </div>
+
                       {/* Options */}
                       {promptResults.prompts[currentPromptIndex].options && (
                         <div className="space-y-2">
-                          {promptResults.prompts[currentPromptIndex].options.map((option: string, index: number) => (
-                            <button
-                              key={index}
-                              onClick={() => {
+                          {promptResults.prompts[currentPromptIndex].options.map((option: string, index: number) => {
+                            const handleButtonClick = () => {
                                 console.log('=== BUTTON CLICK START ===');
                                 console.log('Button clicked:', option);
                                 console.log('Current prompt index:', currentPromptIndex);
@@ -4768,18 +4789,27 @@ export default function EstimatePage() {
                                   }, 100);
                                 }
                                 console.log('=== BUTTON CLICK END ===');
-                              }}
-                              className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer ${
-                                userResponses[promptResults.prompts[currentPromptIndex].id] === option
-                                  ? 'bg-blue-700 text-white'
-                                  : 'bg-blue-600 text-white hover:bg-blue-700'
-                              }`}
-                              disabled={false}
-                              type="button"
-                            >
-                              {option}
-                            </button>
-                          ))}
+                              };
+                              
+                            return (
+                              <button
+                                key={index}
+                                onClick={handleButtonClick}
+                                onMouseDown={() => console.log('Mouse down on button:', option)}
+                                onMouseUp={() => console.log('Mouse up on button:', option)}
+                                className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer relative z-10 ${
+                                  userResponses[promptResults.prompts[currentPromptIndex].id] === option
+                                    ? 'bg-blue-700 text-white'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                                disabled={false}
+                                type="button"
+                                style={{ position: 'relative', zIndex: 10 }}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
 
