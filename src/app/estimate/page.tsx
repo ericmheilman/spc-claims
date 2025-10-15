@@ -268,19 +268,39 @@ export default function EstimatePage() {
           const line = lines[i].trim();
           if (!line) continue;
           
-          // Split by comma or tab
-          const columns = line.includes('\t') ? line.split('\t') : line.split(',');
+          // More robust CSV parsing that handles quoted fields
+          const columns = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              columns.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          columns.push(current.trim());
           
           if (columns.length >= 3) {
-            const description = columns[0].trim();
-            const unit = columns[1].trim();
-            const unitPriceStr = columns[2].trim();
+            // Remove surrounding quotes if present
+            const description = columns[0].replace(/^"(.*)"$/, '$1').trim();
+            const unit = columns[1].replace(/^"(.*)"$/, '$1').trim();
+            const unitPriceStr = columns[2].replace(/^"(.*)"$/, '$1').trim();
             
             // Parse unit price (remove $ and commas)
             const unitPrice = parseFloat(unitPriceStr.replace(/[$,\s]/g, ''));
             
             if (!isNaN(unitPrice) && description) {
               macroMap.set(description, { unit_price: unitPrice, unit: unit });
+              // Debug log for ridge vents
+              if (description.toLowerCase().includes('ridge vent')) {
+                console.log('🔍 Found ridge vent:', description, 'Price:', unitPrice);
+              }
             }
           }
         }
@@ -4248,7 +4268,7 @@ export default function EstimatePage() {
                             No O&P line item found in estimate. O&P is typically 20% of the total RCV.
                           </p>
                           
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                             <h4 className="font-semibold text-gray-900 mb-2">O&P Calculation</h4>
                             <div className="text-sm">
                               <div className="text-gray-600">Total RCV (excluding O&P):</div>
@@ -4260,6 +4280,18 @@ export default function EstimatePage() {
                                 ${(workflowData.lineItems.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) * 0.20).toFixed(2)}
                               </div>
                             </div>
+                          </div>
+                          
+                          <div className="flex justify-center">
+                            <button
+                              onClick={() => {
+                                handleAddOP(workflowData.lineItems);
+                                setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              }}
+                              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md"
+                            >
+                              Add O&P?
+                            </button>
                           </div>
                         </div>
                       )}
