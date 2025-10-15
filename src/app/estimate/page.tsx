@@ -55,13 +55,21 @@ export default function EstimatePage() {
   const [showPythonDebugOutput, setShowPythonDebugOutput] = useState(false);
   const [extractedRoofMeasurements, setExtractedRoofMeasurements] = useState<any>({});
 
-  // User Prompt Workflow state
-  const [promptResults, setPromptResults] = useState<any>(null);
-  const [isRunningPrompts, setIsRunningPrompts] = useState(false);
-  const [showPromptModal, setShowPromptModal] = useState(false);
-  const [userResponses, setUserResponses] = useState<any>({});
-  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
-  const [currentFollowUpStep, setCurrentFollowUpStep] = useState(0);
+  // SPC Shingle Removal Check state
+  const [showSPCShingleRemovalModal, setShowSPCShingleRemovalModal] = useState(false);
+  const [selectedSPCShingleRemoval, setSelectedSPCShingleRemoval] = useState('');
+  const [spcShingleRemovalQuantity, setSPCShingleRemovalQuantity] = useState('');
+  const [showSPCItemsFoundModal, setShowSPCItemsFoundModal] = useState(false);
+  const [foundRemovalItems, setFoundRemovalItems] = useState<any[]>([]);
+
+  // SPC Installation Shingles Check state
+  const [showSPCInstallationModal, setShowSPCInstallationModal] = useState(false);
+  const [selectedSPCInstallation, setSelectedSPCInstallation] = useState('');
+  const [spcInstallationQuantity, setSPCInstallationQuantity] = useState('');
+  const [showSPCInstallationFoundModal, setShowSPCInstallationFoundModal] = useState(false);
+  const [foundInstallationItems, setFoundInstallationItems] = useState<any[]>([]);
+  const [currentSPCLineItems, setCurrentSPCLineItems] = useState<any[]>([]);
+
 
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
@@ -1223,11 +1231,141 @@ export default function EstimatePage() {
       setRuleResults(ruleData.data);
       setShowRuleResults(true);
 
+      // After SPC Adjustment Engine completes, check for shingle removal items
+      // Get the updated line items from the results
+      const updatedLineItems = ruleData.data?.line_items || extractedLineItems;
+      
+      // Store the current line items for the workflow
+      setCurrentSPCLineItems(updatedLineItems);
+      
+      // Check if any of the required removal line items are present (using exact spellings from shingleRemovalOptions)
+      console.log('🔍 Checking for shingle removal items in:', updatedLineItems.length, 'line items');
+      console.log('🔍 Required items:', shingleRemovalOptions);
+      console.log('🔍 All line item descriptions:', updatedLineItems.map((item: any) => item.description));
+      
+      const foundRemovalItems = updatedLineItems.filter((item: any) => {
+        if (!item.description) return false;
+        
+        console.log('🔍 Checking item:', item.description);
+        
+        return shingleRemovalOptions.some(requiredItem => {
+          // Try exact match first
+          if (item.description === requiredItem) {
+            console.log('✅ Found exact match:', item.description);
+            return true;
+          }
+          
+          // Try case-insensitive match
+          if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+            console.log('✅ Found case-insensitive match:', item.description, '===', requiredItem);
+            return true;
+          }
+          
+          // Check for removal items containing key terms
+          const itemDesc = item.description.toLowerCase();
+          const requiredDesc = requiredItem.toLowerCase();
+          
+          // Check if it's a removal item and contains key shingle type terms
+          if (itemDesc.includes('remove')) {
+            const hasLaminated = (itemDesc.includes('laminated') && requiredDesc.includes('laminated')) || 
+                               (!itemDesc.includes('laminated') && !requiredDesc.includes('laminated'));
+            const has3Tab = (itemDesc.includes('3 tab') && requiredDesc.includes('3 tab')) || 
+                           (!itemDesc.includes('3 tab') && !requiredDesc.includes('3 tab'));
+            const hasComp = itemDesc.includes('comp') && requiredDesc.includes('comp');
+            const hasShingle = itemDesc.includes('shingle') && requiredDesc.includes('shingle');
+            const hasFelt = (itemDesc.includes('felt') && requiredDesc.includes('felt'));
+            
+            if (hasComp && hasShingle && (hasLaminated || has3Tab)) {
+              console.log('✅ Found removal item match:', item.description, 'matches pattern for', requiredItem);
+              return true;
+            }
+          }
+          
+          return false;
+        });
+      });
+      
+      console.log('🔍 Found removal items:', foundRemovalItems.map((item: any) => item.description));
+      
+      if (foundRemovalItems.length > 0) {
+        // Show message that removal items were found
+        console.log('✅ Removal line items found, proceeding without modal');
+        setFoundRemovalItems(foundRemovalItems);
+        setShowSPCItemsFoundModal(true);
+        // After removal check, proceed to installation check
+        // We'll trigger this when the modal is closed
+      } else {
+        // No removal items found, show modal for user selection
+        console.log('⚠️ No removal items found, showing SPC modal');
+        setShowSPCShingleRemovalModal(true);
+      }
+
     } catch (error) {
       console.error('Error running Python rule engine:', error);
       alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRunningRules(false);
+    }
+  };
+
+  // Check for installation shingle items
+  const checkInstallationItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for installation shingle items in:', updatedLineItems.length, 'line items');
+    console.log('🔍 Required installation items:', installationShingleOptions);
+    
+    const foundInstallationItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking installation item:', item.description);
+      
+      return installationShingleOptions.some(requiredItem => {
+        // Try exact match first
+        if (item.description === requiredItem) {
+          console.log('✅ Found exact installation match:', item.description);
+          return true;
+        }
+        
+        // Try case-insensitive match
+        if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+          console.log('✅ Found case-insensitive installation match:', item.description, '===', requiredItem);
+          return true;
+        }
+        
+        // Check for installation items containing key terms (not removal items)
+        const itemDesc = item.description.toLowerCase();
+        const requiredDesc = requiredItem.toLowerCase();
+        
+        // Check if it's NOT a removal item and contains key shingle type terms
+        if (!itemDesc.includes('remove') && itemDesc.includes('shingle')) {
+          const hasLaminated = (itemDesc.includes('laminated') && requiredDesc.includes('laminated')) || 
+                             (!itemDesc.includes('laminated') && !requiredDesc.includes('laminated'));
+          const has3Tab = (itemDesc.includes('3 tab') && requiredDesc.includes('3 tab')) || 
+                         (!itemDesc.includes('3 tab') && !requiredDesc.includes('3 tab'));
+          const hasComp = itemDesc.includes('comp') && requiredDesc.includes('comp');
+          const hasShingle = itemDesc.includes('shingle') && requiredDesc.includes('shingle');
+          const hasFelt = (itemDesc.includes('felt') && requiredDesc.includes('felt'));
+          
+          if (hasComp && hasShingle && (hasLaminated || has3Tab)) {
+            console.log('✅ Found installation item match:', item.description, 'matches pattern for', requiredItem);
+            return true;
+          }
+        }
+        
+        return false;
+      });
+    });
+    
+    console.log('🔍 Found installation items:', foundInstallationItems.map((item: any) => item.description));
+    
+    if (foundInstallationItems.length > 0) {
+      // Show message that installation items were found
+      console.log('✅ Installation line items found, proceeding without modal');
+      setFoundInstallationItems(foundInstallationItems);
+      setShowSPCInstallationFoundModal(true);
+    } else {
+      // No installation items found, show modal for user selection
+      console.log('⚠️ No installation items found, showing SPC installation modal');
+      setShowSPCInstallationModal(true);
     }
   };
 
@@ -1241,10 +1379,10 @@ export default function EstimatePage() {
 
   // Installation Shingle Options - MUST match Roof Master Macro exactly
   const installationShingleOptions = [
-    'Laminated - comp. shingle rfg. - w/out felt',
-    '3 tab - 25 yr. - comp. shingle roofing - w/out felt',
-    '3 tab - 25 yr. - composition shingle roofing - incl. felt',
-    'Laminated - comp. shingle rfg. - w/ felt'
+    'Laminated comp. shingle rfg. w/out felt',
+    '3 tab 25 yr. comp. shingle roofing - w/out felt',
+    '3 tab 25 yr. composition shingle roofing incl. felt',
+    'Laminated comp. shingle rfg. - w/ felt'
   ];
 
   // Ridge Vent Options (with display names and macro names)
@@ -1380,15 +1518,155 @@ export default function EstimatePage() {
     setShingleRemovalQuantity('');
     
     console.log('✅ Added shingle removal item:', newItem);
-    console.log('🔄 Continuing User Prompt Workflow...');
     
     // Mark step as completed and continue with the unified workflow
     setShingleRemovalSkipped(true);
     if (showUnifiedWorkflow) {
       setCurrentWorkflowStep(1); // Move to next step
-    } else {
-      continueUserPromptWorkflow(updatedItems);
     }
+  };
+
+  // Add SPC shingle removal item after SPC Adjustment Engine
+  const handleAddSPCShingleRemoval = async () => {
+    if (!selectedSPCShingleRemoval) {
+      alert('Please select a shingle removal type');
+      return;
+    }
+
+    const quantity = parseFloat(spcShingleRemovalQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    // Get data from Roof Master Macro
+    const macroData = roofMasterMacro.get(selectedSPCShingleRemoval);
+    if (!macroData) {
+      alert(`Item "${selectedSPCShingleRemoval}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Get the current line items (including any from SPC Adjustment Engine results)
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: selectedSPCShingleRemoval,
+      quantity: quantity,
+      unit: macroData.unit || 'SQ',
+      unit_price: macroData.unit_price,
+      RCV: quantity * macroData.unit_price,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: quantity * macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1)
+    };
+
+    // Update both the rule results and the main extractedLineItems so the item appears everywhere
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+    
+    // Also update the main extractedLineItems so it shows in the main UI
+    const updatedExtractedItems = [...extractedLineItems, newItem];
+    setExtractedLineItems(updatedExtractedItems);
+
+    // Close modal and reset
+    setShowSPCShingleRemovalModal(false);
+    setSelectedSPCShingleRemoval('');
+    setSPCShingleRemovalQuantity('');
+    
+    console.log('✅ Added SPC shingle removal item:', newItem);
+    
+    // After adding removal item, update current line items and proceed to installation check
+    const updatedSPCItems = currentSPCLineItems.concat(newItem);
+    setCurrentSPCLineItems(updatedSPCItems);
+    setTimeout(() => {
+      checkInstallationItems(updatedSPCItems);
+    }, 100);
+  };
+
+  // Add SPC installation shingle item after removal check
+  const handleAddSPCInstallation = async () => {
+    if (!selectedSPCInstallation) {
+      alert('Please select an installation shingle type');
+      return;
+    }
+
+    const quantity = parseFloat(spcInstallationQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    // Get data from Roof Master Macro
+    const macroData = roofMasterMacro.get(selectedSPCInstallation);
+    if (!macroData) {
+      alert(`Item "${selectedSPCInstallation}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Get the current line items (including any from SPC Adjustment Engine results)
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: selectedSPCInstallation,
+      quantity: quantity,
+      unit: macroData.unit || 'SQ',
+      unit_price: macroData.unit_price,
+      RCV: quantity * macroData.unit_price,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: quantity * macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1)
+    };
+
+    // Update both the rule results and the main extractedLineItems so the item appears everywhere
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+    
+    // Also update the main extractedLineItems so it shows in the main UI
+    const updatedItems = [...extractedLineItems, newItem];
+    setExtractedLineItems(updatedItems);
+
+    // Close modal and reset
+    setShowSPCInstallationModal(false);
+    setSelectedSPCInstallation('');
+    setSPCInstallationQuantity('');
+    
+    console.log('✅ Added SPC installation shingle item:', newItem);
   };
 
   // Add installation shingle item and continue workflow
@@ -1445,14 +1723,11 @@ export default function EstimatePage() {
     setInstallationShingleQuantity('');
     
     console.log('✅ Added installation shingle item:', newItem);
-    console.log('🔄 Continuing User Prompt Workflow...');
     
     // Mark step as completed and continue with the unified workflow
     setInstallationShinglesSkipped(true);
     if (showUnifiedWorkflow) {
       setCurrentWorkflowStep(2); // Move to next step
-    } else {
-      continueUserPromptWorkflow(updatedItems);
     }
   };
 
@@ -1511,13 +1786,10 @@ export default function EstimatePage() {
     setShowOPModal(false);
     
     console.log('✅ Added O&P line item:', opItem);
-    console.log('🔄 Continuing User Prompt Workflow...');
     
     // Continue workflow with updated items
     if (showUnifiedWorkflow) {
       setCurrentWorkflowStep(4); // Move to next step (additional prompts)
-    } else {
-      continueUserPromptWorkflow(updatedItems);
     }
   };
 
@@ -1579,124 +1851,9 @@ export default function EstimatePage() {
     // Continue workflow
     if (showUnifiedWorkflow) {
       setCurrentWorkflowStep(3); // Move to O&P step
-    } else {
-      continueUserPromptWorkflow(updatedItems);
     }
   };
 
-  // Continue User Prompt Workflow after adding shingle removal
-  const continueUserPromptWorkflow = async (itemsToUse: LineItem[]) => {
-    // Check for ridge vents first (only if not previously skipped)
-    const hasRidgeVent = checkRidgeVentItems(itemsToUse);
-    const ridgeLength = extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0;
-    
-    if (!hasRidgeVent && ridgeLength > 0 && !ridgeVentSkipped) {
-      console.log('⚠️ No ridge vent found but ridge length > 0 - showing modal');
-      // Calculate quantity from ridge length / 100
-      const calculatedQuantity = (ridgeLength / 100).toFixed(2);
-      setRidgeVentQuantity(calculatedQuantity);
-      setShowRidgeVentModal(true);
-      return;
-    }
-
-    // Check for O&P before proceeding (only if not previously skipped)
-    const hasOP = checkOPPresent(itemsToUse);
-    if (!hasOP && !opSkipped) {
-      console.log('⚠️ No O&P found - showing modal');
-      setShowOPModal(true);
-      return;
-    }
-
-    console.log('✅ O&P check complete - proceeding with workflow');
-    setIsRunningPrompts(true);
-    
-    try {
-      // Get roof measurements using the helper function
-      const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
-      
-      if (!roofMeasurementsObj) {
-        alert('Could not extract roof measurements. Please check that roof report was processed correctly.');
-        setIsRunningPrompts(false);
-        return;
-      }
-
-      // Convert to the format expected by User Prompt Workflow
-      let roofMeasurements: Record<string, any> = {};
-      
-      // Map the extracted data to the expected format
-      if (roofMeasurementsObj.roofMeasurements) {
-        roofMeasurements = roofMeasurementsObj.roofMeasurements;
-      } else {
-        // If the data is at the root level, use it directly
-        roofMeasurements = roofMeasurementsObj;
-      }
-      
-      // If we have individual ridge/hip lengths but no combined field, create it
-      if (roofMeasurements.ridgeLength !== undefined && roofMeasurements.hipLength !== undefined && !roofMeasurements["Total Ridges/Hips Length"]) {
-        const combinedLength = roofMeasurements.ridgeLength + roofMeasurements.hipLength;
-        roofMeasurements["Total Ridges/Hips Length"] = { value: combinedLength };
-      }
-
-      console.log('📊 Using roof measurements for User Prompt Workflow:', roofMeasurements);
-
-      // Prepare data for user prompt workflow
-      const promptInputData = {
-        line_items: itemsToUse.map(item => ({
-          line_number: item.line_number || 'N/A',
-          description: item.description || 'Unknown',
-          quantity: item.quantity || 0,
-          unit: item.unit || 'EA',
-          unit_price: item.unit_price || 0,
-          RCV: item.RCV || 0,
-          age_life: item.age_life || '',
-          condition: item.condition || '',
-          dep_percent: item.dep_percent || 0,
-          depreciation_amount: item.depreciation_amount || 0,
-          ACV: item.ACV || 0,
-          location_room: item.location_room || 'Unknown',
-          category: item.category || 'Unknown',
-          page_number: item.page_number || 1
-        })),
-        roof_measurements: roofMeasurements
-      };
-
-      console.log('Sending data to user prompt workflow:', promptInputData);
-
-      // Call the user prompt workflow API endpoint
-      const response = await fetch('/api/user-prompt-workflow', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(promptInputData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`User prompt workflow failed: ${errorData.error || response.statusText}`);
-      }
-
-      const promptData = await response.json();
-      console.log('🎯🎯🎯 User prompt workflow results - CHECKING FOR CHIMNEY LOGIC:', promptData);
-      console.log('🔍 All prompts received:', promptData.data?.prompts?.map(p => ({ id: p.id, title: p.title, options: p.options })));
-
-      if (!promptData.success) {
-        throw new Error(`User prompt workflow error: ${promptData.error}`);
-      }
-
-      // Store the prompts for display in modal
-      setPromptResults(promptData.data);
-      setCurrentPromptIndex(0);
-      setUserResponses({}); // Clear any previous responses
-      setShowPromptModal(true);
-
-    } catch (error) {
-      console.error('Error running user prompt workflow:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsRunningPrompts(false);
-    }
-  };
 
   // Unified Workflow Steps - All 13+ steps from original workflow
   const workflowSteps = [
@@ -1777,51 +1934,6 @@ export default function EstimatePage() {
     }
   ];
 
-  // Unified Workflow function
-  const runUserPromptWorkflow = async () => {
-    console.log('=== RUNNING UNIFIED USER PROMPT WORKFLOW ===');
-    
-    // Reset all skip flags to ensure workflow runs from beginning
-    setShingleRemovalSkipped(false);
-    setInstallationShinglesSkipped(false);
-    setOPSkipped(false);
-    setRidgeVentSkipped(false);
-    
-    try {
-      if (extractedLineItems.length === 0) {
-        alert('No line items available. Please upload and process documents first.');
-        return;
-      }
-
-      // Prepare workflow data
-      const shingleRemovalCheck = checkShingleRemovalItems();
-      const installationShinglesCheck = checkInstallationShingleItems();
-      const hasRidgeVent = checkRidgeVentItems(extractedLineItems);
-      const hasOP = checkOPPresent(extractedLineItems);
-      const ridgeLength = extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0;
-
-      const workflowData = {
-        currentStep: 0,
-        totalSteps: workflowSteps.length,
-        shingleRemoval: shingleRemovalCheck,
-        installationShingles: installationShinglesCheck,
-        hasRidgeVent,
-        hasOP,
-        ridgeLength,
-        lineItems: extractedLineItems
-      };
-
-      setWorkflowData(workflowData);
-      setCurrentWorkflowStep(0);
-      setShowUnifiedWorkflow(true);
-      setIsRunningPrompts(true);
-
-    } catch (error) {
-      console.error('Error running user prompt workflow:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setIsRunningPrompts(false);
-    }
-  };
 
   // Handle price editing
   const handlePriceEdit = (item: any) => {
@@ -1934,17 +2046,6 @@ export default function EstimatePage() {
                 }`}
               >
                 {isRunningRules ? 'Processing...' : 'SPC Adjustment Engine'}
-              </button>
-              <button
-                onClick={runUserPromptWorkflow}
-                disabled={isRunningPrompts || !rawAgentData}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isRunningPrompts || !rawAgentData
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-purple-700 text-white hover:bg-purple-800 border border-purple-600'
-                }`}
-              >
-                {isRunningPrompts ? 'Processing...' : 'User Prompt Workflow'}
               </button>
               <button 
                 onClick={() => router.push('/')}
@@ -3934,13 +4035,12 @@ export default function EstimatePage() {
                 <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">User Prompt Workflow</h2>
+                      <h2 className="text-xl font-semibold text-white mb-1">Unified Workflow</h2>
                       <p className="text-gray-300 text-sm">Interactive decision-making based on line item analysis</p>
                     </div>
                     <button
                       onClick={() => {
                         setShowUnifiedWorkflow(false);
-                        setIsRunningPrompts(false);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
@@ -4562,7 +4662,6 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowUnifiedWorkflow(false);
-                      setIsRunningPrompts(false);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -4623,7 +4722,6 @@ export default function EstimatePage() {
                       <button
                         onClick={() => {
                           setShowUnifiedWorkflow(false);
-                          setIsRunningPrompts(false);
                           // Workflow complete - no need to call continueUserPromptWorkflow
                         }}
                         className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
@@ -4637,293 +4735,6 @@ export default function EstimatePage() {
             </div>
           )}
 
-          {/* User Prompt Workflow Modal */}
-          {showPromptModal && promptResults && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-                {/* Header */}
-                <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">💬 User Prompt Workflow</h2>
-                      <p className="text-gray-300 text-sm">Interactive decision-making based on line item analysis</p>
-                    </div>
-                    <button
-                      onClick={() => setShowPromptModal(false)}
-                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {/* Progress Indicator */}
-                <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                      Question {currentPromptIndex + 1} of {promptResults.prompts?.length || 0}
-                    </div>
-                    <div className="flex space-x-1">
-                      {promptResults.prompts?.map((_: any, index: number) => (
-                        <div
-                          key={index}
-                          className={`w-2 h-2 rounded-full ${
-                            index === currentPromptIndex ? 'bg-purple-600' : 
-                            index < currentPromptIndex ? 'bg-green-500' : 'bg-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6 overflow-y-auto max-h-[60vh]">
-                  {promptResults.prompts && promptResults.prompts[currentPromptIndex] && (
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {promptResults.prompts[currentPromptIndex].title}
-                        </h3>
-                        <p className="text-gray-700 mb-4">
-                          {promptResults.prompts[currentPromptIndex].message}
-                        </p>
-                      </div>
-
-                      {/* Question */}
-                      {promptResults.prompts[currentPromptIndex].question && (
-                        <div className="mb-4">
-                          <p className="font-medium text-gray-900 mb-3">
-                            {promptResults.prompts[currentPromptIndex].question}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Options */}
-                      {promptResults.prompts[currentPromptIndex].options && (
-                        <div className="space-y-2">
-                          {promptResults.prompts[currentPromptIndex].options.map((option: string, index: number) => {
-                            const handleButtonClick = () => {
-                                console.log('=== BUTTON CLICK START ===');
-                                console.log('Button clicked:', option);
-                                console.log('Current prompt index:', currentPromptIndex);
-                                console.log('Current prompt:', promptResults.prompts[currentPromptIndex]);
-                                
-                                const currentPrompt = promptResults.prompts[currentPromptIndex];
-                                if (!currentPrompt) {
-                                  console.error('No current prompt found');
-                                  return;
-                                }
-                                
-                                // No special chimney_analysis handling needed - now direct size selection
-                                
-                                // Update user responses for normal flow
-                                setUserResponses((prev: any) => {
-                                  console.log('Updating user responses:', prev, 'with', currentPrompt.id, '=', option);
-                                  return {
-                                    ...prev,
-                                    [currentPrompt.id]: option
-                                  };
-                                });
-                                
-                                // Handle addLineItem logic if present
-                                if (currentPrompt.addLineItem && currentPrompt.addLineItem[option]) {
-                                  let lineItemToAdd = currentPrompt.addLineItem[option];
-                                  
-                                  // Special handling for custom dimensions
-                                  if (option === 'Custom dimensions' && currentPrompt.id === 'chimney_size_selection') {
-                                    const dimensionsText = userResponses.chimney_dimensions || '';
-                                    console.log('Processing custom dimensions:', dimensionsText);
-                                    
-                                    // Parse dimensions (e.g., "30 x 36" or "30x36")
-                                    const dimensionsMatch = dimensionsText.match(/(\d+)\s*[x×]\s*(\d+)/i);
-                                    if (dimensionsMatch) {
-                                      const length = parseInt(dimensionsMatch[1]);
-                                      const width = parseInt(dimensionsMatch[2]);
-                                      const area = length * width;
-                                      
-                                      console.log('Parsed dimensions - Length:', length, 'Width:', width, 'Area:', area);
-                                      
-                                      // Apply the logic from your requirements:
-                                      // IF chimney_length < 30 or size == "small", do not add cricket.
-                                      // IF chimney_length > 30 and (chimney_length * chimney_width) < (32 * 60), add "Saddle or cricket - up to 25 SF".
-                                      // IF chimney_length > 30 and (chimney_length * chimney_width) >= (32 * 60), add "Saddle or cricket - 26 to 50 SF".
-                                      
-                                      if (length < 30) {
-                                        console.log('Chimney length < 30, no cricket needed');
-                                        lineItemToAdd = null;
-                                      } else if (area < (32 * 60)) { // 32 * 60 = 1920 square inches
-                                        console.log('Area < (32*60), adding up to 25 SF cricket');
-                                        lineItemToAdd = {
-                                          description: 'Saddle or cricket - up to 25 SF',
-                                          unit: 'EA',
-                                          quantity: 1,
-                                          fromRoofMasterMacro: true
-                                        };
-                                      } else {
-                                        console.log('Area >= (32*60), adding 26 to 50 SF cricket');
-                                        lineItemToAdd = {
-                                          description: 'Saddle or cricket - 26 to 50 SF',
-                                          unit: 'EA',
-                                          quantity: 1,
-                                          fromRoofMasterMacro: true
-                                        };
-                                      }
-                                    } else {
-                                      console.log('Could not parse dimensions, using default');
-                                    }
-                                  }
-                                  
-                                  console.log('Adding line item:', lineItemToAdd);
-                                  if (lineItemToAdd) {
-                                    // TODO: Add the line item to the estimate
-                                    console.log('Line item would be added:', lineItemToAdd.description, 'Unit:', lineItemToAdd.unit, 'Qty:', lineItemToAdd.quantity);
-                                  }
-                                }
-                                
-                                // Advance to next question
-                                console.log('Advancing to next question for option:', option);
-                                setTimeout(() => {
-                                  if (currentPromptIndex < promptResults.prompts.length - 1) {
-                                    console.log('Setting prompt index from', currentPromptIndex, 'to', currentPromptIndex + 1);
-                                    setCurrentPromptIndex(currentPromptIndex + 1);
-                                  } else {
-                                    console.log('Reached end of prompts');
-                                  }
-                                }, 150);
-                                console.log('=== BUTTON CLICK END ===');
-                              };
-                              
-                            return (
-                              <button
-                                key={index}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log('=== BUTTON CLICKED ===', option, 'at', new Date().toISOString());
-                                  try {
-                                    handleButtonClick();
-                                  } catch (error) {
-                                    console.error('Error in button click handler:', error);
-                                  }
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseUp={(e) => e.stopPropagation()}
-                                className="w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 border-none outline-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                type="button"
-                                tabIndex={0}
-                              >
-                                {option}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Custom Field */}
-                      {promptResults.prompts[currentPromptIndex].customField && (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            {promptResults.prompts[currentPromptIndex].customField.label}
-                          </label>
-                          <input
-                            type={promptResults.prompts[currentPromptIndex].customField.type || 'text'}
-                            placeholder={promptResults.prompts[currentPromptIndex].customField.label}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                            onChange={(e) => {
-                              const customFieldId = promptResults.prompts[currentPromptIndex].customField.id;
-                              setUserResponses((prev: any) => ({
-                                ...prev,
-                                [customFieldId]: e.target.value
-                              }));
-                            }}
-                            value={userResponses[promptResults.prompts[currentPromptIndex].customField.id] || ''}
-                          />
-                        </div>
-                      )}
-
-                      {/* Checkboxes */}
-                      {promptResults.prompts[currentPromptIndex].checkboxes && (
-                        <div className="space-y-2">
-                          {promptResults.prompts[currentPromptIndex].checkboxes.map((checkbox: string, index: number) => (
-                            <label key={index} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                onChange={(e) => {
-                                  setUserResponses((prev: any) => ({
-                                    ...prev,
-                                    [promptResults.prompts[currentPromptIndex].id]: {
-                                      ...prev[promptResults.prompts[currentPromptIndex].id],
-                                      [checkbox]: e.target.checked
-                                    }
-                                  }));
-                                }}
-                              />
-                              <span className="text-sm text-gray-700">{checkbox}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Calculations */}
-                      {promptResults.prompts[currentPromptIndex].calculations && (
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-semibold text-blue-900 mb-2">Calculations</h4>
-                          <div className="text-sm text-blue-800">
-                            <pre className="whitespace-pre-wrap">
-                              {JSON.stringify(promptResults.prompts[currentPromptIndex].calculations, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between">
-                  <button
-                    onClick={() => {
-                      if (currentPromptIndex > 0) {
-                        setCurrentPromptIndex(currentPromptIndex - 1);
-                      }
-                    }}
-                    disabled={currentPromptIndex === 0}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ← Previous
-                  </button>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => setShowPromptModal(false)}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                    >
-                      Close
-                    </button>
-                    {currentPromptIndex < (promptResults.prompts?.length || 0) - 1 ? (
-                      <button
-                        onClick={() => setCurrentPromptIndex(currentPromptIndex + 1)}
-                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
-                      >
-                        Next →
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          console.log('User responses:', userResponses);
-                          setShowPromptModal(false);
-                        }}
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
-                      >
-                        Finish
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Price Edit Modal */}
           {showPriceEditModal && editingPriceItem && (
@@ -5202,7 +5013,7 @@ export default function EstimatePage() {
                           setShowShingleRemovalModal(false);
                           setShingleRemovalSkipped(true); // Mark as completed
                           console.log('✅ Proceeding to next step - shingle removal items found');
-                          continueUserPromptWorkflow(extractedLineItems);
+                          console.log('Workflow would continue here - User Prompt Workflow removed');
                         }}
                         className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                       >
@@ -5215,7 +5026,7 @@ export default function EstimatePage() {
                             setShowShingleRemovalModal(false);
                             setShingleRemovalSkipped(true);
                             console.log('⏭️ Skipping shingle removal - continuing workflow');
-                            continueUserPromptWorkflow(extractedLineItems);
+                            console.log('Workflow would continue here - User Prompt Workflow removed');
                           }}
                           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                         >
@@ -5371,7 +5182,7 @@ export default function EstimatePage() {
                           setShowInstallationShinglesModal(false);
                           setInstallationShinglesSkipped(true); // Mark as completed
                           console.log('✅ Proceeding to next step - installation shingles found');
-                          continueUserPromptWorkflow(extractedLineItems);
+                          console.log('Workflow would continue here - User Prompt Workflow removed');
                         }}
                         className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                       >
@@ -5384,7 +5195,7 @@ export default function EstimatePage() {
                             setShowInstallationShinglesModal(false);
                             setInstallationShinglesSkipped(true);
                             console.log('⏭️ Skipping installation shingles - continuing workflow');
-                            continueUserPromptWorkflow(extractedLineItems);
+                            console.log('Workflow would continue here - User Prompt Workflow removed');
                           }}
                           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                         >
@@ -5462,7 +5273,7 @@ export default function EstimatePage() {
                       setShowOPModal(false);
                       setOPSkipped(true);
                       console.log('⏭️ Skipping O&P - continuing workflow');
-                      continueUserPromptWorkflow(extractedLineItems);
+                      console.log('Workflow would continue here - User Prompt Workflow removed');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -5608,7 +5419,7 @@ export default function EstimatePage() {
                         setShowRidgeVentModal(false);
                         setRidgeVentSkipped(true);
                         console.log('⏭️ Skipping ridge vent - continuing workflow');
-                        continueUserPromptWorkflow(extractedLineItems);
+                        console.log('Workflow would continue here - User Prompt Workflow removed');
                       }}
                       className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                     >
@@ -5621,6 +5432,394 @@ export default function EstimatePage() {
                       Add to Estimate
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Shingle Removal Modal */}
+          {showSPCShingleRemovalModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-purple-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ SPC Shingle Removal Required</h2>
+                      <p className="text-purple-100 text-sm">
+                        No shingle removal items found after SPC Adjustment Engine processing
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCShingleRemovalModal(false);
+                        // Proceed to installation check even if closed via X button
+                        setTimeout(() => {
+                          checkInstallationItems(currentSPCLineItems);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Please select a shingle removal type and enter quantity:</strong>
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        Choose one of the following removal line items to add to the estimate:
+                      </p>
+                    </div>
+
+                    {/* Selection Dropdown */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Select Shingle Removal Type
+                        </label>
+                        <select
+                          value={selectedSPCShingleRemoval}
+                          onChange={(e) => setSelectedSPCShingleRemoval(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        >
+                          <option value="">Select removal type...</option>
+                          {shingleRemovalOptions.map((option, index) => (
+                            <option key={index} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Quantity (SQ)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={spcShingleRemovalQuantity}
+                          onChange={(e) => setSPCShingleRemovalQuantity(e.target.value)}
+                          placeholder="Enter quantity in squares"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+
+                      {/* Price Preview */}
+                      {selectedSPCShingleRemoval && spcShingleRemovalQuantity && roofMasterMacro.get(selectedSPCShingleRemoval) && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-gray-600">Unit Price:</div>
+                              <div className="font-semibold">
+                                ${roofMasterMacro.get(selectedSPCShingleRemoval).unit_price.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600">Quantity:</div>
+                              <div className="font-semibold">{spcShingleRemovalQuantity} SQ</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600">Total RCV:</div>
+                              <div className="font-semibold text-purple-700">
+                                ${(roofMasterMacro.get(selectedSPCShingleRemoval).unit_price * parseFloat(spcShingleRemovalQuantity)).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCShingleRemovalModal(false);
+                      // Proceed to installation check even if canceled
+                      setTimeout(() => {
+                        checkInstallationItems(currentSPCLineItems);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddSPCShingleRemoval}
+                    disabled={!selectedSPCShingleRemoval || !spcShingleRemovalQuantity}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      selectedSPCShingleRemoval && spcShingleRemovalQuantity
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Add to SPC Estimate
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Items Found Modal */}
+          {showSPCItemsFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ Removal Line Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        Shingle removal items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCItemsFoundModal(false);
+                        // Proceed to installation check even if closed via X button
+                        setTimeout(() => {
+                          checkInstallationItems(currentSPCLineItems);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following shingle removal items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundRemovalItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'SQ'})
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        No additional shingle removal items need to be added. You can continue with the next step in your workflow.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSPCItemsFoundModal(false);
+                      // Proceed to installation check after removal check is complete
+                      setTimeout(() => {
+                        checkInstallationItems(currentSPCLineItems);
+                      }, 100);
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Continue to Next Step
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Installation Modal */}
+          {showSPCInstallationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-blue-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ SPC Installation Shingles Required</h2>
+                      <p className="text-blue-100 text-sm">
+                        No installation shingle items found after SPC Adjustment Engine processing
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowSPCInstallationModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Please select an installation shingle type and enter quantity:</strong>
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        Choose one of the following installation line items to add to the estimate:
+                      </p>
+                    </div>
+
+                    {/* Selection Dropdown */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Select Installation Shingle Type
+                        </label>
+                        <select
+                          value={selectedSPCInstallation}
+                          onChange={(e) => setSelectedSPCInstallation(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Select installation type...</option>
+                          {installationShingleOptions.map((option, index) => (
+                            <option key={index} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Quantity (SQ)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={spcInstallationQuantity}
+                          onChange={(e) => setSPCInstallationQuantity(e.target.value)}
+                          placeholder="Enter quantity in squares"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Price Preview */}
+                      {selectedSPCInstallation && spcInstallationQuantity && roofMasterMacro.get(selectedSPCInstallation) && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-gray-600">Unit Price:</div>
+                              <div className="font-semibold">
+                                ${roofMasterMacro.get(selectedSPCInstallation).unit_price.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600">Quantity:</div>
+                              <div className="font-semibold">{spcInstallationQuantity} SQ</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600">Total RCV:</div>
+                              <div className="font-semibold text-blue-700">
+                                ${(roofMasterMacro.get(selectedSPCInstallation).unit_price * parseFloat(spcInstallationQuantity)).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => setShowSPCInstallationModal(false)}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddSPCInstallation}
+                    disabled={!selectedSPCInstallation || !spcInstallationQuantity}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      selectedSPCInstallation && spcInstallationQuantity
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Add to SPC Estimate
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Installation Found Modal */}
+          {showSPCInstallationFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ Installation Line Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        Installation shingle items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowSPCInstallationFoundModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following installation shingle items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundInstallationItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'SQ'})
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        No additional installation shingle items need to be added. The SPC Adjustment Engine workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => setShowSPCInstallationFoundModal(false)}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Complete Workflow
+                  </button>
                 </div>
               </div>
             </div>
