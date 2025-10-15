@@ -4704,15 +4704,58 @@ export default function EstimatePage() {
                             <button
                               key={index}
                               onClick={() => {
+                                console.log('Button clicked:', option, 'for prompt:', promptResults.prompts[currentPromptIndex]?.id);
+                                const currentPrompt = promptResults.prompts[currentPromptIndex];
+                                if (!currentPrompt) {
+                                  console.error('No current prompt found');
+                                  return;
+                                }
+                                
                                 setUserResponses((prev: any) => ({
                                   ...prev,
-                                  [promptResults.prompts[currentPromptIndex].id]: option
+                                  [currentPrompt.id]: option
                                 }));
-                                if (currentPromptIndex < promptResults.prompts.length - 1) {
-                                  setCurrentPromptIndex(currentPromptIndex + 1);
+                                
+                                // Handle follow-up logic for "Yes" responses
+                                console.log('Current prompt followUp:', currentPrompt.followUp);
+                                if (option === 'Yes' && currentPrompt.followUp && currentPrompt.followUp.ifYes) {
+                                  console.log('Triggering follow-up for Yes response');
+                                  const followUp = currentPrompt.followUp.ifYes;
+                                  // Create a temporary follow-up prompt object
+                                  const followUpPrompt = {
+                                    ...currentPrompt,
+                                    id: `${currentPrompt.id}_followup`,
+                                    question: followUp.question,
+                                    options: followUp.options,
+                                    title: currentPrompt.title,
+                                    message: followUp.question,
+                                    followUp: null, // Prevent nested follow-ups
+                                    addLineItem: followUp.addLineItem, // Pass through the line item data
+                                    customField: followUp.customField // Pass through custom field data
+                                  };
+                                  
+                                  // Insert the follow-up prompt after the current one
+                                  const newPrompts = [...promptResults.prompts];
+                                  newPrompts.splice(currentPromptIndex + 1, 0, followUpPrompt);
+                                  setPromptResults({...promptResults, prompts: newPrompts});
+                                  
+                                  // Advance to the follow-up question immediately
+                                  setTimeout(() => {
+                                    setCurrentPromptIndex(currentPromptIndex + 1);
+                                  }, 100);
+                                } else {
+                                  // For "No" or other options, advance normally
+                                  if (currentPromptIndex < promptResults.prompts.length - 1) {
+                                    setCurrentPromptIndex(currentPromptIndex + 1);
+                                  }
                                 }
                               }}
-                              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors text-left"
+                              className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer ${
+                                userResponses[promptResults.prompts[currentPromptIndex].id] === option
+                                  ? 'bg-blue-700 text-white'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                              }`}
+                              disabled={false}
                             >
                               {option}
                             </button>
