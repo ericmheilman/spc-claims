@@ -1,0 +1,3 @@
+# Python dependencies for roof_adjustment_engine.py
+# This script only uses Python standard library modules
+# No external dependencies required

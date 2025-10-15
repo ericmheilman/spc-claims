@@ -97,53 +97,24 @@ export async function POST(request: NextRequest) {
 
       console.log('Created temporary input file:', tempInputFile);
 
-      // Check if we're in a deployment environment without Python
-      const isProduction = process.env.NODE_ENV === 'production' || process.env.AWS_EXECUTION_ENV;
+      // Try to locate Python script (could be in different paths depending on deployment)
+      let pythonScript = join(process.cwd(), 'roof_adjustment_engine.py');
       
-      if (isProduction) {
-        // In production/deployment environments, return a mock response since Python isn't available
-        console.log('Running in production environment, skipping Python execution and returning mock response');
-        
-        const mockResponse = {
-          success: true,
-          adjustment_results: {
-            adjusted_line_items: pythonInputData.line_items.map((item: any, index: number) => ({
-              ...item,
-              line_number: String(index + 1),
-              original_quantity: item.quantity,
-              adjustment_note: "Production mode - Python rules engine not available"
-            })),
-            summary: {
-              total_adjustments: 0,
-              total_additions: 0,
-              total_warnings: 0,
-              estimated_savings: 0
-            },
-            audit_log: [{
-              rule_applied: "Production Mode",
-              field: "system",
-              explanation: "Python rule engine not available in AWS Amplify deployment environment. Returning original line items without adjustments.",
-              timestamp: new Date().toISOString()
-            }]
-          }
-        };
-
-        return NextResponse.json({
-          success: true,
-          data: {
-            ...mockResponse,
-            debug_output: {
-              stdout: "Production mode - Python execution skipped",
-              stderr: "",
-              execution_time: new Date().toISOString(),
-              note: "This is a production deployment running without Python support. For full functionality, deploy to an environment with Python installed."
-            }
-          }
-        });
+      // Check if script exists in current directory, if not try /tmp
+      try {
+        await import('fs').then(fs => fs.promises.access(pythonScript));
+      } catch (error) {
+        // Try alternative locations where the script might be copied during build
+        const altScript = '/tmp/roof_adjustment_engine.py';
+        try {
+          await import('fs').then(fs => fs.promises.access(altScript));
+          pythonScript = altScript;
+        } catch (altError) {
+          console.warn('Python script not found in expected locations, will attempt execution anyway');
+        }
       }
 
-      // Execute Python script (only in development/local environments)
-      const pythonScript = join(process.cwd(), 'roof_adjustment_engine.py');
+      // Execute Python script
       
       const pythonProcess = spawn('python3', [
         pythonScript,
