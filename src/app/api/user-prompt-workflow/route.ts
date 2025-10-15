@@ -190,54 +190,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     });
   }
   
-  // Rule 6: Category C Rule - Chimney Analysis and Cricket Logic
-  const chimneyFlashingItems = [
-    "Chimney flashing - small (24\" x 24\")",
-    "Chimney flashing - average (32\" x 36\")",
-    "Chimney flashing - large (32\" x 60\")"
-  ];
-  
-  const foundChimneyItems = chimneyFlashingItems.filter(item => 
-    lineItems.some(lineItem => lineItem.description === item)
-  );
-  
-  // Category C Rule: IF none of the chimney flashing items are present, prompt user to confirm chimney_present
-  if (foundChimneyItems.length === 0) {
-    prompts.push({
-      id: 'chimney_analysis',
-      type: 'question',
-      title: 'Chimney Analysis Required',
-      message: 'No chimney flashing items found in the estimate.',
-      question: 'Is there a chimney present on this roof?',
-      action: 'chimney_analysis',
-      options: ['Yes', 'No'],
-      priority: 'medium',
-      followUp: {
-        ifYes: {
-          question: 'What size chimney?',
-          options: ['Small (24" x 24")', 'Average (32" x 36")', 'Large (32" x 60")'],
-          action: 'chimney_size_selection',
-          addLineItem: {
-            'Small (24" x 24")': null, // Do not add anything for small
-            'Average (32" x 36")': {
-              description: 'Saddle or cricket - up to 25 SF',
-              unit: 'EA',
-              quantity: 1,
-              fromRoofMasterMacro: true
-            },
-            'Large (32" x 60")': {
-              description: 'Saddle or cricket - 26 to 50 SF',
-              unit: 'EA',
-              quantity: 1,
-              fromRoofMasterMacro: true
-            }
-          }
-        }
-      }
-    });
-  }
-  
-  // Rule 7: Additional Layers Analysis
+  // Rule 6: Additional Layers Analysis
   prompts.push({
     id: 'additional_layers',
     type: 'question',
@@ -279,7 +232,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 8: Number of Stories Analysis
+  // Rule 7: Number of Stories Analysis
   prompts.push({
     id: 'stories_analysis',
     type: 'question',
@@ -312,7 +265,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 9: Category C Rule - Permit Analysis
+  // Rule 8: Category C Rule - Permit Analysis
   prompts.push({
     id: 'permit_analysis',
     type: 'question',
@@ -342,7 +295,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 10: Depreciation Contest
+  // Rule 9: Depreciation Contest
   prompts.push({
     id: 'depreciation_contest',
     type: 'question',
@@ -366,7 +319,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 11: Hidden Damages
+  // Rule 10: Hidden Damages
   prompts.push({
     id: 'hidden_damages',
     type: 'question',
@@ -390,7 +343,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 12: Spaced Decking
+  // Rule 11: Spaced Decking
   prompts.push({
     id: 'spaced_decking',
     type: 'question',
@@ -408,7 +361,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 13: Roof Access Issues
+  // Rule 12: Roof Access Issues
   prompts.push({
     id: 'roof_access',
     type: 'question',
@@ -444,7 +397,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 14: Skylights/Roof Windows Analysis
+  // Rule 13: Skylights/Roof Windows Analysis
   prompts.push({
     id: 'skylights_roof_windows',
     type: 'question',
@@ -479,7 +432,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     }
   });
   
-  // Rule 15: Valley Metal Analysis
+  // Rule 14: Valley Metal Analysis
   const valleyMetalItems = [
     "Valley metal",
     "Valley metal - (W) profile"
@@ -512,7 +465,7 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     });
   }
   
-  // Rule 16: Labor Calculation
+  // Rule 15: Labor Calculation
   const totalRoofArea = roofMeasurements["Total Roof Area"]?.value || 0;
   if (totalRoofArea > 0) {
     const bundles = totalRoofArea * 3;
