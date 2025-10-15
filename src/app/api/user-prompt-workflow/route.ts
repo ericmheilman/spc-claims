@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 USER PROMPT WORKFLOW API CALLED - LATEST VERSION WITH REFACTORED CHIMNEY ANALYSIS');
     const inputData = await request.json();
     
     console.log('Received request for user prompt workflow with data:', {
@@ -190,7 +191,8 @@ function analyzeLineItems(lineItems: any[], roofMeasurements: any): any[] {
     });
   }
   
-  // Rule 6: Chimney Analysis - Direct Size Selection
+  // Rule 6: Chimney Analysis - Direct Size Selection (REFACTORED VERSION)
+  console.log('🔥 Adding REFACTORED chimney analysis step - direct size selection');
   prompts.push({
     id: 'chimney_size_analysis',
     type: 'question',
