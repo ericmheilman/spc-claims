@@ -111,6 +111,12 @@ export default function EstimatePage() {
   const [hiddenDamagesCost, setHiddenDamagesCost] = useState('');
   const [hiddenDamagesNarrative, setHiddenDamagesNarrative] = useState('');
 
+  // SPC Roof Access Issues Check state
+  const [showSPCRoofAccessModal, setShowSPCRoofAccessModal] = useState(false);
+  const [roofAccessIssues, setRoofAccessIssues] = useState<boolean | null>(null);
+  const [numberOfStories, setNumberOfStories] = useState('');
+  const [roofstockingDelivery, setRoofstockingDelivery] = useState<boolean | null>(null);
+
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
@@ -1675,6 +1681,14 @@ export default function EstimatePage() {
     setShowSPCHiddenDamagesModal(true);
   };
 
+  // Check for roof access issues and prompt user for details
+  const checkRoofAccessIssues = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for roof access issues - prompting user for input');
+    
+    // Always show the roof access issues modal to prompt for details
+    setShowSPCRoofAccessModal(true);
+  };
+
   // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
     'Remove Laminated - comp. shingle rfg. - w/out felt',
@@ -2406,7 +2420,119 @@ export default function EstimatePage() {
     
     console.log('✅ Added hidden damages item:', newItem);
     
-    // After adding hidden damages item, proceed to final step
+    // After adding hidden damages item, proceed to roof access check
+    setTimeout(() => {
+      const updatedItems = [...(ruleResults?.line_items || []), newItem];
+      checkRoofAccessIssues(updatedItems);
+    }, 100);
+  };
+
+  // Add roof access labor cost based on calculations
+  const handleAddRoofAccessLabor = async () => {
+    if (!roofAccessIssues) {
+      // No roof access issues, just close modal and proceed to final step
+      setShowSPCRoofAccessModal(false);
+      setTimeout(() => {
+        setShowSPCFinalStepModal(true);
+      }, 100);
+      return;
+    }
+
+    if (!numberOfStories || isNaN(parseInt(numberOfStories)) || parseInt(numberOfStories) <= 0) {
+      alert('Please enter a valid number of stories');
+      return;
+    }
+
+    if (roofstockingDelivery === null) {
+      alert('Please specify if delivery is prevented');
+      return;
+    }
+
+    // Only add labor if both roof access issues and delivery prevention are true
+    if (!roofstockingDelivery) {
+      // No delivery prevention, just close modal and proceed to final step
+      setShowSPCRoofAccessModal(false);
+      setTimeout(() => {
+        setShowSPCFinalStepModal(true);
+      }, 100);
+      return;
+    }
+
+    // Get Total Roof Area from extractedRoofMeasurements
+    const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
+    const roofAreaValue = totalRoofArea?.value || (typeof totalRoofArea === 'number' ? totalRoofArea : 0);
+
+    if (roofAreaValue <= 0) {
+      alert('No roof area found - cannot calculate bundles');
+      return;
+    }
+
+    // Calculate bundles = "Total Roof Area" * 3
+    const bundles = roofAreaValue * 3;
+    
+    // Set labor_time = (bundles * (2.75 if "Number of Stories" == 1 else 3.13)) / 60
+    const storiesCount = parseInt(numberOfStories);
+    const laborTimePerBundle = storiesCount === 1 ? 2.75 : 3.13;
+    const laborTime = (bundles * laborTimePerBundle) / 60;
+
+    // Get unit cost for "Roofing - General Laborer - per hour" from roof master macro
+    const laborCostKey = "Roofing - General Laborer - per hour";
+    const macroData = roofMasterMacro.get(laborCostKey);
+    if (!macroData) {
+      alert(`Labor cost item "${laborCostKey}" not found in Roof Master Macro`);
+      return;
+    }
+
+    const laborCost = laborTime * macroData.unit_price;
+
+    // Get the current line items
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new labor cost line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: `Roof access labor - ${storiesCount} story building`,
+      quantity: laborTime,
+      unit: macroData.unit || 'HR',
+      unit_price: macroData.unit_price,
+      RCV: laborCost,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: laborCost,
+      location_room: 'Roof',
+      category: 'Labor',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'roof_access' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal and reset
+    setShowSPCRoofAccessModal(false);
+    setRoofAccessIssues(null);
+    setNumberOfStories('');
+    setRoofstockingDelivery(null);
+    
+    console.log('✅ Added roof access labor item:', newItem);
+    console.log(`Calculations: bundles=${bundles}, laborTime=${laborTime}hrs, laborCost=$${laborCost.toFixed(2)}`);
+    
+    // After adding roof access labor item, proceed to final step
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
@@ -3881,6 +4007,15 @@ export default function EstimatePage() {
                                   boxTitle: '👤 User Added - Hidden Damages Step:',
                                   boxTitleColor: 'text-gray-900',
                                   boxTextColor: 'text-gray-800'
+                                },
+                                roof_access: {
+                                  rowClass: 'bg-orange-50 border-l-4 border-orange-500',
+                                  badgeColor: 'bg-orange-600',
+                                  badgeText: '🔄 USER ADDED - ROOF ACCESS',
+                                  boxClass: 'bg-orange-50 border-l-3 border-orange-500',
+                                  boxTitle: '👤 User Added - Roof Access Step:',
+                                  boxTitleColor: 'text-orange-900',
+                                  boxTextColor: 'text-orange-800'
                                 }
                               };
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
@@ -4159,6 +4294,13 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Gray Highlighted Rows</div>
                       <div className="text-gray-600">User added - Hidden damages step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Orange Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Roof access step</div>
                     </div>
                   </div>
                 </div>
@@ -7782,9 +7924,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCHiddenDamagesModal(false);
-                        // Proceed to final step if canceled
+                        // Proceed to roof access check if canceled
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkRoofAccessIssues(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -7852,9 +7994,9 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCHiddenDamagesModal(false);
-                      // Proceed to final step if canceled
+                      // Proceed to roof access check if canceled
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkRoofAccessIssues(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -7871,6 +8013,175 @@ export default function EstimatePage() {
                     }`}
                   >
                     Add Hidden Damages & Complete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Roof Access Issues Modal */}
+          {showSPCRoofAccessModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-orange-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏗️ Roof Access Issues Check</h2>
+                      <p className="text-orange-100 text-sm">
+                        Check for roof access issues and calculate labor costs
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCRoofAccessModal(false);
+                        // Proceed to final step if canceled
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>Is roof_access_issues == True?</strong>
+                      </p>
+                      
+                      <div className="space-y-4">
+                        {/* Roof access issues selection */}
+                        <div>
+                          <p className="font-medium text-gray-700 mb-3">Are there roof access issues?</p>
+                          <div className="flex space-x-4">
+                            <button
+                              onClick={() => {
+                                setRoofAccessIssues(true);
+                              }}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                roofAccessIssues === true
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                              }`}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRoofAccessIssues(false);
+                                setShowSPCRoofAccessModal(false);
+                                setTimeout(() => {
+                                  setShowSPCFinalStepModal(true);
+                                }, 100);
+                              }}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                roofAccessIssues === false
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                              }`}
+                            >
+                              No
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* If roof access issues exist, show additional inputs */}
+                        {roofAccessIssues === true && (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Number of Stories:
+                              </label>
+                              <input
+                                type="number"
+                                value={numberOfStories}
+                                onChange={(e) => setNumberOfStories(e.target.value)}
+                                placeholder="e.g., 2"
+                                min="1"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+                              />
+                            </div>
+
+                            <div>
+                              <p className="font-medium text-gray-700 mb-3">Does it prevent roofstocking_delivery == True?</p>
+                              <div className="flex space-x-4">
+                                <button
+                                  onClick={() => {
+                                    setRoofstockingDelivery(true);
+                                  }}
+                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                    roofstockingDelivery === true
+                                      ? 'bg-orange-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-orange-100'
+                                  }`}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setRoofstockingDelivery(false);
+                                  }}
+                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                    roofstockingDelivery === false
+                                      ? 'bg-red-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                                  }`}
+                                >
+                                  No
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Preview calculations */}
+                            {numberOfStories && roofstockingDelivery === true && (
+                              <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+                                <div className="text-sm text-orange-800">
+                                  <strong>Will calculate labor cost based on:</strong>
+                                </div>
+                                <div className="text-sm text-orange-700 mt-2 space-y-1">
+                                  <div>• Bundles = Total Roof Area × 3</div>
+                                  <div>• Labor time = (bundles × {parseInt(numberOfStories) === 1 ? '2.75' : '3.13'}) ÷ 60 hours</div>
+                                  <div>• Labor cost = labor time × "Roofing - General Laborer - per hour" rate</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCRoofAccessModal(false);
+                      // Proceed to final step if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddRoofAccessLabor}
+                    disabled={roofAccessIssues === null || (roofAccessIssues === true && (!numberOfStories || roofstockingDelivery === null))}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      roofAccessIssues === false || (roofAccessIssues === true && numberOfStories && roofstockingDelivery !== null)
+                        ? 'bg-orange-600 text-white hover:bg-orange-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {roofAccessIssues === false ? 'Continue' : 'Process & Complete'}
                   </button>
                 </div>
               </div>
