@@ -70,6 +70,16 @@ export default function EstimatePage() {
   const [foundInstallationItems, setFoundInstallationItems] = useState<any[]>([]);
   const [currentSPCLineItems, setCurrentSPCLineItems] = useState<any[]>([]);
 
+  // SPC Final Step Check state (for automatically added items)
+  const [showSPCFinalStepModal, setShowSPCFinalStepModal] = useState(false);
+  const [foundSPCAddedItems, setFoundSPCAddedItems] = useState<any[]>([]);
+
+  // SPC Ridge Vent Check state
+  const [showSPCRidgeVentModal, setShowSPCRidgeVentModal] = useState(false);
+  const [selectedSPCRidgeVent, setSelectedSPCRidgeVent] = useState('');
+  const [showSPCRidgeVentFoundModal, setShowSPCRidgeVentFoundModal] = useState(false);
+  const [foundRidgeVentItems, setFoundRidgeVentItems] = useState<any[]>([]);
+
 
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
@@ -1227,13 +1237,17 @@ export default function EstimatePage() {
         throw new Error(`Python rule engine error: ${ruleData.error}`);
       }
 
-      // Store the results
-      setRuleResults(ruleData.data);
+      // Store the results and ensure line_items is populated
+      const resultsWithLineItems = {
+        ...ruleData.data,
+        line_items: ruleData.data?.line_items || ruleData.data?.adjusted_line_items || []
+      };
+      setRuleResults(resultsWithLineItems);
       setShowRuleResults(true);
 
       // After SPC Adjustment Engine completes, check for shingle removal items
       // Get the updated line items from the results
-      const updatedLineItems = ruleData.data?.line_items || extractedLineItems;
+      const updatedLineItems = ruleData.data?.line_items || ruleData.data?.adjusted_line_items || extractedLineItems;
       
       // Store the current line items for the workflow
       setCurrentSPCLineItems(updatedLineItems);
@@ -1369,6 +1383,137 @@ export default function EstimatePage() {
     }
   };
 
+  // Check for SPC-added items (final step)
+  const checkSPCAddedItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for SPC-added items in:', updatedLineItems.length, 'line items');
+    
+    // Items that are automatically added by the SPC Adjustment Engine
+    const spcAddedItemOptions = [
+      'Remove Additional charge for steep roof - 7/12 to 9/12 slope',
+      'Additional charge for steep roof - 7/12 to 9/12 slope',
+      'Asphalt starter - universal starter course',
+      'Continuous ridge vent - Detach & reset'
+    ];
+    
+    console.log('🔍 Looking for SPC-added items:', spcAddedItemOptions);
+    
+    const foundSPCItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking SPC item:', item.description);
+      
+      return spcAddedItemOptions.some(requiredItem => {
+        // Try exact match first
+        if (item.description === requiredItem) {
+          console.log('✅ Found exact SPC-added match:', item.description);
+          return true;
+        }
+        
+        // Try case-insensitive match
+        if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+          console.log('✅ Found case-insensitive SPC-added match:', item.description, '===', requiredItem);
+          return true;
+        }
+        
+        // Try partial matching for variations
+        const itemDesc = item.description.toLowerCase();
+        const requiredDesc = requiredItem.toLowerCase();
+        
+        if (itemDesc.includes('steep roof') && requiredDesc.includes('steep roof')) {
+          if (itemDesc.includes('7/12') && itemDesc.includes('9/12') && requiredDesc.includes('7/12') && requiredDesc.includes('9/12')) {
+            console.log('✅ Found SPC steep roof match:', item.description);
+            return true;
+          }
+        }
+        
+        if (itemDesc.includes('asphalt starter') && itemDesc.includes('universal') && requiredDesc.includes('asphalt starter') && requiredDesc.includes('universal')) {
+          console.log('✅ Found SPC asphalt starter match:', item.description);
+          return true;
+        }
+        
+        if (itemDesc.includes('continuous ridge vent') && itemDesc.includes('detach') && requiredDesc.includes('continuous ridge vent') && requiredDesc.includes('detach')) {
+          console.log('✅ Found SPC ridge vent match:', item.description);
+          return true;
+        }
+        
+        return false;
+      });
+    });
+    
+    console.log('🔍 Found SPC-added items:', foundSPCItems.map((item: any) => item.description));
+    
+    if (foundSPCItems.length > 0) {
+      console.log('✅ SPC-added items found, storing for final summary');
+      setFoundSPCAddedItems(foundSPCItems);
+    }
+    
+    // Always proceed to ridge vent check after SPC items check
+    setTimeout(() => {
+      checkRidgeVentItems(updatedLineItems);
+    }, 100);
+  };
+
+  // Check for ridge vent items
+  const checkRidgeVentItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for ridge vent items in:', updatedLineItems.length, 'line items');
+    
+    // Ridge vent options - MUST match Roof Master Macro exactly
+    const ridgeVentItemOptions = [
+      'Continuous ridge vent - shingle-over style',
+      'Continuous ridge vent - aluminum'
+    ];
+    
+    console.log('🔍 Looking for ridge vent items:', ridgeVentItemOptions);
+    
+    const foundRidgeVentItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking ridge vent item:', item.description);
+      
+      return ridgeVentItemOptions.some(requiredItem => {
+        // Try exact match first
+        if (item.description === requiredItem) {
+          console.log('✅ Found exact ridge vent match:', item.description);
+          return true;
+        }
+        
+        // Try case-insensitive match
+        if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+          console.log('✅ Found case-insensitive ridge vent match:', item.description, '===', requiredItem);
+          return true;
+        }
+        
+        return false;
+      });
+    });
+    
+    console.log('🔍 Found ridge vent items:', foundRidgeVentItems.map((item: any) => item.description));
+    
+    // Get Total Line Lengths (Ridges) from extractedRoofMeasurements
+    const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
+    const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
+    
+    console.log('🔍 Total Line Lengths (Ridges):', ridgesValue);
+    
+    if (foundRidgeVentItems.length > 0) {
+      console.log('✅ Ridge vent items found, proceeding to final step');
+      setFoundRidgeVentItems(foundRidgeVentItems);
+      setShowSPCRidgeVentFoundModal(true);
+    } else if (ridgesValue > 0) {
+      console.log('⚠️ No ridge vent items found but ridges exist, showing ridge vent modal');
+      // Calculate quantity based on Total Line Lengths (Ridges) / 100
+      const calculatedQuantity = ridgesValue / 100;
+      console.log('🔍 Calculated ridge vent quantity:', calculatedQuantity);
+      setShowSPCRidgeVentModal(true);
+    } else {
+      console.log('ℹ️ No ridge vent items needed (no ridges found), proceeding to final step');
+      // If no ridges found, proceed directly to final step
+      setTimeout(() => {
+        setShowSPCFinalStepModal(true);
+      }, 100);
+    }
+  };
+
   // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
     'Remove Laminated - comp. shingle rfg. - w/out felt',
@@ -1379,10 +1524,10 @@ export default function EstimatePage() {
 
   // Installation Shingle Options - MUST match Roof Master Macro exactly
   const installationShingleOptions = [
-    'Laminated comp. shingle rfg. w/out felt',
-    '3 tab 25 yr. comp. shingle roofing - w/out felt',
-    '3 tab 25 yr. composition shingle roofing incl. felt',
-    'Laminated comp. shingle rfg. - w/ felt'
+    'Laminated - comp. shingle rfg. - w/out felt',
+    '3 tab - 25 yr. - comp. shingle roofing - w/out felt',
+    '3 tab - 25 yr. - composition shingle roofing - incl. felt',
+    'Laminated - comp. shingle rfg. - w/ felt'
   ];
 
   // Ridge Vent Options (with display names and macro names)
@@ -1555,7 +1700,7 @@ export default function EstimatePage() {
       0
     );
 
-    // Create new line item
+    // Create new line item with user prompt workflow marker
     const newItem = {
       line_number: String(maxLineNumber + 1),
       description: selectedSPCShingleRemoval,
@@ -1570,10 +1715,12 @@ export default function EstimatePage() {
       ACV: quantity * macroData.unit_price,
       location_room: 'Roof',
       category: 'Roof',
-      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1)
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'removal' // Track which step added this item
     };
 
-    // Update both the rule results and the main extractedLineItems so the item appears everywhere
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
     if (ruleResults) {
       const updatedRuleResults = {
         ...ruleResults,
@@ -1581,10 +1728,6 @@ export default function EstimatePage() {
       };
       setRuleResults(updatedRuleResults);
     }
-    
-    // Also update the main extractedLineItems so it shows in the main UI
-    const updatedExtractedItems = [...extractedLineItems, newItem];
-    setExtractedLineItems(updatedExtractedItems);
 
     // Close modal and reset
     setShowSPCShingleRemovalModal(false);
@@ -1630,7 +1773,7 @@ export default function EstimatePage() {
       0
     );
 
-    // Create new line item
+    // Create new line item with user prompt workflow marker
     const newItem = {
       line_number: String(maxLineNumber + 1),
       description: selectedSPCInstallation,
@@ -1645,10 +1788,12 @@ export default function EstimatePage() {
       ACV: quantity * macroData.unit_price,
       location_room: 'Roof',
       category: 'Roof',
-      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1)
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'installation' // Track which step added this item
     };
 
-    // Update both the rule results and the main extractedLineItems so the item appears everywhere
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
     if (ruleResults) {
       const updatedRuleResults = {
         ...ruleResults,
@@ -1656,10 +1801,6 @@ export default function EstimatePage() {
       };
       setRuleResults(updatedRuleResults);
     }
-    
-    // Also update the main extractedLineItems so it shows in the main UI
-    const updatedItems = [...extractedLineItems, newItem];
-    setExtractedLineItems(updatedItems);
 
     // Close modal and reset
     setShowSPCInstallationModal(false);
@@ -1667,6 +1808,93 @@ export default function EstimatePage() {
     setSPCInstallationQuantity('');
     
     console.log('✅ Added SPC installation shingle item:', newItem);
+    
+    // After adding installation item, update current line items and proceed to final step check
+    const updatedSPCItems = currentSPCLineItems.concat(newItem);
+    setCurrentSPCLineItems(updatedSPCItems);
+    setTimeout(() => {
+      checkSPCAddedItems(updatedSPCItems);
+    }, 100);
+  };
+
+  // Add SPC ridge vent item after installation check
+  const handleAddSPCRidgeVent = async () => {
+    if (!selectedSPCRidgeVent) {
+      alert('Please select a ridge vent type');
+      return;
+    }
+
+    // Get Total Line Lengths (Ridges) from extractedRoofMeasurements
+    const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
+    const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
+    const calculatedQuantity = ridgesValue / 100;
+
+    if (calculatedQuantity <= 0) {
+      alert('No ridges found - ridge vent not needed');
+      return;
+    }
+
+    // Get data from Roof Master Macro using the macroName
+    const selectedRidgeVentOption = ridgeVentOptions.find(option => option.displayName === selectedSPCRidgeVent);
+    if (!selectedRidgeVentOption) {
+      alert(`Selected ridge vent type not found`);
+      return;
+    }
+
+    const macroData = roofMasterMacro.get(selectedRidgeVentOption.macroName);
+    if (!macroData) {
+      alert(`Ridge vent "${selectedRidgeVentOption.macroName}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Get the current line items (including any from previous workflow steps)
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: selectedRidgeVentOption.macroName,
+      quantity: calculatedQuantity,
+      unit: macroData.unit || 'LF',
+      unit_price: macroData.unit_price,
+      RCV: calculatedQuantity * macroData.unit_price,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: calculatedQuantity * macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'ridge_vent' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal and reset
+    setShowSPCRidgeVentModal(false);
+    setSelectedSPCRidgeVent('');
+    
+    console.log('✅ Added SPC ridge vent item:', newItem);
+    
+    // After adding ridge vent item, proceed to final step
+    setTimeout(() => {
+      setShowSPCFinalStepModal(true);
+    }, 100);
   };
 
   // Add installation shingle item and continue workflow
@@ -1739,8 +1967,8 @@ export default function EstimatePage() {
     );
   };
 
-  // Check if ridge vent items are present
-  const checkRidgeVentItems = (items: LineItem[]) => {
+  // Check if ridge vent items are present (legacy function)
+  const hasRidgeVentItems = (items: LineItem[]) => {
     return items.some(item => 
       ridgeVentOptions.some(option => 
         option.displayName === item.description || option.macroName === item.description
@@ -3045,10 +3273,10 @@ export default function EstimatePage() {
                 </div>
               </div>
 
-              {/* Adjusted Line Items */}
-              {ruleResults.adjusted_line_items && ruleResults.adjusted_line_items.length > 0 && (
+              {/* All Line Items */}
+              {ruleResults.line_items && ruleResults.line_items.length > 0 && (
                 <div className="p-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">📋 Adjusted Line Items</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">📋 All Line Items</h3>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -3063,7 +3291,7 @@ export default function EstimatePage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
-                        {ruleResults.adjusted_line_items.map((item: any, index: number) => {
+                        {ruleResults.line_items.map((item: any, index: number) => {
                           // Find if this item has an audit log entry
                           // Try matching by line number first, then by description as fallback
                           const auditEntry = ruleResults.audit_log?.find((log: any) => 
@@ -3072,7 +3300,41 @@ export default function EstimatePage() {
                           );
                           
                           // Determine color scheme based on type of change
-                          const getColorScheme = (auditEntry: any) => {
+                          const getColorScheme = (auditEntry: any, item: any) => {
+                            // Check for user prompt workflow items first (highest priority)
+                            if (item.user_prompt_workflow) {
+                              const stepColors = {
+                                removal: {
+                                  rowClass: 'bg-red-50 border-l-4 border-red-500',
+                                  badgeColor: 'bg-red-600',
+                                  badgeText: '🔄 USER ADDED - REMOVAL',
+                                  boxClass: 'bg-red-50 border-l-3 border-red-500',
+                                  boxTitle: '👤 User Added - Removal Step:',
+                                  boxTitleColor: 'text-red-900',
+                                  boxTextColor: 'text-red-800'
+                                },
+                                installation: {
+                                  rowClass: 'bg-indigo-50 border-l-4 border-indigo-500',
+                                  badgeColor: 'bg-indigo-600',
+                                  badgeText: '🔄 USER ADDED - INSTALLATION',
+                                  boxClass: 'bg-indigo-50 border-l-3 border-indigo-500',
+                                  boxTitle: '👤 User Added - Installation Step:',
+                                  boxTitleColor: 'text-indigo-900',
+                                  boxTextColor: 'text-indigo-800'
+                                },
+                                ridge_vent: {
+                                  rowClass: 'bg-amber-50 border-l-4 border-amber-500',
+                                  badgeColor: 'bg-amber-600',
+                                  badgeText: '🔄 USER ADDED - RIDGE VENT',
+                                  boxClass: 'bg-amber-50 border-l-3 border-amber-500',
+                                  boxTitle: '👤 User Added - Ridge Vent Step:',
+                                  boxTitleColor: 'text-amber-900',
+                                  boxTextColor: 'text-amber-800'
+                                }
+                              };
+                              return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
+                            }
+                            
                             if (!auditEntry) return null;
                             
                             const field = auditEntry.field;
@@ -3143,7 +3405,7 @@ export default function EstimatePage() {
                             };
                           };
                           
-                          const colorScheme = getColorScheme(auditEntry);
+                          const colorScheme = getColorScheme(auditEntry, item);
                           const rowClass = colorScheme ? colorScheme.rowClass : 'hover:bg-gray-50';
                           
                           return (
@@ -3155,7 +3417,7 @@ export default function EstimatePage() {
                                 <div className="max-w-md">
                                   <div className="font-medium mb-1">{item.description}</div>
                                   <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
-                                  {auditEntry && colorScheme && (
+                                  {colorScheme && (
                                     <>
                                       <div className="mt-2 flex items-center space-x-2">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${colorScheme.badgeColor} text-white`}>
@@ -3164,11 +3426,19 @@ export default function EstimatePage() {
                                       </div>
                                       <div className={`mt-2 p-3 ${colorScheme.boxClass} rounded-lg text-xs`}>
                                         <div className={`font-semibold ${colorScheme.boxTitleColor} mb-1`}>{colorScheme.boxTitle}</div>
-                                        <div className="text-gray-700 mb-2 italic">"{auditEntry.rule_applied}"</div>
+                                        {item.user_prompt_workflow ? (
+                                          <div className="text-gray-700 mb-2">
+                                            Added by user during {item.user_prompt_step} step of the SPC workflow
+                                          </div>
+                                        ) : (
+                                          <>
+                                            <div className="text-gray-700 mb-2 italic">"{auditEntry?.rule_applied}"</div>
                                         <div className="text-gray-600">
-                                          <strong className={colorScheme.boxTextColor}>Field Changed:</strong> {auditEntry.field} | 
-                                          <strong className={`${colorScheme.boxTextColor} ml-2`}>Explanation:</strong> {auditEntry.explanation}
+                                              <strong className={colorScheme.boxTextColor}>Field Changed:</strong> {auditEntry?.field} | 
+                                              <strong className={`${colorScheme.boxTextColor} ml-2`}>Explanation:</strong> {auditEntry?.explanation}
                                         </div>
+                                          </>
+                                        )}
                                       </div>
                                     </>
                                   )}
@@ -3243,7 +3513,7 @@ export default function EstimatePage() {
                             Totals:
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-green-50">
-                            {formatCurrency(ruleResults.adjusted_line_items?.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0) || 0)}
+                            {formatCurrency(ruleResults.line_items.reduce((sum: number, item: any) => sum + (item.RCV || 0), 0))}
                           </td>
                         </tr>
                       </tfoot>
@@ -3289,6 +3559,27 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Gray Highlighted Rows</div>
                       <div className="text-gray-600">Other adjustments</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Red Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Removal step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Indigo Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Installation step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Amber Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Ridge vent step</div>
                     </div>
                   </div>
                 </div>
@@ -5657,7 +5948,13 @@ export default function EstimatePage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setShowSPCInstallationModal(false)}
+                      onClick={() => {
+                        setShowSPCInstallationModal(false);
+                        // Proceed to final step check even if closed via X button
+                        setTimeout(() => {
+                          checkSPCAddedItems(currentSPCLineItems);
+                        }, 100);
+                      }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -5743,7 +6040,13 @@ export default function EstimatePage() {
                 {/* Footer */}
                 <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
                   <button
-                    onClick={() => setShowSPCInstallationModal(false)}
+                    onClick={() => {
+                      setShowSPCInstallationModal(false);
+                      // Proceed to final step check even if canceled
+                      setTimeout(() => {
+                        checkSPCAddedItems(currentSPCLineItems);
+                      }, 100);
+                    }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
                     Cancel
@@ -5778,7 +6081,13 @@ export default function EstimatePage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setShowSPCInstallationFoundModal(false)}
+                      onClick={() => {
+                        setShowSPCInstallationFoundModal(false);
+                        // Proceed to final step check
+                        setTimeout(() => {
+                          checkSPCAddedItems(currentSPCLineItems);
+                        }, 100);
+                      }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -5815,10 +6124,296 @@ export default function EstimatePage() {
                 {/* Footer */}
                 <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
                   <button
-                    onClick={() => setShowSPCInstallationFoundModal(false)}
+                    onClick={() => {
+                      setShowSPCInstallationFoundModal(false);
+                      // Proceed to final step check
+                      setTimeout(() => {
+                        checkSPCAddedItems(currentSPCLineItems);
+                      }, 100);
+                    }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
                     Complete Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Ridge Vent Modal */}
+          {showSPCRidgeVentModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-orange-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Ridge Vent Required</h2>
+                      <p className="text-orange-100 text-sm">
+                        No ridge vent items found but ridges detected in measurements
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCRidgeVentModal(false);
+                        // Proceed to final step even if closed via X button
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Please select a ridge vent type:</strong>
+                      </p>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Choose one of the following ridge vent types to add to the estimate:
+                      </p>
+                      
+                      <div className="space-y-3">
+                        {ridgeVentOptions.map((option, index) => (
+                          <label key={index} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="ridgeVentSelection"
+                              value={option.displayName}
+                              checked={selectedSPCRidgeVent === option.displayName}
+                              onChange={(e) => setSelectedSPCRidgeVent(e.target.value)}
+                              className="text-orange-600 focus:ring-orange-500"
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{option.displayName}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Show calculated quantity */}
+                      {(() => {
+                        const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
+                        const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
+                        const calculatedQuantity = ridgesValue / 100;
+                        
+                        return calculatedQuantity > 0 && (
+                          <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+                            <div className="text-sm text-gray-700">
+                              <strong>Calculated Quantity:</strong> {calculatedQuantity.toFixed(3)} LF
+                              <br />
+                              <span className="text-gray-600">
+                                (Based on Total Line Lengths (Ridges): {ridgesValue} LF ÷ 100)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Price preview */}
+                      {selectedSPCRidgeVent && (() => {
+                        const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedSPCRidgeVent);
+                        const macroData = selectedOption ? roofMasterMacro.get(selectedOption.macroName) : null;
+                        const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
+                        const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
+                        const calculatedQuantity = ridgesValue / 100;
+                        
+                        return macroData && calculatedQuantity > 0 && (
+                          <div className="mt-4 p-3 bg-white border border-gray-200 rounded-lg">
+                            <div className="text-sm text-gray-600 mb-2">Price Preview:</div>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <div className="text-gray-600">Unit Price:</div>
+                                <div className="font-semibold">${macroData.unit_price.toFixed(2)}/{macroData.unit}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-600">Total RCV:</div>
+                                <div className="font-semibold text-orange-700">
+                                  ${(macroData.unit_price * calculatedQuantity).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCRidgeVentModal(false);
+                      // Proceed to final step even if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddSPCRidgeVent}
+                    disabled={!selectedSPCRidgeVent}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      selectedSPCRidgeVent
+                        ? 'bg-orange-600 text-white hover:bg-orange-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Add Ridge Vent
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Ridge Vent Found Modal */}
+          {showSPCRidgeVentFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ Ridge Vent Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        Ridge vent items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCRidgeVentFoundModal(false);
+                        // Proceed to final step
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following ridge vent items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundRidgeVentItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'LF'})
+                              </span>
+                            )}
+                            {item.RCV && (
+                              <span className="text-green-600 ml-2 font-semibold">
+                                - RCV: ${item.RCV.toFixed(2)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        The SPC Adjustment Engine workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSPCRidgeVentFoundModal(false);
+                      // Proceed to final step
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Complete Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Final Step Modal */}
+          {showSPCFinalStepModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-purple-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🎯 SPC Adjustment Engine Summary</h2>
+                      <p className="text-purple-100 text-sm">
+                        Items automatically added by the SPC Adjustment Engine
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowSPCFinalStepModal(false)}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>SPC Adjustment Engine automatically added the following items to your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundSPCAddedItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-purple-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'SQ'})
+                              </span>
+                            )}
+                            {item.RCV && (
+                              <span className="text-purple-600 ml-2 font-semibold">
+                                - RCV: ${item.RCV.toFixed(2)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        These items were added based on your roof measurements and the SPC business rules. The workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => setShowSPCFinalStepModal(false)}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
+                  >
+                    Finish Workflow
                   </button>
                 </div>
               </div>
