@@ -1,9 +1,6 @@
 'use client';
 
-// @ts-ignore
-export const dynamic = 'force-dynamic';
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2, Upload } from 'lucide-react';
 import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
@@ -35,7 +32,7 @@ interface Category {
   };
 }
 
-export default function EstimatePage() {
+function EstimatePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -5581,5 +5578,13 @@ export default function EstimatePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function EstimatePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EstimatePageContent />
+    </Suspense>
   );
 }
