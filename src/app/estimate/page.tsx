@@ -1686,6 +1686,7 @@ export default function EstimatePage() {
       // Store the prompts for display in modal
       setPromptResults(promptData.data);
       setCurrentPromptIndex(0);
+      setUserResponses({}); // Clear any previous responses
       setShowPromptModal(true);
 
     } catch (error) {
@@ -4637,20 +4638,8 @@ export default function EstimatePage() {
 
           {/* User Prompt Workflow Modal */}
           {showPromptModal && promptResults && (
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4"
-              onClick={(e) => {
-                // Prevent backdrop clicks from interfering
-                e.stopPropagation();
-              }}
-            >
-              <div 
-                className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
-                onClick={(e) => {
-                  // Ensure modal content clicks work
-                  e.stopPropagation();
-                }}
-              >
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
                 {/* Header */}
                 <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
                   <div className="flex items-center justify-between">
@@ -4734,66 +4723,40 @@ export default function EstimatePage() {
                                   };
                                 });
                                 
-                                // Handle follow-up logic for "Yes" responses
-                                if (option === 'Yes' && currentPrompt.followUp && currentPrompt.followUp.ifYes) {
-                                  console.log('Processing Yes response with follow-up:', currentPrompt.followUp.ifYes);
-                                  const followUp = currentPrompt.followUp.ifYes;
-                                  
-                                  // Create follow-up prompt
-                                  const followUpPrompt = {
-                                    ...currentPrompt,
-                                    id: `${currentPrompt.id}_followup`,
-                                    question: followUp.question,
-                                    options: followUp.options,
-                                    title: currentPrompt.title,
-                                    message: followUp.question,
-                                    followUp: null,
-                                    addLineItem: followUp.addLineItem,
-                                    customField: followUp.customField
-                                  };
-                                  
-                                  console.log('Created follow-up prompt:', followUpPrompt);
-                                  
-                                  // Update prompts with follow-up inserted
-                                  setPromptResults((prevResults: any) => {
-                                    const newPrompts = [...prevResults.prompts];
-                                    newPrompts.splice(currentPromptIndex + 1, 0, followUpPrompt);
-                                    console.log('Updated prompts array length:', newPrompts.length);
-                                    return { ...prevResults, prompts: newPrompts };
-                                  });
-                                  
-                                  // Advance to follow-up question
-                                  setTimeout(() => {
-                                    console.log('Advancing to follow-up question, index:', currentPromptIndex + 1);
+                                // Simple advancement - no complex follow-up logic for now
+                                console.log('Advancing to next question for option:', option);
+                                setTimeout(() => {
+                                  if (currentPromptIndex < promptResults.prompts.length - 1) {
+                                    console.log('Setting prompt index from', currentPromptIndex, 'to', currentPromptIndex + 1);
                                     setCurrentPromptIndex(currentPromptIndex + 1);
-                                  }, 100);
-                                } else {
-                                  // Normal advancement for "No" or other options
-                                  console.log('Normal advancement for option:', option);
-                                  setTimeout(() => {
-                                    if (currentPromptIndex < promptResults.prompts.length - 1) {
-                                      console.log('Advancing to next question, index:', currentPromptIndex + 1);
-                                      setCurrentPromptIndex(currentPromptIndex + 1);
-                                    }
-                                  }, 100);
-                                }
+                                  } else {
+                                    console.log('Reached end of prompts');
+                                  }
+                                }, 150);
                                 console.log('=== BUTTON CLICK END ===');
                               };
                               
                             return (
-                              <div key={index} className="w-full">
-                                <button
-                                  onClick={() => {
-                                    console.log('=== SIMPLE BUTTON CLICK ===', option);
+                              <button
+                                key={index}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('=== BUTTON CLICKED ===', option, 'at', new Date().toISOString());
+                                  try {
                                     handleButtonClick();
-                                  }}
-                                  className="w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
-                                  type="button"
-                                  style={{ pointerEvents: 'auto' }}
-                                >
-                                  {option}
-                                </button>
-                              </div>
+                                  } catch (error) {
+                                    console.error('Error in button click handler:', error);
+                                  }
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                className="w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 border-none outline-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                type="button"
+                                tabIndex={0}
+                              >
+                                {option}
+                              </button>
                             );
                           })}
                         </div>
