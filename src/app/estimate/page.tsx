@@ -106,6 +106,11 @@ export default function EstimatePage() {
   const [permitMissing, setPermitMissing] = useState<boolean | null>(null);
   const [permitCost, setPermitCost] = useState('');
 
+  // SPC Hidden Damages Check state
+  const [showSPCHiddenDamagesModal, setShowSPCHiddenDamagesModal] = useState(false);
+  const [hiddenDamagesCost, setHiddenDamagesCost] = useState('');
+  const [hiddenDamagesNarrative, setHiddenDamagesNarrative] = useState('');
+
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
@@ -1662,6 +1667,14 @@ export default function EstimatePage() {
     }
   };
 
+  // Check for hidden damages and prompt user for cost and narrative
+  const checkHiddenDamages = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for hidden damages - prompting user for input');
+    
+    // Always show the hidden damages modal to prompt for cost and narrative
+    setShowSPCHiddenDamagesModal(true);
+  };
+
   // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
     'Remove Laminated - comp. shingle rfg. - w/out felt',
@@ -2267,10 +2280,10 @@ export default function EstimatePage() {
   // Add permit item based on user cost input
   const handleAddPermit = async () => {
     if (!permitMissing) {
-      // Permit not missing, just close modal and proceed to final step
+      // Permit not missing, just close modal and proceed to hidden damages check
       setShowSPCPermitModal(false);
       setTimeout(() => {
-        setShowSPCFinalStepModal(true);
+        checkHiddenDamages(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -2327,7 +2340,73 @@ export default function EstimatePage() {
     
     console.log('✅ Added permit item:', newItem);
     
-    // After adding permit item, proceed to final step
+    // After adding permit item, proceed to hidden damages check
+    setTimeout(() => {
+      const updatedItems = [...(ruleResults?.line_items || []), newItem];
+      checkHiddenDamages(updatedItems);
+    }, 100);
+  };
+
+  // Add hidden damages item based on user cost and narrative input
+  const handleAddHiddenDamages = async () => {
+    if (!hiddenDamagesCost || parseFloat(hiddenDamagesCost) <= 0) {
+      alert('Please enter a valid hidden damages cost');
+      return;
+    }
+
+    if (!hiddenDamagesNarrative.trim()) {
+      alert('Please enter a narrative description for the hidden damages');
+      return;
+    }
+
+    const cost = parseFloat(hiddenDamagesCost);
+
+    // Get the current line items
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new hidden damages line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: hiddenDamagesNarrative, // Use the narrative description as the description
+      quantity: 1,
+      unit: 'EA',
+      unit_price: cost,
+      RCV: cost,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: cost,
+      location_room: 'General',
+      category: 'Misc',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'hidden_damages' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal and reset
+    setShowSPCHiddenDamagesModal(false);
+    setHiddenDamagesCost('');
+    setHiddenDamagesNarrative('');
+    
+    console.log('✅ Added hidden damages item:', newItem);
+    
+    // After adding hidden damages item, proceed to final step
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
@@ -3793,6 +3872,15 @@ export default function EstimatePage() {
                                   boxTitle: '👤 User Added - Permit Step:',
                                   boxTitleColor: 'text-blue-900',
                                   boxTextColor: 'text-blue-800'
+                                },
+                                hidden_damages: {
+                                  rowClass: 'bg-gray-50 border-l-4 border-gray-500',
+                                  badgeColor: 'bg-gray-600',
+                                  badgeText: '🔄 USER ADDED - HIDDEN DAMAGES',
+                                  boxClass: 'bg-gray-50 border-l-3 border-gray-500',
+                                  boxTitle: '👤 User Added - Hidden Damages Step:',
+                                  boxTitleColor: 'text-gray-900',
+                                  boxTextColor: 'text-gray-800'
                                 }
                               };
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
@@ -4064,6 +4152,13 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Blue Highlighted Rows</div>
                       <div className="text-gray-600">User added - Permit step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Gray Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Hidden damages step</div>
                     </div>
                   </div>
                 </div>
@@ -7473,9 +7568,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCPermitModal(false);
-                        // Proceed to final step if canceled
+                        // Proceed to hidden damages check if canceled
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkHiddenDamages(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -7514,7 +7609,7 @@ export default function EstimatePage() {
                               setPermitMissing(false);
                               setShowSPCPermitModal(false);
                               setTimeout(() => {
-                                setShowSPCFinalStepModal(true);
+                                checkHiddenDamages(ruleResults?.line_items || []);
                               }, 100);
                             }}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -7568,9 +7663,9 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCPermitModal(false);
-                      // Proceed to final step if canceled
+                      // Proceed to hidden damages check if canceled
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkHiddenDamages(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -7609,9 +7704,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCPermitFoundModal(false);
-                        // Proceed to final step
+                        // Proceed to hidden damages check
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkHiddenDamages(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -7657,14 +7752,125 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCPermitFoundModal(false);
-                      // Proceed to final step
+                      // Proceed to hidden damages check
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkHiddenDamages(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
                     Complete Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Hidden Damages Modal */}
+          {showSPCHiddenDamagesModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-gray-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🔍 Hidden Damages Entry</h2>
+                      <p className="text-gray-100 text-sm">
+                        Enter hidden damages cost and narrative description
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCHiddenDamagesModal(false);
+                        // Proceed to final step if canceled
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>Please enter the hidden damages cost and provide a narrative description.</strong>
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Hidden Damages Cost (float):
+                          </label>
+                          <input
+                            type="number"
+                            value={hiddenDamagesCost}
+                            onChange={(e) => setHiddenDamagesCost(e.target.value)}
+                            placeholder="e.g., 1250.00"
+                            step="0.01"
+                            min="0"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-gray-900"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Narrative Description:
+                          </label>
+                          <textarea
+                            value={hiddenDamagesNarrative}
+                            onChange={(e) => setHiddenDamagesNarrative(e.target.value)}
+                            placeholder="e.g., Additional damage found during roof inspection including..."
+                            rows={4}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-gray-900"
+                          />
+                        </div>
+
+                        {/* Preview */}
+                        {hiddenDamagesCost && parseFloat(hiddenDamagesCost) > 0 && hiddenDamagesNarrative.trim() && (
+                          <div className="mt-4 p-3 bg-gray-100 border border-gray-200 rounded-lg">
+                            <div className="text-sm text-gray-700">
+                              <strong>Will add:</strong> {hiddenDamagesNarrative}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              Quantity: 1 EA | Unit Price: ${parseFloat(hiddenDamagesCost).toFixed(2)} | Total RCV: ${parseFloat(hiddenDamagesCost).toFixed(2)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCHiddenDamagesModal(false);
+                      // Proceed to final step if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddHiddenDamages}
+                    disabled={!hiddenDamagesCost || parseFloat(hiddenDamagesCost) <= 0 || !hiddenDamagesNarrative.trim()}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      hiddenDamagesCost && parseFloat(hiddenDamagesCost) > 0 && hiddenDamagesNarrative.trim()
+                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Add Hidden Damages & Complete
                   </button>
                 </div>
               </div>
