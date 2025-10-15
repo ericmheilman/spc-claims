@@ -89,6 +89,16 @@ export default function EstimatePage() {
   const [chimneyLength, setChimneyLength] = useState('');
   const [chimneyWidth, setChimneyWidth] = useState('');
 
+  // SPC Additional Layers Check state
+  const [showSPCAdditionalLayersModal, setShowSPCAdditionalLayersModal] = useState(false);
+  const [showSPCAdditionalLayersFoundModal, setShowSPCAdditionalLayersFoundModal] = useState(false);
+  const [foundAdditionalLayersItems, setFoundAdditionalLayersItems] = useState<any[]>([]);
+  const [additionalLayersPresent, setAdditionalLayersPresent] = useState<boolean | null>(null);
+  const [layerCount, setLayerCount] = useState('');
+  const [layerType, setLayerType] = useState('');
+  const [coverageType, setCoverageType] = useState('');
+  const [coverageSquares, setCoverageSquares] = useState('');
+
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
@@ -1569,6 +1579,52 @@ export default function EstimatePage() {
     }
   };
 
+  // Additional layers options - MUST match Roof Master Macro exactly
+  const additionalLayersOptions = [
+    'Add. layer of comp. shingles remove & disp. - Laminated',
+    'Add. layer of comp. shingles remove & disp. - 3 tab'
+  ];
+
+  // Check for additional layers items
+  const checkAdditionalLayersItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for additional layers items in:', updatedLineItems.length, 'line items');
+    
+    console.log('🔍 Looking for additional layers items:', additionalLayersOptions);
+    
+    const foundAdditionalLayersItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking additional layers item:', item.description);
+      
+      return additionalLayersOptions.some(requiredItem => {
+        // Try exact match first
+        if (item.description === requiredItem) {
+          console.log('✅ Found exact additional layers match:', item.description);
+          return true;
+        }
+        
+        // Try case-insensitive match
+        if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+          console.log('✅ Found case-insensitive additional layers match:', item.description, '===', requiredItem);
+          return true;
+        }
+        
+        return false;
+      });
+    });
+    
+    console.log('🔍 Found additional layers items:', foundAdditionalLayersItems.map((item: any) => item.description));
+    
+    if (foundAdditionalLayersItems.length > 0) {
+      console.log('✅ Additional layers items found, proceeding to final step');
+      setFoundAdditionalLayersItems(foundAdditionalLayersItems);
+      setShowSPCAdditionalLayersFoundModal(true);
+    } else {
+      console.log('⚠️ No additional layers items found, showing additional layers confirmation modal');
+      setShowSPCAdditionalLayersModal(true);
+    }
+  };
+
   // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
     'Remove Laminated - comp. shingle rfg. - w/out felt',
@@ -1994,10 +2050,10 @@ export default function EstimatePage() {
     }
 
     if (!cricketItemName) {
-      // No cricket needed, just close modal and proceed
+      // No cricket needed, just close modal and proceed to additional layers check
       setShowSPCChimneyModal(false);
       setTimeout(() => {
-        setShowSPCFinalStepModal(true);
+        checkAdditionalLayersItems(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -2056,7 +2112,115 @@ export default function EstimatePage() {
     
     console.log('✅ Added chimney cricket item:', newItem);
     
-    // After adding cricket item, proceed to final step
+    // After adding cricket item, proceed to additional layers check
+    setTimeout(() => {
+      const updatedItems = [...(ruleResults?.line_items || []), newItem];
+      checkAdditionalLayersItems(updatedItems);
+    }, 100);
+  };
+
+  // Add additional layers item based on layer type and coverage
+  const handleAddAdditionalLayers = async () => {
+    if (!additionalLayersPresent) {
+      // No additional layers, just close modal and proceed to final step
+      setShowSPCAdditionalLayersModal(false);
+      setTimeout(() => {
+        setShowSPCFinalStepModal(true);
+      }, 100);
+      return;
+    }
+
+    if (!layerType || (!coverageType && !coverageSquares)) {
+      alert('Please specify layer type and coverage');
+      return;
+    }
+
+    // Determine the item description based on layer type
+    let itemDescription = '';
+    if (layerType === 'laminated') {
+      itemDescription = 'Add. layer of comp. shingles remove & disp. - Laminated';
+    } else if (layerType === '3-tab') {
+      itemDescription = 'Add. layer of comp. shingles remove & disp. - 3 tab';
+    } else {
+      alert('Invalid layer type');
+      return;
+    }
+
+    // Get data from Roof Master Macro
+    const macroData = roofMasterMacro.get(itemDescription);
+    if (!macroData) {
+      alert(`Additional layer item "${itemDescription}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Calculate quantity
+    let quantity = 0;
+    if (coverageType === 'entire roof') {
+      // Use Total Roof Area from extractedRoofMeasurements
+      const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
+      const roofAreaValue = totalRoofArea?.value || (typeof totalRoofArea === 'number' ? totalRoofArea : 0);
+      quantity = roofAreaValue / 100; // Convert to squares
+    } else if (coverageSquares) {
+      quantity = parseFloat(coverageSquares);
+    } else {
+      alert('Please specify coverage');
+      return;
+    }
+
+    if (quantity <= 0) {
+      alert('Invalid quantity calculated');
+      return;
+    }
+
+    // Get the current line items
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: itemDescription,
+      quantity: quantity,
+      unit: macroData.unit || 'SQ',
+      unit_price: macroData.unit_price,
+      RCV: quantity * macroData.unit_price,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: quantity * macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'additional_layers' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal and reset
+    setShowSPCAdditionalLayersModal(false);
+    setAdditionalLayersPresent(null);
+    setLayerCount('');
+    setLayerType('');
+    setCoverageType('');
+    setCoverageSquares('');
+    
+    console.log('✅ Added additional layers item:', newItem);
+    
+    // After adding additional layers item, proceed to final step
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
@@ -3504,6 +3668,15 @@ export default function EstimatePage() {
                                   boxTitle: '👤 User Added - Chimney Cricket Step:',
                                   boxTitleColor: 'text-cyan-900',
                                   boxTextColor: 'text-cyan-800'
+                                },
+                                additional_layers: {
+                                  rowClass: 'bg-emerald-50 border-l-4 border-emerald-500',
+                                  badgeColor: 'bg-emerald-600',
+                                  badgeText: '🔄 USER ADDED - ADDITIONAL LAYERS',
+                                  boxClass: 'bg-emerald-50 border-l-3 border-emerald-500',
+                                  boxTitle: '👤 User Added - Additional Layers Step:',
+                                  boxTitleColor: 'text-emerald-900',
+                                  boxTextColor: 'text-emerald-800'
                                 }
                               };
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
@@ -3761,6 +3934,13 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Cyan Highlighted Rows</div>
                       <div className="text-gray-600">User added - Chimney cricket step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Emerald Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Additional layers step</div>
                     </div>
                   </div>
                 </div>
@@ -6551,9 +6731,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCChimneyModal(false);
-                        // Proceed to final step if canceled
+                        // Proceed to additional layers check if canceled
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkAdditionalLayersItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -6592,7 +6772,7 @@ export default function EstimatePage() {
                               setChimneyPresent(false);
                               setShowSPCChimneyModal(false);
                               setTimeout(() => {
-                                setShowSPCFinalStepModal(true);
+                                checkAdditionalLayersItems(ruleResults?.line_items || []);
                               }, 100);
                             }}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -6726,9 +6906,9 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCChimneyModal(false);
-                      // Proceed to final step if canceled
+                      // Proceed to additional layers check if canceled
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkAdditionalLayersItems(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -6777,9 +6957,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCChimneyFoundModal(false);
-                        // Proceed to final step
+                        // Proceed to additional layers check
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkAdditionalLayersItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -6825,6 +7005,321 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCChimneyFoundModal(false);
+                      // Proceed to additional layers check
+                      setTimeout(() => {
+                        checkAdditionalLayersItems(ruleResults?.line_items || []);
+                      }, 100);
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Complete Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Additional Layers Confirmation Modal */}
+          {showSPCAdditionalLayersModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-violet-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏠 Additional Layers Check Required</h2>
+                      <p className="text-violet-100 text-sm">
+                        No additional layers items found - please confirm if additional layers are present
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCAdditionalLayersModal(false);
+                        // Proceed to final step if canceled
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>No additional layers items were found in your estimate.</strong> Are additional layers present?
+                      </p>
+                      
+                      {/* Additional layers presence selection */}
+                      <div className="space-y-3">
+                        <p className="font-medium text-gray-700">Are additional layers present?</p>
+                        <div className="flex space-x-4">
+                          <button
+                            onClick={() => {
+                              setAdditionalLayersPresent(true);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              additionalLayersPresent === true
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                            }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAdditionalLayersPresent(false);
+                              setShowSPCAdditionalLayersModal(false);
+                              setTimeout(() => {
+                                setShowSPCFinalStepModal(true);
+                              }, 100);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              additionalLayersPresent === false
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                            }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* If additional layers are present, show configuration options */}
+                      {additionalLayersPresent === true && (
+                        <div className="mt-6 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Layer Count (integer):
+                              </label>
+                              <input
+                                type="number"
+                                value={layerCount}
+                                onChange={(e) => setLayerCount(e.target.value)}
+                                placeholder="e.g., 1"
+                                min="1"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Layer Type:
+                              </label>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => setLayerType('3-tab')}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    layerType === '3-tab'
+                                      ? 'bg-violet-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-violet-100'
+                                  }`}
+                                >
+                                  3-tab
+                                </button>
+                                <button
+                                  onClick={() => setLayerType('laminated')}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    layerType === 'laminated'
+                                      ? 'bg-violet-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-violet-100'
+                                  }`}
+                                >
+                                  laminated
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Coverage selection */}
+                          <div className="mt-4">
+                            <p className="font-medium text-gray-700 mb-3">Coverage:</p>
+                            <div className="space-y-3">
+                              <div className="flex items-center">
+                                <input
+                                  type="radio"
+                                  id="coverage-entire"
+                                  name="coverage"
+                                  value="entire roof"
+                                  checked={coverageType === 'entire roof'}
+                                  onChange={(e) => {
+                                    setCoverageType(e.target.value);
+                                    setCoverageSquares('');
+                                  }}
+                                  className="mr-2"
+                                />
+                                <label htmlFor="coverage-entire" className="text-gray-700">
+                                  Entire roof (uses Total Roof Area / 100)
+                                </label>
+                              </div>
+                              <div className="flex items-center">
+                                <input
+                                  type="radio"
+                                  id="coverage-squares"
+                                  name="coverage"
+                                  value="squares"
+                                  checked={coverageType === 'squares' || coverageSquares !== ''}
+                                  onChange={(e) => {
+                                    setCoverageType('squares');
+                                  }}
+                                  className="mr-2"
+                                />
+                                <label htmlFor="coverage-squares" className="text-gray-700 mr-2">
+                                  Specify squares (float):
+                                </label>
+                                <input
+                                  type="number"
+                                  value={coverageSquares}
+                                  onChange={(e) => {
+                                    setCoverageSquares(e.target.value);
+                                    setCoverageType('squares');
+                                  }}
+                                  placeholder="e.g., 15.5"
+                                  step="0.1"
+                                  className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Preview */}
+                          {(() => {
+                            if (!layerType || (!coverageType && !coverageSquares)) return null;
+                            
+                            let itemDescription = '';
+                            if (layerType === 'laminated') {
+                              itemDescription = 'Add. layer of comp. shingles remove & disp. - Laminated';
+                            } else if (layerType === '3-tab') {
+                              itemDescription = 'Add. layer of comp. shingles remove & disp. - 3 tab';
+                            }
+                            
+                            let quantity = 0;
+                            if (coverageType === 'entire roof') {
+                              const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
+                              const roofAreaValue = totalRoofArea?.value || (typeof totalRoofArea === 'number' ? totalRoofArea : 0);
+                              quantity = roofAreaValue / 100;
+                            } else if (coverageSquares) {
+                              quantity = parseFloat(coverageSquares);
+                            }
+                            
+                            const macroData = itemDescription ? roofMasterMacro.get(itemDescription) : null;
+                            
+                            return quantity > 0 && macroData ? (
+                              <div className="mt-4 p-3 bg-violet-100 border border-violet-200 rounded-lg">
+                                <div className="text-sm text-gray-700">
+                                  <strong>Will add:</strong> {itemDescription}
+                                </div>
+                                <div className="text-sm text-gray-600 mt-1">
+                                  Quantity: {quantity.toFixed(1)} SQ | Unit Price: ${macroData.unit_price.toFixed(2)} | Total RCV: ${(quantity * macroData.unit_price).toFixed(2)}
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCAdditionalLayersModal(false);
+                      // Proceed to final step if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddAdditionalLayers}
+                    disabled={additionalLayersPresent === null || (additionalLayersPresent === true && (!layerType || (!coverageType && !coverageSquares)))}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      additionalLayersPresent === false || (additionalLayersPresent === true && layerType && (coverageType || coverageSquares))
+                        ? 'bg-violet-600 text-white hover:bg-violet-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {additionalLayersPresent === false ? 'Continue' : 'Add Layer & Continue'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Additional Layers Found Modal */}
+          {showSPCAdditionalLayersFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ Additional Layers Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        Additional layers items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCAdditionalLayersFoundModal(false);
+                        // Proceed to final step
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following additional layers items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundAdditionalLayersItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'SQ'})
+                              </span>
+                            )}
+                            {item.RCV && (
+                              <span className="text-green-600 ml-2 font-semibold">
+                                - RCV: ${item.RCV.toFixed(2)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        No additional layers items need to be added. The SPC Adjustment Engine workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSPCAdditionalLayersFoundModal(false);
                       // Proceed to final step
                       setTimeout(() => {
                         setShowSPCFinalStepModal(true);
