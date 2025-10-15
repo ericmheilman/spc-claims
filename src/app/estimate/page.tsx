@@ -4781,18 +4781,19 @@ export default function EstimatePage() {
                               };
                               
                             return (
-                              <button
-                                key={index}
-                                onClick={handleButtonClick}
-                                onMouseDown={() => console.log('Mouse down on button:', option)}
-                                onMouseUp={() => console.log('Mouse up on button:', option)}
-                                className={`w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer relative z-10 ${userResponses[promptResults.prompts[currentPromptIndex].id] === option ? 'bg-blue-700 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                                disabled={false}
-                                type="button"
-                                style={{ position: 'relative', zIndex: 10 }}
-                              >
-                                {option}
-                              </button>
+                              <div key={index} className="w-full">
+                                <button
+                                  onClick={() => {
+                                    console.log('=== SIMPLE BUTTON CLICK ===', option);
+                                    handleButtonClick();
+                                  }}
+                                  className="w-full px-4 py-3 rounded-lg font-medium transition-colors text-left cursor-pointer bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
+                                  type="button"
+                                  style={{ pointerEvents: 'auto' }}
+                                >
+                                  {option}
+                                </button>
+                              </div>
                             );
                           })}
                         </div>
