@@ -99,6 +99,13 @@ export default function EstimatePage() {
   const [coverageType, setCoverageType] = useState('');
   const [coverageSquares, setCoverageSquares] = useState('');
 
+  // SPC Permit Check state
+  const [showSPCPermitModal, setShowSPCPermitModal] = useState(false);
+  const [showSPCPermitFoundModal, setShowSPCPermitFoundModal] = useState(false);
+  const [foundPermitItems, setFoundPermitItems] = useState<any[]>([]);
+  const [permitMissing, setPermitMissing] = useState<boolean | null>(null);
+  const [permitCost, setPermitCost] = useState('');
+
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
@@ -1625,6 +1632,36 @@ export default function EstimatePage() {
     }
   };
 
+  // Check for permit items
+  const checkPermitItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for permit items in:', updatedLineItems.length, 'line items');
+    
+    // Check for permit-related items (case insensitive)
+    const foundPermitItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking permit item:', item.description);
+      
+      const description = item.description.toLowerCase();
+      // Look for permit-related keywords
+      return description.includes('permit') || 
+             description.includes('license') || 
+             description.includes('inspection') ||
+             description === 'permit';
+    });
+    
+    console.log('🔍 Found permit items:', foundPermitItems.map((item: any) => item.description));
+    
+    if (foundPermitItems.length > 0) {
+      console.log('✅ Permit items found, proceeding to final step');
+      setFoundPermitItems(foundPermitItems);
+      setShowSPCPermitFoundModal(true);
+    } else {
+      console.log('⚠️ No permit items found, showing permit confirmation modal');
+      setShowSPCPermitModal(true);
+    }
+  };
+
   // Shingle Removal Options - MUST match Roof Master Macro exactly
   const shingleRemovalOptions = [
     'Remove Laminated - comp. shingle rfg. - w/out felt',
@@ -2122,10 +2159,10 @@ export default function EstimatePage() {
   // Add additional layers item based on layer type and coverage
   const handleAddAdditionalLayers = async () => {
     if (!additionalLayersPresent) {
-      // No additional layers, just close modal and proceed to final step
+      // No additional layers, just close modal and proceed to permit check
       setShowSPCAdditionalLayersModal(false);
       setTimeout(() => {
-        setShowSPCFinalStepModal(true);
+        checkPermitItems(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -2220,7 +2257,77 @@ export default function EstimatePage() {
     
     console.log('✅ Added additional layers item:', newItem);
     
-    // After adding additional layers item, proceed to final step
+    // After adding additional layers item, proceed to permit check
+    setTimeout(() => {
+      const updatedItems = [...(ruleResults?.line_items || []), newItem];
+      checkPermitItems(updatedItems);
+    }, 100);
+  };
+
+  // Add permit item based on user cost input
+  const handleAddPermit = async () => {
+    if (!permitMissing) {
+      // Permit not missing, just close modal and proceed to final step
+      setShowSPCPermitModal(false);
+      setTimeout(() => {
+        setShowSPCFinalStepModal(true);
+      }, 100);
+      return;
+    }
+
+    if (!permitCost || parseFloat(permitCost) <= 0) {
+      alert('Please enter a valid permit cost');
+      return;
+    }
+
+    const cost = parseFloat(permitCost);
+
+    // Get the current line items
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new permit line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: 'Permit',
+      quantity: 1,
+      unit: 'EA',
+      unit_price: cost,
+      RCV: cost,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: cost,
+      location_room: 'General',
+      category: 'Misc',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'permit' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal and reset
+    setShowSPCPermitModal(false);
+    setPermitMissing(null);
+    setPermitCost('');
+    
+    console.log('✅ Added permit item:', newItem);
+    
+    // After adding permit item, proceed to final step
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
@@ -3677,6 +3784,15 @@ export default function EstimatePage() {
                                   boxTitle: '👤 User Added - Additional Layers Step:',
                                   boxTitleColor: 'text-emerald-900',
                                   boxTextColor: 'text-emerald-800'
+                                },
+                                permit: {
+                                  rowClass: 'bg-blue-50 border-l-4 border-blue-500',
+                                  badgeColor: 'bg-blue-600',
+                                  badgeText: '🔄 USER ADDED - PERMIT',
+                                  boxClass: 'bg-blue-50 border-l-3 border-blue-500',
+                                  boxTitle: '👤 User Added - Permit Step:',
+                                  boxTitleColor: 'text-blue-900',
+                                  boxTextColor: 'text-blue-800'
                                 }
                               };
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
@@ -3941,6 +4057,13 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Emerald Highlighted Rows</div>
                       <div className="text-gray-600">User added - Additional layers step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Blue Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Permit step</div>
                     </div>
                   </div>
                 </div>
@@ -7035,9 +7158,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCAdditionalLayersModal(false);
-                        // Proceed to final step if canceled
+                        // Proceed to permit check if canceled
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkPermitItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -7076,7 +7199,7 @@ export default function EstimatePage() {
                               setAdditionalLayersPresent(false);
                               setShowSPCAdditionalLayersModal(false);
                               setTimeout(() => {
-                                setShowSPCFinalStepModal(true);
+                                checkPermitItems(ruleResults?.line_items || []);
                               }, 100);
                             }}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -7231,9 +7354,9 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCAdditionalLayersModal(false);
-                      // Proceed to final step if canceled
+                      // Proceed to permit check if canceled
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkPermitItems(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -7272,9 +7395,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCAdditionalLayersFoundModal(false);
-                        // Proceed to final step
+                        // Proceed to permit check
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkPermitItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -7320,6 +7443,220 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCAdditionalLayersFoundModal(false);
+                      // Proceed to permit check
+                      setTimeout(() => {
+                        checkPermitItems(ruleResults?.line_items || []);
+                      }, 100);
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Complete Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Permit Confirmation Modal */}
+          {showSPCPermitModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-slate-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏛️ Permit Check Required</h2>
+                      <p className="text-slate-100 text-sm">
+                        No permit items found - please confirm if permit is missing
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCPermitModal(false);
+                        // Proceed to final step if canceled
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>No permit items were found in your estimate.</strong> Is permit missing?
+                      </p>
+                      
+                      {/* Permit missing selection */}
+                      <div className="space-y-3">
+                        <p className="font-medium text-gray-700">Is permit missing?</p>
+                        <div className="flex space-x-4">
+                          <button
+                            onClick={() => {
+                              setPermitMissing(true);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              permitMissing === true
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                            }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPermitMissing(false);
+                              setShowSPCPermitModal(false);
+                              setTimeout(() => {
+                                setShowSPCFinalStepModal(true);
+                              }, 100);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              permitMissing === false
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                            }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* If permit is missing, show cost input */}
+                      {permitMissing === true && (
+                        <div className="mt-6 space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Permit Cost (float):
+                            </label>
+                            <input
+                              type="number"
+                              value={permitCost}
+                              onChange={(e) => setPermitCost(e.target.value)}
+                              placeholder="e.g., 150.00"
+                              step="0.01"
+                              min="0"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-gray-900"
+                            />
+                          </div>
+
+                          {/* Preview */}
+                          {permitCost && parseFloat(permitCost) > 0 && (
+                            <div className="mt-4 p-3 bg-slate-100 border border-slate-200 rounded-lg">
+                              <div className="text-sm text-gray-700">
+                                <strong>Will add:</strong> Permit
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                Quantity: 1 EA | Unit Price: ${parseFloat(permitCost).toFixed(2)} | Total RCV: ${parseFloat(permitCost).toFixed(2)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCPermitModal(false);
+                      // Proceed to final step if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddPermit}
+                    disabled={permitMissing === null || (permitMissing === true && (!permitCost || parseFloat(permitCost) <= 0))}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      permitMissing === false || (permitMissing === true && permitCost && parseFloat(permitCost) > 0)
+                        ? 'bg-slate-600 text-white hover:bg-slate-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {permitMissing === false ? 'Continue' : 'Add Permit & Continue'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Permit Found Modal */}
+          {showSPCPermitFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ Permit Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        Permit items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCPermitFoundModal(false);
+                        // Proceed to final step
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following permit items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundPermitItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'EA'})
+                              </span>
+                            )}
+                            {item.RCV && (
+                              <span className="text-green-600 ml-2 font-semibold">
+                                - RCV: ${item.RCV.toFixed(2)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        No additional permit items need to be added. The SPC Adjustment Engine workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSPCPermitFoundModal(false);
                       // Proceed to final step
                       setTimeout(() => {
                         setShowSPCFinalStepModal(true);
