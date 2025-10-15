@@ -4723,7 +4723,17 @@ export default function EstimatePage() {
                                   };
                                 });
                                 
-                                // Simple advancement - no complex follow-up logic for now
+                                // Handle addLineItem logic if present
+                                if (currentPrompt.addLineItem && currentPrompt.addLineItem[option]) {
+                                  const lineItemToAdd = currentPrompt.addLineItem[option];
+                                  console.log('Adding line item:', lineItemToAdd);
+                                  if (lineItemToAdd) {
+                                    // TODO: Add the line item to the estimate
+                                    console.log('Line item would be added:', lineItemToAdd.description, 'Unit:', lineItemToAdd.unit, 'Qty:', lineItemToAdd.quantity);
+                                  }
+                                }
+                                
+                                // Advance to next question
                                 console.log('Advancing to next question for option:', option);
                                 setTimeout(() => {
                                   if (currentPromptIndex < promptResults.prompts.length - 1) {
