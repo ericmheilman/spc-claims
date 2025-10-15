@@ -80,6 +80,14 @@ export default function EstimatePage() {
   const [showSPCRidgeVentFoundModal, setShowSPCRidgeVentFoundModal] = useState(false);
   const [foundRidgeVentItems, setFoundRidgeVentItems] = useState<any[]>([]);
 
+  // SPC Chimney/Cricket Check state
+  const [showSPCChimneyModal, setShowSPCChimneyModal] = useState(false);
+  const [showSPCChimneyFoundModal, setShowSPCChimneyFoundModal] = useState(false);
+  const [foundChimneyItems, setFoundChimneyItems] = useState<any[]>([]);
+  const [chimneyPresent, setChimneyPresent] = useState<boolean | null>(null);
+  const [chimneySize, setChimneySize] = useState('');
+  const [chimneyLength, setChimneyLength] = useState('');
+  const [chimneyWidth, setChimneyWidth] = useState('');
 
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
@@ -1496,7 +1504,7 @@ export default function EstimatePage() {
     console.log('🔍 Total Line Lengths (Ridges):', ridgesValue);
     
     if (foundRidgeVentItems.length > 0) {
-      console.log('✅ Ridge vent items found, proceeding to final step');
+      console.log('✅ Ridge vent items found, proceeding to chimney check');
       setFoundRidgeVentItems(foundRidgeVentItems);
       setShowSPCRidgeVentFoundModal(true);
     } else if (ridgesValue > 0) {
@@ -1506,11 +1514,58 @@ export default function EstimatePage() {
       console.log('🔍 Calculated ridge vent quantity:', calculatedQuantity);
       setShowSPCRidgeVentModal(true);
     } else {
-      console.log('ℹ️ No ridge vent items needed (no ridges found), proceeding to final step');
-      // If no ridges found, proceed directly to final step
+      console.log('ℹ️ No ridge vent items needed (no ridges found), proceeding to chimney check');
+      // If no ridges found, proceed to chimney check
       setTimeout(() => {
-        setShowSPCFinalStepModal(true);
+        checkChimneyFlashingItems(updatedLineItems);
       }, 100);
+    }
+  };
+
+  // Chimney flashing options - MUST match Roof Master Macro exactly
+  const chimneyFlashingOptions = [
+    'Chimney flashing - small (24" x 24")',
+    'Chimney flashing - average (32" x 36")',
+    'Chimney flashing - large (32" x 60")'
+  ];
+
+  // Check for chimney flashing items
+  const checkChimneyFlashingItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for chimney flashing items in:', updatedLineItems.length, 'line items');
+    
+    console.log('🔍 Looking for chimney flashing items:', chimneyFlashingOptions);
+    
+    const foundChimneyItems = updatedLineItems.filter((item: any) => {
+      if (!item.description) return false;
+      
+      console.log('🔍 Checking chimney item:', item.description);
+      
+      return chimneyFlashingOptions.some(requiredItem => {
+        // Try exact match first
+        if (item.description === requiredItem) {
+          console.log('✅ Found exact chimney match:', item.description);
+          return true;
+        }
+        
+        // Try case-insensitive match
+        if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+          console.log('✅ Found case-insensitive chimney match:', item.description, '===', requiredItem);
+          return true;
+        }
+        
+        return false;
+      });
+    });
+    
+    console.log('🔍 Found chimney flashing items:', foundChimneyItems.map((item: any) => item.description));
+    
+    if (foundChimneyItems.length > 0) {
+      console.log('✅ Chimney flashing items found, proceeding to final step');
+      setFoundChimneyItems(foundChimneyItems);
+      setShowSPCChimneyFoundModal(true);
+    } else {
+      console.log('⚠️ No chimney flashing items found, showing chimney confirmation modal');
+      setShowSPCChimneyModal(true);
     }
   };
 
@@ -1891,7 +1946,117 @@ export default function EstimatePage() {
     
     console.log('✅ Added SPC ridge vent item:', newItem);
     
-    // After adding ridge vent item, proceed to final step
+    // After adding ridge vent item, proceed to chimney check
+    setTimeout(() => {
+      const updatedItems = [...(ruleResults?.line_items || []), newItem];
+      checkChimneyFlashingItems(updatedItems);
+    }, 100);
+  };
+
+  // Add chimney cricket item based on size/length calculations
+  const handleAddChimneyCricket = async () => {
+    let cricketItemName = '';
+    
+    // Determine which cricket to add based on the logic
+    let length = 0;
+    let width = 0;
+    
+    if (chimneySize) {
+      // Use predefined sizes
+      if (chimneySize === 'small') {
+        length = 24;
+        width = 24;
+      } else if (chimneySize === 'medium') {
+        length = 32;
+        width = 36;
+      } else if (chimneySize === 'large') {
+        length = 32;
+        width = 60;
+      }
+    } else {
+      // Use custom dimensions
+      length = parseFloat(chimneyLength);
+      width = parseFloat(chimneyWidth);
+    }
+    
+    // Apply the business rules
+    if (length < 30 || chimneySize === 'small') {
+      // No cricket needed for small chimneys or length < 30
+      console.log('ℹ️ No cricket needed - chimney too small');
+    } else if (length > 30) {
+      const area = length * width;
+      
+      if (area < (32 * 60)) {
+        cricketItemName = 'Saddle or cricket - up to 25 SF';
+      } else if (area >= (32 * 60)) {
+        cricketItemName = 'Saddle or cricket - 26 to 50 SF';
+      }
+    }
+
+    if (!cricketItemName) {
+      // No cricket needed, just close modal and proceed
+      setShowSPCChimneyModal(false);
+      setTimeout(() => {
+        setShowSPCFinalStepModal(true);
+      }, 100);
+      return;
+    }
+
+    // Get data from Roof Master Macro
+    const macroData = roofMasterMacro.get(cricketItemName);
+    if (!macroData) {
+      alert(`Cricket item "${cricketItemName}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Get the current line items
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    // Create new line item with user prompt workflow marker
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: cricketItemName,
+      quantity: 1, // Cricket items are typically EA (each)
+      unit: macroData.unit || 'EA',
+      unit_price: macroData.unit_price,
+      RCV: macroData.unit_price, // quantity * unit_price
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: macroData.unit_price,
+      location_room: 'Roof',
+      category: 'Roof',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      user_prompt_workflow: true, // Mark as user prompt workflow addition
+      user_prompt_step: 'chimney_cricket' // Track which step added this item
+    };
+
+    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    if (ruleResults) {
+      const updatedRuleResults = {
+        ...ruleResults,
+        line_items: [...(ruleResults.line_items || []), newItem]
+      };
+      setRuleResults(updatedRuleResults);
+    }
+
+    // Close modal and reset
+    setShowSPCChimneyModal(false);
+    setChimneyPresent(null);
+    setChimneySize('');
+    setChimneyLength('');
+    setChimneyWidth('');
+    
+    console.log('✅ Added chimney cricket item:', newItem);
+    
+    // After adding cricket item, proceed to final step
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
@@ -3330,6 +3495,15 @@ export default function EstimatePage() {
                                   boxTitle: '👤 User Added - Ridge Vent Step:',
                                   boxTitleColor: 'text-amber-900',
                                   boxTextColor: 'text-amber-800'
+                                },
+                                chimney_cricket: {
+                                  rowClass: 'bg-cyan-50 border-l-4 border-cyan-500',
+                                  badgeColor: 'bg-cyan-600',
+                                  badgeText: '🔄 USER ADDED - CHIMNEY CRICKET',
+                                  boxClass: 'bg-cyan-50 border-l-3 border-cyan-500',
+                                  boxTitle: '👤 User Added - Chimney Cricket Step:',
+                                  boxTitleColor: 'text-cyan-900',
+                                  boxTextColor: 'text-cyan-800'
                                 }
                               };
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
@@ -3580,6 +3754,13 @@ export default function EstimatePage() {
                     <div>
                       <div className="text-gray-900 font-bold">Amber Highlighted Rows</div>
                       <div className="text-gray-600">User added - Ridge vent step</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-600 text-white mr-3 mt-1">🔄 USER</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Cyan Highlighted Rows</div>
+                      <div className="text-gray-600">User added - Chimney cricket step</div>
                     </div>
                   </div>
                 </div>
@@ -6251,9 +6432,9 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCRidgeVentModal(false);
-                      // Proceed to final step even if canceled
+                      // Proceed to chimney check even if canceled
                       setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
+                        checkChimneyFlashingItems(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -6292,9 +6473,9 @@ export default function EstimatePage() {
                     <button
                       onClick={() => {
                         setShowSPCRidgeVentFoundModal(false);
-                        // Proceed to final step
+                        // Proceed to chimney check
                         setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
+                          checkChimneyFlashingItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -6340,6 +6521,310 @@ export default function EstimatePage() {
                   <button
                     onClick={() => {
                       setShowSPCRidgeVentFoundModal(false);
+                      // Proceed to chimney check
+                      setTimeout(() => {
+                        checkChimneyFlashingItems(ruleResults?.line_items || []);
+                      }, 100);
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Complete Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Chimney Confirmation Modal */}
+          {showSPCChimneyModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-blue-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏠 Chimney Check Required</h2>
+                      <p className="text-blue-100 text-sm">
+                        No chimney flashing items found - please confirm chimney presence
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCChimneyModal(false);
+                        // Proceed to final step if canceled
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>No chimney flashing items were found in your estimate.</strong> Please confirm if there is a chimney present on the roof:
+                      </p>
+                      
+                      {/* Chimney presence selection */}
+                      <div className="space-y-3">
+                        <p className="font-medium text-gray-700">Is there a chimney present?</p>
+                        <div className="flex space-x-4">
+                          <button
+                            onClick={() => {
+                              setChimneyPresent(true);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              chimneyPresent === true
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                            }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => {
+                              setChimneyPresent(false);
+                              setShowSPCChimneyModal(false);
+                              setTimeout(() => {
+                                setShowSPCFinalStepModal(true);
+                              }, 100);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              chimneyPresent === false
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                            }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* If chimney is present, show size options */}
+                      {chimneyPresent === true && (
+                        <div className="mt-6 space-y-4">
+                          <p className="font-medium text-gray-700">Chimney size selection:</p>
+                          
+                          {/* Size options */}
+                          <div className="space-y-3">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => setChimneySize('small')}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  chimneySize === 'small'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                }`}
+                              >
+                                Small (24" x 24")
+                              </button>
+                              <button
+                                onClick={() => setChimneySize('medium')}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  chimneySize === 'medium'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                }`}
+                              >
+                                Medium (32" x 36")
+                              </button>
+                              <button
+                                onClick={() => setChimneySize('large')}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  chimneySize === 'large'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                }`}
+                              >
+                                Large (32" x 60")
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Custom dimensions */}
+                          <div className="mt-4">
+                            <p className="font-medium text-gray-700 mb-3">Or enter custom dimensions:</p>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Length (parallel to ridge):
+                                </label>
+                                <input
+                                  type="number"
+                                  value={chimneyLength}
+                                  onChange={(e) => setChimneyLength(e.target.value)}
+                                  placeholder="e.g., 36"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Width (perpendicular to ridge):
+                                </label>
+                                <input
+                                  type="number"
+                                  value={chimneyWidth}
+                                  onChange={(e) => setChimneyWidth(e.target.value)}
+                                  placeholder="e.g., 48"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Logic preview */}
+                          {(() => {
+                            const length = parseFloat(chimneyLength);
+                            const width = parseFloat(chimneyWidth);
+                            const size = chimneySize;
+                            
+                            if (size === 'small' || length < 30) {
+                              return (
+                                <div className="mt-4 p-3 bg-gray-100 border border-gray-200 rounded-lg">
+                                  <div className="text-sm text-gray-600">
+                                    <strong>No cricket needed</strong> - chimney is too small
+                                  </div>
+                                </div>
+                              );
+                            } else if (length > 30) {
+                              const area = length * width;
+                              let cricketType = '';
+                              if (area < (32 * 60)) {
+                                cricketType = 'Saddle or cricket - up to 25 SF';
+                              } else {
+                                cricketType = 'Saddle or cricket - 26 to 50 SF';
+                              }
+                              
+                              return (
+                                <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+                                  <div className="text-sm text-gray-700">
+                                    <strong>Cricket needed:</strong> {cricketType}
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    Length: {length}" | Width: {width}" | Area: {area.toFixed(0)} SF
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            return null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      setShowSPCChimneyModal(false);
+                      // Proceed to final step if canceled
+                      setTimeout(() => {
+                        setShowSPCFinalStepModal(true);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAddChimneyCricket}
+                    disabled={chimneyPresent === null || (chimneyPresent === true && !chimneySize && (!chimneyLength || !chimneyWidth || parseFloat(chimneyLength) < 30 || parseFloat(chimneyWidth) < 1))}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      chimneyPresent === false || (chimneyPresent === true && (
+                        chimneySize === 'small' || 
+                        (chimneySize === '' && parseFloat(chimneyLength) < 30)
+                      ))
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : chimneyPresent === true && (
+                          chimneySize === 'medium' || chimneySize === 'large' || 
+                          (parseFloat(chimneyLength) > 30 && parseFloat(chimneyWidth) > 0)
+                        )
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {chimneyPresent === false ? 'Continue' : 
+                     chimneyPresent === true && (chimneySize === 'small' || parseFloat(chimneyLength) < 30) ? 'Continue (No Cricket)' :
+                     'Add Cricket & Continue'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SPC Chimney Found Modal */}
+          {showSPCChimneyFoundModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✅ Chimney Flashing Items Found</h2>
+                      <p className="text-green-100 text-sm">
+                        Chimney flashing items detected in the estimate
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSPCChimneyFoundModal(false);
+                        // Proceed to final step
+                        setTimeout(() => {
+                          setShowSPCFinalStepModal(true);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-3">
+                        <strong>Great! The following chimney flashing items were found in your estimate:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-2">
+                        {foundChimneyItems.map((item, index) => (
+                          <li key={index} className="text-gray-700 font-medium">
+                            <span className="text-green-700">•</span> {item.description}
+                            {item.quantity && (
+                              <span className="text-gray-600 ml-2">
+                                (Qty: {item.quantity} {item.unit || 'EA'})
+                              </span>
+                            )}
+                            {item.RCV && (
+                              <span className="text-green-600 ml-2 font-semibold">
+                                - RCV: ${item.RCV.toFixed(2)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-gray-600 text-sm mt-4">
+                        No additional chimney items need to be added. The SPC Adjustment Engine workflow is now complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSPCChimneyFoundModal(false);
                       // Proceed to final step
                       setTimeout(() => {
                         setShowSPCFinalStepModal(true);
