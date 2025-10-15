@@ -7096,7 +7096,7 @@ export default function EstimatePage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Layer Count (integer):
+                                Layer Count:
                               </label>
                               <input
                                 type="number"
@@ -7104,7 +7104,7 @@ export default function EstimatePage() {
                                 onChange={(e) => setLayerCount(e.target.value)}
                                 placeholder="e.g., 1"
                                 min="1"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-gray-900"
                               />
                             </div>
                             <div>
@@ -7181,7 +7181,7 @@ export default function EstimatePage() {
                                   }}
                                   placeholder="e.g., 15.5"
                                   step="0.1"
-                                  className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                                  className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-gray-900"
                                 />
                               </div>
                             </div>
