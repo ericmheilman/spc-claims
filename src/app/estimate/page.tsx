@@ -134,6 +134,19 @@ function EstimatePageContent() {
   const [showPriceEditModal, setShowPriceEditModal] = useState(false);
   const [editingPriceItem, setEditingPriceItem] = useState<any>(null);
   const [priceJustification, setPriceJustification] = useState({ unit_price: 0, justification_text: '' });
+
+  // Replace Line Item state
+  const [showReplaceModal, setShowReplaceModal] = useState(false);
+  const [replacingItem, setReplacingItem] = useState<any>(null);
+  const [selectedReplacementItem, setSelectedReplacementItem] = useState('');
+
+  // Add New Line Item state
+  const [showAddLineItemModal, setShowAddLineItemModal] = useState(false);
+  const [newLineItem, setNewLineItem] = useState({
+    description: '',
+    quantity: 0,
+    unit: 'EA'
+  });
   
   // RMM Unit Cost Comparator state
   const [rmmAdjustedClaim, setRmmAdjustedClaim] = useState<any>(null);
@@ -3150,6 +3163,141 @@ function EstimatePageContent() {
     setPriceJustification({ unit_price: 0, justification_text: '' });
   };
 
+  // Handle delete line item
+  const handleDeleteLineItem = (item: any) => {
+    if (!confirm(`Are you sure you want to delete "${item.description}"?`)) {
+      return;
+    }
+
+    // Remove from the appropriate list
+    if (ruleResults) {
+      const updatedItems = ruleResults.line_items.filter((i: any) => i.line_number !== item.line_number);
+      setRuleResults({
+        ...ruleResults,
+        line_items: updatedItems
+      });
+    } else {
+      const updatedItems = extractedLineItems.filter(i => i.line_number !== item.line_number);
+      setExtractedLineItems(updatedItems);
+    }
+
+    console.log('✅ Deleted line item:', item.description);
+  };
+
+  // Handle replace line item
+  const handleReplaceItem = (item: any) => {
+    setReplacingItem(item);
+    setSelectedReplacementItem('');
+    setShowReplaceModal(true);
+  };
+
+  const handleReplaceConfirm = () => {
+    if (!selectedReplacementItem) {
+      alert('Please select a replacement item');
+      return;
+    }
+
+    const macroData = roofMasterMacro.get(selectedReplacementItem);
+    if (!macroData) {
+      alert(`Item "${selectedReplacementItem}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Update the item
+    const updatedItem = {
+      ...replacingItem,
+      description: selectedReplacementItem,
+      unit_price: macroData.unit_price,
+      unit: macroData.unit,
+      RCV: macroData.unit_price * replacingItem.quantity,
+      ACV: macroData.unit_price * replacingItem.quantity
+    };
+
+    // Update in the appropriate list
+    if (ruleResults) {
+      const updatedItems = ruleResults.line_items.map((i: any) => 
+        i.line_number === replacingItem.line_number ? updatedItem : i
+      );
+      setRuleResults({
+        ...ruleResults,
+        line_items: updatedItems
+      });
+    } else {
+      const updatedItems = extractedLineItems.map(i => 
+        i.line_number === replacingItem.line_number ? updatedItem : i
+      );
+      setExtractedLineItems(updatedItems);
+    }
+
+    console.log('✅ Replaced line item:', replacingItem.description, '→', selectedReplacementItem);
+    
+    setShowReplaceModal(false);
+    setReplacingItem(null);
+    setSelectedReplacementItem('');
+  };
+
+  const handleReplaceCancel = () => {
+    setShowReplaceModal(false);
+    setReplacingItem(null);
+    setSelectedReplacementItem('');
+  };
+
+  // Handle add new line item
+  const handleAddNewLineItem = () => {
+    if (!newLineItem.description) {
+      alert('Please select an item description');
+      return;
+    }
+
+    if (newLineItem.quantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    const macroData = roofMasterMacro.get(newLineItem.description);
+    if (!macroData) {
+      alert(`Item "${newLineItem.description}" not found in Roof Master Macro`);
+      return;
+    }
+
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    const maxLineNumber = Math.max(
+      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
+      0
+    );
+
+    const newItem = {
+      line_number: String(maxLineNumber + 1),
+      description: newLineItem.description,
+      quantity: newLineItem.quantity,
+      unit: macroData.unit,
+      unit_price: macroData.unit_price,
+      RCV: macroData.unit_price * newLineItem.quantity,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      ACV: macroData.unit_price * newLineItem.quantity,
+      location_room: 'Roof',
+      category: 'Manual Addition',
+      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1)
+    };
+
+    if (ruleResults) {
+      setRuleResults({
+        ...ruleResults,
+        line_items: [...ruleResults.line_items, newItem]
+      });
+    } else {
+      setExtractedLineItems([...extractedLineItems, newItem]);
+    }
+
+    console.log('✅ Added new line item:', newItem);
+
+    setShowAddLineItemModal(false);
+    setNewLineItem({ description: '', quantity: 0, unit: 'EA' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -4222,7 +4370,16 @@ function EstimatePageContent() {
               {/* All Line Items */}
               {ruleResults.line_items && ruleResults.line_items.length > 0 && (
                 <div className="p-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">📋 All Line Items</h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">📋 All Line Items</h3>
+                    <button
+                      onClick={() => setShowAddLineItemModal(true)}
+                      className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium transition-all shadow-md flex items-center space-x-2"
+                    >
+                      <span>➕</span>
+                      <span>Add New Line Item</span>
+                    </button>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -4416,11 +4573,6 @@ function EstimatePageContent() {
                               <td className="px-6 py-4 text-sm text-gray-900">
                                 <div className="max-w-md">
                                   <div className="font-medium mb-1">{item.description}</div>
-                                  {item.narrative && (
-                                    <div className="text-sm text-gray-700 italic mt-1 mb-1">
-                                      {item.narrative}
-                                    </div>
-                                  )}
                                   <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
                                   {colorScheme && (
                                     <>
@@ -4500,13 +4652,29 @@ function EstimatePageContent() {
                                 {formatCurrency(item.RCV || 0)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                <button
-                                  onClick={() => handlePriceEdit(item)}
-                                  className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
-                                  title="Edit unit price"
-                                >
-                                  ✏️
-                                </button>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handlePriceEdit(item)}
+                                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
+                                    title="Edit unit price"
+                                  >
+                                    ✏️ Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleReplaceItem(item)}
+                                    className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition-colors"
+                                    title="Replace with item from Roof Master Macro"
+                                  >
+                                    🔄 Replace
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteLineItem(item)}
+                                    className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200 transition-colors"
+                                    title="Delete line item"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -4638,6 +4806,27 @@ function EstimatePageContent() {
                 </div>
               </div>
 
+              {/* Narratives Section */}
+              {(() => {
+                const narratives = ruleResults.line_items
+                  .filter((item: any) => item.narrative)
+                  .map((item: any) => item.narrative);
+                
+                if (narratives.length > 0) {
+                  return (
+                    <div className="px-8 pb-8">
+                      <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">📝 Estimate Notes & Narratives</h3>
+                        <p className="text-gray-800 leading-relaxed">
+                          {narratives.join('. ')}
+                          {narratives.length > 0 && !narratives[narratives.length - 1].endsWith('.') ? '.' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Debug Output */}
               {ruleResults.debug_output && (
@@ -6558,6 +6747,195 @@ function EstimatePageContent() {
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
                   >
                     Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Replace Line Item Modal */}
+          {showReplaceModal && replacingItem && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+                {/* Header */}
+                <div className="bg-green-800 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🔄 Replace Line Item</h2>
+                      <p className="text-gray-300 text-sm">Line {replacingItem.line_number}: {replacingItem.description}</p>
+                    </div>
+                    <button
+                      onClick={handleReplaceCancel}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="px-6 py-6">
+                  <div className="space-y-4">
+                    {/* Current Item Display */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="text-sm text-gray-600 mb-1">Current Item</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {replacingItem.description}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        Qty: {replacingItem.quantity} {replacingItem.unit} @ {formatCurrency(replacingItem.unit_price)}
+                      </div>
+                    </div>
+
+                    {/* Replacement Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Replacement Item from Roof Master Macro
+                      </label>
+                      <select
+                        value={selectedReplacementItem}
+                        onChange={(e) => setSelectedReplacementItem(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      >
+                        <option value="">-- Select an item --</option>
+                        {Array.from(roofMasterMacro.keys()).sort().map((key) => (
+                          <option key={key} value={key}>
+                            {key}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Preview */}
+                    {selectedReplacementItem && roofMasterMacro.get(selectedReplacementItem) && (
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <div className="text-sm text-green-800 mb-1">New Item Preview</div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {selectedReplacementItem}
+                        </div>
+                        <div className="text-sm text-gray-700 mt-2 space-y-1">
+                          <div>Qty: {replacingItem.quantity} {roofMasterMacro.get(selectedReplacementItem)!.unit}</div>
+                          <div>Unit Price: {formatCurrency(roofMasterMacro.get(selectedReplacementItem)!.unit_price)}</div>
+                          <div>Total RCV: {formatCurrency(roofMasterMacro.get(selectedReplacementItem)!.unit_price * replacingItem.quantity)}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end space-x-3">
+                  <button
+                    onClick={handleReplaceCancel}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReplaceConfirm}
+                    disabled={!selectedReplacementItem}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Replace Item
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add New Line Item Modal */}
+          {showAddLineItemModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+                {/* Header */}
+                <div className="bg-green-800 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">➕ Add New Line Item</h2>
+                      <p className="text-gray-300 text-sm">Select item from Roof Master Macro</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowAddLineItemModal(false);
+                        setNewLineItem({ description: '', quantity: 0, unit: 'EA' });
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="px-6 py-6">
+                  <div className="space-y-4">
+                    {/* Item Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Item from Roof Master Macro *
+                      </label>
+                      <select
+                        value={newLineItem.description}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, description: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      >
+                        <option value="">-- Select an item --</option>
+                        {Array.from(roofMasterMacro.keys()).sort().map((key) => (
+                          <option key={key} value={key}>
+                            {key}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Quantity Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newLineItem.quantity || ''}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, quantity: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        placeholder="Enter quantity"
+                      />
+                    </div>
+
+                    {/* Preview */}
+                    {newLineItem.description && newLineItem.quantity > 0 && roofMasterMacro.get(newLineItem.description) && (
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <div className="text-sm text-green-800 mb-1">Preview</div>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          <div><strong>Description:</strong> {newLineItem.description}</div>
+                          <div><strong>Quantity:</strong> {newLineItem.quantity} {roofMasterMacro.get(newLineItem.description)!.unit}</div>
+                          <div><strong>Unit Price:</strong> {formatCurrency(roofMasterMacro.get(newLineItem.description)!.unit_price)}</div>
+                          <div><strong>Total RCV:</strong> {formatCurrency(roofMasterMacro.get(newLineItem.description)!.unit_price * newLineItem.quantity)}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowAddLineItemModal(false);
+                      setNewLineItem({ description: '', quantity: 0, unit: 'EA' });
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddNewLineItem}
+                    disabled={!newLineItem.description || newLineItem.quantity <= 0}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Add Line Item
                   </button>
                 </div>
               </div>

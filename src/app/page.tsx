@@ -28,10 +28,33 @@ export default function HomePage() {
   const [roofAgentResponse, setRoofAgentResponse] = useState<any>(null);
   const [isProcessingRoofAgent, setIsProcessingRoofAgent] = useState(false);
   const [roofAgentStatus, setRoofAgentStatus] = useState<string>('');
+  const [readyButtonCountdown, setReadyButtonCountdown] = useState<number>(10);
+  const [isReadyButtonEnabled, setIsReadyButtonEnabled] = useState(false);
 
   useEffect(() => {
     checkLyzrStatus();
   }, []);
+
+  // Start 10 second countdown when claim agent response is ready
+  useEffect(() => {
+    if (claimAgentResponse && roofAgentResponse) {
+      setIsReadyButtonEnabled(false);
+      setReadyButtonCountdown(10);
+      
+      const interval = setInterval(() => {
+        setReadyButtonCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsReadyButtonEnabled(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [claimAgentResponse, roofAgentResponse]);
 
   const checkLyzrStatus = async () => {
     try {
@@ -521,14 +544,22 @@ export default function HomePage() {
           <div className="text-center">
             <button
               onClick={handleProcessFiles}
-              disabled={isProcessing || !uploadedClaimFile || !uploadedRoofReportFile || !claimAgentResponse}
+              disabled={isProcessing || !uploadedClaimFile || !uploadedRoofReportFile || !claimAgentResponse || !isReadyButtonEnabled}
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessing ? 'Processing...' : claimAgentResponse ? '✅ Ready - View Extracted Claim' : 'Waiting for Agent Processing...'}
+              {isProcessing ? 'Processing...' : 
+               claimAgentResponse && !isReadyButtonEnabled ? `⏳ Ready in ${readyButtonCountdown}s...` :
+               claimAgentResponse ? '✅ Ready - View Extracted Claim' : 
+               'Waiting for Agent Processing...'}
             </button>
             {!claimAgentResponse && uploadedClaimFile && (
               <p className="text-xs text-gray-500 mt-2">
                 Please wait for the line items extraction agent to finish processing
+              </p>
+            )}
+            {claimAgentResponse && !isReadyButtonEnabled && (
+              <p className="text-xs text-purple-600 mt-2">
+                Processing complete! Button will be enabled in {readyButtonCountdown} seconds...
               </p>
             )}
           </div>
