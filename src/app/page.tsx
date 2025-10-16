@@ -385,7 +385,42 @@ export default function HomePage() {
         timestamp: Date.now()
       };
       
+      // Enhanced debugging before localStorage storage
+      console.log('=== STORING DATA TO LOCALSTORAGE ===');
+      console.log('Data structure check:', {
+        hasClaimAgentResponse: !!claimAgentResponse,
+        hasRoofAgentResponse: !!roofAgentResponse,
+        hasClaimOcrResponse: !!claimOcrResponse,
+        hasRoofOcrResponse: !!roofOcrResponse,
+        claimAgentResponseType: typeof claimAgentResponse,
+        roofAgentResponseType: typeof roofAgentResponse
+      });
+      
+      if (claimAgentResponse) {
+        console.log('Claim agent response structure:', {
+          hasResponse: !!claimAgentResponse.response,
+          responseType: typeof claimAgentResponse.response,
+          responseLength: claimAgentResponse.response?.length || 0,
+          responsePreview: claimAgentResponse.response?.substring(0, 200)
+        });
+      }
+      
       localStorage.setItem('extractedClaimData', JSON.stringify(lineItemsData));
+      
+      // Verify storage
+      const storedData = localStorage.getItem('extractedClaimData');
+      console.log('Storage verification:', {
+        stored: !!storedData,
+        storedLength: storedData?.length || 0,
+        canParse: (() => {
+          try {
+            JSON.parse(storedData || '');
+            return true;
+          } catch {
+            return false;
+          }
+        })()
+      });
       
       setProcessingStatus('Processing completed! Redirecting to estimate...');
       console.log('Stored line items data:', lineItemsData);

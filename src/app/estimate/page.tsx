@@ -228,6 +228,20 @@ function EstimatePageContent() {
       try {
         const parsedData = JSON.parse(storedData);
         console.log('Parsed data:', parsedData);
+        console.log('=== ESTIMATE PAGE DATA ANALYSIS ===');
+        console.log('Data keys:', Object.keys(parsedData));
+        console.log('Data structure analysis:', {
+          hasClaimAgentResponse: !!parsedData.claimAgentResponse,
+          hasRoofAgentResponse: !!parsedData.roofAgentResponse,
+          hasClaimOcrResponse: !!parsedData.claimOcrResponse,
+          hasRoofOcrResponse: !!parsedData.roofOcrResponse,
+          timestamp: parsedData.timestamp,
+          fileNames: {
+            claim: parsedData.uploadedClaimFileName,
+            roof: parsedData.uploadedRoofFileName
+          }
+        });
+        
         setRawAgentData(parsedData);
         setLocalStorageData(parsedData);
         
@@ -273,12 +287,23 @@ function EstimatePageContent() {
             claimAgentError: null
           }));
         } else {
-          setErrorDetails('No claim agent response found in stored data');
-          setDebugInfo((prev: any) => ({
-            ...prev,
-            hasClaimAgentResponse: false,
-            claimAgentError: 'Missing claimAgentResponse.response'
-          }));
+          // Check if claimAgentResponse exists but doesn't have response
+          if (parsedData.claimAgentResponse) {
+            console.log('Claim agent response exists but no response field:', parsedData.claimAgentResponse);
+            setErrorDetails(`Claim agent response exists but missing 'response' field. Response structure: ${JSON.stringify(parsedData.claimAgentResponse, null, 2)}`);
+            setDebugInfo((prev: any) => ({
+              ...prev,
+              hasClaimAgentResponse: true,
+              claimAgentError: 'Missing response field in claimAgentResponse'
+            }));
+          } else {
+            setErrorDetails('No claim agent response found in stored data');
+            setDebugInfo((prev: any) => ({
+              ...prev,
+              hasClaimAgentResponse: false,
+              claimAgentError: 'Missing claimAgentResponse entirely'
+            }));
+          }
         }
       } catch (error) {
         console.error('Error parsing stored data:', error);
