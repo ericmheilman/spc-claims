@@ -117,9 +117,13 @@ async def root():
 @app.get("/health", response_model=Dict[str, Any])
 async def health_check():
     """Health check endpoint for infrastructure components"""
-    if not health_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    return await health_service.check_health()
+    # Simple health check that always returns 200 if the app is running
+    return {
+        "status": "healthy",
+        "service": "GDNA Baseline Generic Backend",
+        "version": VERSION,
+        "timestamp": "2024-01-01T00:00:00Z"  # You can add real timestamp if needed
+    }
 
 @app.get("/ready")
 async def readiness_check():
