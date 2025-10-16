@@ -1,6 +1,15 @@
 version: 1.0
-runtime: docker
-dockerfile: Dockerfile
-port: 8080
-healthcheck:
-  path: /
+runtime: python3
+build:
+  commands:
+    build:
+      - pip install -r requirements.txt
+run:
+  runtime-version: 3.11.0
+  command: python app.py
+  network:
+    port: 8080
+    env: PORT
+  env:
+    - name: PORT
+      value: "8080"
