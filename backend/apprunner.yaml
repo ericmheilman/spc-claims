@@ -1,15 +1,20 @@
 version: 1.0
 runtime: python3
+
 build:
   commands:
-    build:
-      - pip install -r requirements.txt
+    - python -m pip install --upgrade pip
+    - pip install --no-cache-dir -r requirements.txt
+
 run:
-  runtime-version: 3.11.0
-  command: python app.py
+  runtime-version: 3.11          # or 3.10 (both supported) — no patch number
+  command: uvicorn app:app --host 0.0.0.0 --port $PORT
   network:
     port: 8080
-    env: PORT
   env:
     - name: PORT
       value: "8080"
+
+#healthcheck:
+#  path: /
+
