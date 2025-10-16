@@ -20,6 +20,7 @@ interface LineItem {
   location_room: string | null;
   category: string;
   page_number: number;
+  narrative?: string;
 }
 
 interface Category {
@@ -116,6 +117,8 @@ function EstimatePageContent() {
   const [roofAccessIssues, setRoofAccessIssues] = useState<boolean | null>(null);
   const [numberOfStories, setNumberOfStories] = useState('');
   const [roofstockingDelivery, setRoofstockingDelivery] = useState<boolean | null>(null);
+  const [roofAccessIssueTypes, setRoofAccessIssueTypes] = useState<string[]>([]);
+  const [otherIssueText, setOtherIssueText] = useState<string>('');
 
   // SPC O&P Check state
   const [showSPCOPModal, setShowSPCOPModal] = useState(false);
@@ -174,6 +177,18 @@ function EstimatePageContent() {
   const [selectedRidgeVent, setSelectedRidgeVent] = useState('');
   const [ridgeVentQuantity, setRidgeVentQuantity] = useState('');
   const [ridgeVentSkipped, setRidgeVentSkipped] = useState(false);
+
+  // Step Flashing Check state
+  const [stepFlashingPresent, setStepFlashingPresent] = useState<boolean | null>(null);
+  const [guttersPresent, setGuttersPresent] = useState<boolean | null>(null);
+  const [kickoutQuantity, setKickoutQuantity] = useState('');
+
+  // Shingle Depreciation Contest state
+  const [contestShingleDepreciation, setContestShingleDepreciation] = useState<boolean | null>(null);
+  const [shingleAge, setShingleAge] = useState('');
+
+  // Valley Metal Check state
+  const [valleyType, setValleyType] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('=== ESTIMATE PAGE DEBUG START ===');
@@ -2472,6 +2487,16 @@ function EstimatePageContent() {
       return;
     }
 
+    if (roofAccessIssueTypes.length === 0) {
+      alert('Please select at least one roof access issue');
+      return;
+    }
+
+    if (roofAccessIssueTypes.includes('Other') && !otherIssueText) {
+      alert('Please describe the other issue');
+      return;
+    }
+
     if (!numberOfStories || isNaN(parseInt(numberOfStories)) || parseInt(numberOfStories) <= 0) {
       alert('Please enter a valid number of stories');
       return;
@@ -2517,7 +2542,7 @@ function EstimatePageContent() {
       return;
     }
 
-    const laborCost = laborTime * macroData.unit_price;
+    const laborCost = (laborTime * macroData.unit_price) / 100;
 
     // Get the current line items
     const currentItems = ruleResults?.line_items || extractedLineItems;
@@ -2527,6 +2552,12 @@ function EstimatePageContent() {
       ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
       0
     );
+
+    // Build the narrative based on the selected issue types
+    const issueDescriptions = roofAccessIssueTypes.map(type => 
+      type === 'Other' ? otherIssueText : type
+    );
+    const narrative = `Roof access issues: ${issueDescriptions.join(', ')}`;
 
     // Create new labor cost line item with user prompt workflow marker
     const newItem = {
@@ -2544,6 +2575,7 @@ function EstimatePageContent() {
       location_room: 'Roof',
       category: 'Labor',
       page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
+      narrative: narrative,
       user_prompt_workflow: true, // Mark as user prompt workflow addition
       user_prompt_step: 'roof_access' // Track which step added this item
     };
@@ -2562,6 +2594,8 @@ function EstimatePageContent() {
     setRoofAccessIssues(null);
     setNumberOfStories('');
     setRoofstockingDelivery(null);
+    setRoofAccessIssueTypes([]);
+    setOtherIssueText('');
     
     console.log('✅ Added roof access labor item:', newItem);
     console.log(`Calculations: bundles=${bundles}, laborTime=${laborTime}hrs, laborCost=$${laborCost.toFixed(2)}`);
@@ -2716,6 +2750,21 @@ function EstimatePageContent() {
     );
   };
 
+  // Check if step flashing is present
+  const checkStepFlashingPresent = (items: LineItem[]) => {
+    return items.some(item => 
+      item.description === 'Step flashing'
+    );
+  };
+
+  // Check if valley metal is present
+  const checkValleyMetalPresent = (items: LineItem[]) => {
+    return items.some(item => 
+      item.description === 'Valley metal' || 
+      item.description === 'Valley metal - (W) profile'
+    );
+  };
+
 
   // Add ridge vent line item
   const handleAddRidgeVent = (items: LineItem[]) => {
@@ -2774,7 +2823,193 @@ function EstimatePageContent() {
     
     // Continue workflow
     if (showUnifiedWorkflow) {
-      setCurrentWorkflowStep(3); // Move to O&P step
+      setCurrentWorkflowStep(3); // Move to Step Flashing check
+    }
+  };
+
+  // Add kick-out diverter line item
+  const handleAddKickoutDiverter = (items: LineItem[]) => {
+    if (!kickoutQuantity) {
+      alert('Please enter the number of kick-out diverters');
+      return;
+    }
+
+    const quantity = parseFloat(kickoutQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    // Check Roof Master Macro for exact item name
+    const macroData = roofMasterMacro.get('Flashing - kick-out diverter');
+    if (!macroData) {
+      alert('Item "Flashing - kick-out diverter" not found in Roof Master Macro');
+      return;
+    }
+
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...items.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    const newKickoutItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: 'Flashing - kick-out diverter',
+      quantity: quantity,
+      unit_price: macroData.unit_price,
+      unit: macroData.unit || 'EA',
+      RCV: macroData.unit_price * quantity,
+      ACV: macroData.unit_price * quantity,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      location_room: 'Roof',
+      category: 'Flashing',
+      page_number: Math.max(...items.map(item => item.page_number || 0), 1)
+    };
+
+    const updatedItems = [...items, newKickoutItem];
+    setExtractedLineItems(updatedItems);
+
+    console.log('✅ Added Kick-out Diverter:', newKickoutItem);
+    
+    // Reset form
+    setKickoutQuantity('');
+    setGuttersPresent(null);
+    
+    // Continue workflow
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(4); // Move to Shingle Depreciation step
+    }
+  };
+
+  // Add depreciation contest line item
+  const handleAddDepreciationContest = (items: LineItem[]) => {
+    if (!shingleAge) {
+      alert('Please enter the shingle age');
+      return;
+    }
+
+    const age = parseFloat(shingleAge);
+    if (isNaN(age) || age < 0) {
+      alert('Please enter a valid shingle age');
+      return;
+    }
+
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...items.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    const depreciationNarrative = `Shingles are ${shingleAge} years old - contesting depreciation calculation`;
+
+    const newDepreciationItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: 'Contest Depreciation - narrative',
+      quantity: 1,
+      unit_price: 0,
+      unit: 'EA',
+      RCV: 0,
+      ACV: 0,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      location_room: 'General',
+      category: 'Depreciation',
+      page_number: Math.max(...items.map(item => item.page_number || 0), 1),
+      narrative: depreciationNarrative
+    };
+
+    const updatedItems = [...items, newDepreciationItem];
+    setExtractedLineItems(updatedItems);
+
+    console.log('✅ Added Depreciation Contest:', newDepreciationItem);
+    console.log('Narrative:', depreciationNarrative);
+    
+    // Reset form
+    setShingleAge('');
+    setContestShingleDepreciation(null);
+    
+    // Continue workflow
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(5); // Move to Valley Metal step
+    }
+  };
+
+  // Add valley metal line item
+  const handleAddValleyMetal = (items: LineItem[]) => {
+    if (!valleyType) {
+      alert('Please select valley type (open or closed)');
+      return;
+    }
+
+    // Get Total Valleys Length from extractedRoofMeasurements
+    const totalValleysLength = extractedRoofMeasurements["Total Valleys Length"];
+    const valleyLengthValue = totalValleysLength?.value || (typeof totalValleysLength === 'number' ? totalValleysLength : 0);
+
+    if (valleyLengthValue <= 0) {
+      alert('No valley length found - cannot add valley item');
+      return;
+    }
+
+    let itemDescription = '';
+    let quantity = 0;
+    let macroData = null;
+
+    if (valleyType === 'open') {
+      itemDescription = 'Valley metal';
+      quantity = valleyLengthValue / 100;
+      macroData = roofMasterMacro.get('Valley metal');
+    } else if (valleyType === 'closed') {
+      itemDescription = 'Ice & water barrier';
+      quantity = (valleyLengthValue * 3) / 100;
+      macroData = roofMasterMacro.get('Ice & water barrier');
+    }
+
+    if (!macroData) {
+      alert(`Item "${itemDescription}" not found in Roof Master Macro`);
+      return;
+    }
+
+    // Get max line number
+    const maxLineNumber = Math.max(
+      ...items.map(item => parseInt(item.line_number) || 0),
+      0
+    );
+
+    const newValleyItem: LineItem = {
+      line_number: String(maxLineNumber + 1),
+      description: itemDescription,
+      quantity: quantity,
+      unit_price: macroData.unit_price,
+      unit: macroData.unit || (valleyType === 'open' ? 'LF' : 'SF'),
+      RCV: macroData.unit_price * quantity,
+      ACV: macroData.unit_price * quantity,
+      age_life: '0/NA',
+      condition: 'Avg.',
+      dep_percent: 0,
+      depreciation_amount: 0,
+      location_room: 'Roof',
+      category: 'Flashing',
+      page_number: Math.max(...items.map(item => item.page_number || 0), 1)
+    };
+
+    const updatedItems = [...items, newValleyItem];
+    setExtractedLineItems(updatedItems);
+
+    console.log('✅ Added Valley Item:', newValleyItem);
+    console.log(`Valley Type: ${valleyType}, Length: ${valleyLengthValue}ft, Quantity: ${quantity}`);
+    
+    // Reset form
+    setValleyType(null);
+    
+    // Continue workflow
+    if (showUnifiedWorkflow) {
+      setCurrentWorkflowStep(6); // Move to O&P step
     }
   };
 
@@ -2795,6 +3030,21 @@ function EstimatePageContent() {
       id: 'ridge-vents',
       title: 'Ridge Vent Check',
       description: 'Checking for ridge vent line items'
+    },
+    {
+      id: 'step-flashing',
+      title: 'Step Flashing Check',
+      description: 'Checking for step flashing and kick-out diverter requirements'
+    },
+    {
+      id: 'shingle-depreciation',
+      title: 'Shingle Depreciation Contest',
+      description: 'Contest shingle depreciation based on age'
+    },
+    {
+      id: 'valley-metal',
+      title: 'Valley Metal Check',
+      description: 'Checking for valley metal requirements'
     },
     {
       id: 'oandp',
@@ -4166,6 +4416,11 @@ function EstimatePageContent() {
                               <td className="px-6 py-4 text-sm text-gray-900">
                                 <div className="max-w-md">
                                   <div className="font-medium mb-1">{item.description}</div>
+                                  {item.narrative && (
+                                    <div className="text-sm text-gray-700 italic mt-1 mb-1">
+                                      {item.narrative}
+                                    </div>
+                                  )}
                                   <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
                                   {colorScheme && (
                                     <>
@@ -5435,6 +5690,336 @@ function EstimatePageContent() {
                   {currentWorkflowStep === 3 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Step Flashing Check
+                      </h3>
+                      
+                      {(() => {
+                        const hasStepFlashing = checkStepFlashingPresent(workflowData.lineItems);
+                        
+                        if (!hasStepFlashing) {
+                          return (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                              <p className="text-gray-700">
+                                <strong>No step flashing present, proceed to next step in workflow.</strong>
+                              </p>
+                              <p className="text-gray-600 text-sm mt-3">
+                                Click "Next" to continue.
+                              </p>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                            <p className="text-gray-700 mb-4">
+                              <strong>Step flashing is present in the estimate.</strong>
+                            </p>
+                            
+                            {guttersPresent === null ? (
+                              <div className="space-y-4">
+                                <p className="text-gray-700">
+                                  Are gutters also present?
+                                </p>
+                                <div className="flex space-x-4">
+                                  <button
+                                    onClick={() => setGuttersPresent(true)}
+                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-md"
+                                  >
+                                    Yes, Gutters Present
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setGuttersPresent(false);
+                                      setCurrentWorkflowStep(4);
+                                    }}
+                                    className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors shadow-md"
+                                  >
+                                    No, No Gutters
+                                  </button>
+                                </div>
+                              </div>
+                            ) : guttersPresent ? (
+                              <div className="space-y-4">
+                                <p className="text-gray-700 mb-2">
+                                  Please add "Flashing - kick-out diverter":
+                                </p>
+                                
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Number of Kick-out Diverters *
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    value={kickoutQuantity}
+                                    onChange={(e) => setKickoutQuantity(e.target.value)}
+                                    placeholder="Enter quantity"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                                  />
+                                </div>
+
+                                {kickoutQuantity && roofMasterMacro.get('Flashing - kick-out diverter') && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                                    <div className="grid grid-cols-3 gap-4 text-sm">
+                                      <div>
+                                        <div className="text-gray-600">Unit Price:</div>
+                                        <div className="font-semibold">
+                                          ${roofMasterMacro.get('Flashing - kick-out diverter')!.unit_price.toFixed(2)}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-600">Quantity:</div>
+                                        <div className="font-semibold">{kickoutQuantity} EA</div>
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-600">Total RCV:</div>
+                                        <div className="font-semibold text-blue-700">
+                                          ${(roofMasterMacro.get('Flashing - kick-out diverter')!.unit_price * parseFloat(kickoutQuantity)).toFixed(2)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="flex justify-center mt-4">
+                                  <button
+                                    onClick={() => {
+                                      if (kickoutQuantity) {
+                                        handleAddKickoutDiverter(workflowData.lineItems);
+                                      } else {
+                                        alert('Please enter the number of kick-out diverters');
+                                      }
+                                    }}
+                                    disabled={!kickoutQuantity}
+                                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                  >
+                                    Add Kick-out Diverter
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {currentWorkflowStep === 4 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Shingle Depreciation Contest
+                      </h3>
+                      
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-4">
+                          Do you want to contest the shingle depreciation?
+                        </p>
+                        
+                        {contestShingleDepreciation === null ? (
+                          <div className="flex space-x-4">
+                            <button
+                              onClick={() => setContestShingleDepreciation(true)}
+                              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md"
+                            >
+                              Yes, Contest Depreciation
+                            </button>
+                            <button
+                              onClick={() => {
+                                setContestShingleDepreciation(false);
+                                setCurrentWorkflowStep(5);
+                              }}
+                              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors shadow-md"
+                            >
+                              No, Skip
+                            </button>
+                          </div>
+                        ) : contestShingleDepreciation ? (
+                          <div className="space-y-4">
+                            <p className="text-gray-700 mb-2">
+                              Please enter the shingle age in years:
+                            </p>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Shingle Age (Years) *
+                              </label>
+                              <input
+                                type="number"
+                                step="1"
+                                min="0"
+                                max="50"
+                                value={shingleAge}
+                                onChange={(e) => setShingleAge(e.target.value)}
+                                placeholder="Enter age in years"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                              />
+                            </div>
+
+                            {shingleAge && (
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <h4 className="font-semibold text-gray-900 mb-2">Line Item Preview</h4>
+                                <div className="text-sm space-y-2">
+                                  <div className="text-gray-700">
+                                    <span className="font-semibold">Description:</span> Contest Depreciation - narrative
+                                  </div>
+                                  <div className="text-gray-700">
+                                    <span className="font-semibold">Note:</span> Shingles are {shingleAge} years old - contesting depreciation calculation
+                                  </div>
+                                  <div className="text-gray-600 mt-2 pt-2 border-t border-green-300">
+                                    This line item will be added to document the depreciation contest based on the actual age of the shingles.
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex justify-center mt-4">
+                              <button
+                                onClick={() => {
+                                  if (shingleAge) {
+                                    handleAddDepreciationContest(workflowData.lineItems);
+                                  } else {
+                                    alert('Please enter the shingle age in years');
+                                  }
+                                }}
+                                disabled={!shingleAge}
+                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+                              >
+                                Add Depreciation Contest
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+
+                  {currentWorkflowStep === 5 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Valley Metal Check
+                      </h3>
+                      
+                      {(() => {
+                        const hasValleyMetal = checkValleyMetalPresent(workflowData.lineItems);
+                        const totalValleysLength = extractedRoofMeasurements["Total Valleys Length"];
+                        const valleyLengthValue = totalValleysLength?.value || (typeof totalValleysLength === 'number' ? totalValleysLength : 0);
+                        
+                        if (hasValleyMetal || valleyLengthValue === 0) {
+                          return (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                              <p className="text-gray-700">
+                                <strong>{hasValleyMetal ? 'Valley metal found in estimate.' : 'No valleys detected on this roof.'}</strong>
+                              </p>
+                              <p className="text-gray-600 text-sm mt-3">
+                                Click "Next" to continue.
+                              </p>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                            <p className="text-gray-700 mb-4">
+                              <strong>Neither "Valley metal" nor "Valley metal - (W) profile" is present, but valleys were detected ({valleyLengthValue} ft).</strong>
+                            </p>
+                            
+                            <div className="space-y-4">
+                              <p className="text-gray-700">
+                                What type of valleys are present?
+                              </p>
+                              
+                              <div className="flex space-x-4">
+                                <button
+                                  onClick={() => setValleyType('open')}
+                                  className={`px-6 py-3 rounded-lg font-medium transition-colors shadow-md ${
+                                    valleyType === 'open'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  Open Valleys
+                                </button>
+                                <button
+                                  onClick={() => setValleyType('closed')}
+                                  className={`px-6 py-3 rounded-lg font-medium transition-colors shadow-md ${
+                                    valleyType === 'closed'
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                                  }`}
+                                >
+                                  Closed Valleys
+                                </button>
+                              </div>
+
+                              {valleyType && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                                  <h4 className="font-semibold text-gray-900 mb-2">Line Item Preview</h4>
+                                  <div className="text-sm space-y-2">
+                                    {valleyType === 'open' ? (
+                                      <>
+                                        <div className="text-gray-700">
+                                          <span className="font-semibold">Description:</span> Valley metal
+                                        </div>
+                                        <div className="text-gray-700">
+                                          <span className="font-semibold">Quantity:</span> {(valleyLengthValue / 100).toFixed(2)} {roofMasterMacro.get('Valley metal')?.unit || 'LF'}
+                                        </div>
+                                        {roofMasterMacro.get('Valley metal') && (
+                                          <>
+                                            <div className="text-gray-700">
+                                              <span className="font-semibold">Unit Price:</span> ${roofMasterMacro.get('Valley metal')!.unit_price.toFixed(2)}
+                                            </div>
+                                            <div className="text-gray-700">
+                                              <span className="font-semibold">Total RCV:</span> ${(roofMasterMacro.get('Valley metal')!.unit_price * (valleyLengthValue / 100)).toFixed(2)}
+                                            </div>
+                                          </>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="text-gray-700">
+                                          <span className="font-semibold">Description:</span> Ice & water barrier
+                                        </div>
+                                        <div className="text-gray-700">
+                                          <span className="font-semibold">Quantity:</span> {((valleyLengthValue * 3) / 100).toFixed(2)} {roofMasterMacro.get('Ice & water barrier')?.unit || 'SF'}
+                                        </div>
+                                        {roofMasterMacro.get('Ice & water barrier') && (
+                                          <>
+                                            <div className="text-gray-700">
+                                              <span className="font-semibold">Unit Price:</span> ${roofMasterMacro.get('Ice & water barrier')!.unit_price.toFixed(2)}
+                                            </div>
+                                            <div className="text-gray-700">
+                                              <span className="font-semibold">Total RCV:</span> ${(roofMasterMacro.get('Ice & water barrier')!.unit_price * ((valleyLengthValue * 3) / 100)).toFixed(2)}
+                                            </div>
+                                          </>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {valleyType && (
+                                <div className="flex justify-center mt-4">
+                                  <button
+                                    onClick={() => handleAddValleyMetal(workflowData.lineItems)}
+                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md"
+                                  >
+                                    Add Valley Item
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {currentWorkflowStep === 6 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         {workflowData.hasOP ? '✅ O&P Found' : '⚠️ Missing O&P'}
                       </h3>
                       
@@ -5483,8 +6068,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 5: Chimney Analysis */}
-                  {currentWorkflowStep === 4 && (
+                  {/* Step 7: Chimney Analysis */}
+                  {currentWorkflowStep === 7 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Chimney Analysis Required</h3>
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -5506,8 +6091,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 6: Additional Shingle Layers */}
-                  {currentWorkflowStep === 5 && (
+                  {/* Step 8: Additional Shingle Layers */}
+                  {currentWorkflowStep === 8 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Shingle Layers</h3>
                       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
@@ -5526,8 +6111,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 7: Building Stories Analysis */}
-                  {currentWorkflowStep === 6 && (
+                  {/* Step 9: Building Stories Analysis */}
+                  {currentWorkflowStep === 9 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Building Stories</h3>
                       <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
@@ -5549,8 +6134,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 8: Permit Analysis */}
-                  {currentWorkflowStep === 7 && (
+                  {/* Step 10: Permit Analysis */}
+                  {currentWorkflowStep === 10 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Permit Requirements</h3>
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
@@ -5569,8 +6154,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 9: Depreciation Contest */}
-                  {currentWorkflowStep === 8 && (
+                  {/* Step 11: Depreciation Contest */}
+                  {currentWorkflowStep === 11 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Depreciation Contest</h3>
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
@@ -5589,8 +6174,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 10: Hidden Damages */}
-                  {currentWorkflowStep === 9 && (
+                  {/* Step 12: Hidden Damages */}
+                  {currentWorkflowStep === 12 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Hidden Damages</h3>
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
@@ -5669,8 +6254,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 14: Valley Metal Analysis */}
-                  {currentWorkflowStep === 13 && (
+                  {/* Step 16: Valley Metal Analysis */}
+                  {currentWorkflowStep === 16 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Valley Metal Analysis</h3>
                       <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
@@ -5692,8 +6277,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 15: Labor Calculation */}
-                  {currentWorkflowStep === 14 && (
+                  {/* Step 17: Labor Calculation */}
+                  {currentWorkflowStep === 17 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Labor Calculation</h3>
                       <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -5790,11 +6375,58 @@ function EstimatePageContent() {
                             handleAddRidgeVent(workflowData.lineItems);
                             return;
                           }
-                          if (currentWorkflowStep === 3 && !workflowData.hasOP) {
+                          // Step 3: Step Flashing check - just advance if no step flashing or if user said no gutters
+                          if (currentWorkflowStep === 3) {
+                            const hasStepFlashing = checkStepFlashingPresent(workflowData.lineItems);
+                            if (hasStepFlashing && guttersPresent === null) {
+                              // User hasn't answered gutters question yet
+                              alert('Please answer whether gutters are present');
+                              return;
+                            }
+                            if (hasStepFlashing && guttersPresent && !kickoutQuantity) {
+                              // User said gutters present but hasn't entered quantity
+                              alert('Please enter the number of kick-out diverters or click "Add Kick-out Diverter"');
+                              return;
+                            }
+                          }
+                          // Step 4: Shingle Depreciation - validate if user selected yes
+                          if (currentWorkflowStep === 4) {
+                            if (contestShingleDepreciation === null) {
+                              alert('Please answer whether you want to contest shingle depreciation');
+                              return;
+                            }
+                            if (contestShingleDepreciation && !shingleAge) {
+                              alert('Please enter the shingle age in years or click "Add Depreciation Contest"');
+                              return;
+                            }
+                            // If user wants to contest and has entered age, add the line item
+                            if (contestShingleDepreciation && shingleAge) {
+                              handleAddDepreciationContest(workflowData.lineItems);
+                              return;
+                            }
+                          }
+                          // Step 5: Valley Metal - validate if user selected valley type when needed
+                          if (currentWorkflowStep === 5) {
+                            const hasValleyMetal = checkValleyMetalPresent(workflowData.lineItems);
+                            const totalValleysLength = extractedRoofMeasurements["Total Valleys Length"];
+                            const valleyLengthValue = totalValleysLength?.value || (typeof totalValleysLength === 'number' ? totalValleysLength : 0);
+                            
+                            // Only need to validate if valleys exist and no valley metal is present
+                            if (!hasValleyMetal && valleyLengthValue > 0) {
+                              if (!valleyType) {
+                                alert('Please select valley type (open or closed)');
+                                return;
+                              }
+                              // If valley type is selected, add the item
+                              handleAddValleyMetal(workflowData.lineItems);
+                              return;
+                            }
+                          }
+                          if (currentWorkflowStep === 6 && !workflowData.hasOP) {
                             handleAddOP();
                             return;
                           }
-                          // For steps 4-14, just advance to next step
+                          // For steps 7-17, just advance to next step
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-medium transition-colors"
@@ -7022,7 +7654,7 @@ function EstimatePageContent() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
                                 <div className="text-gray-600">Unit Price:</div>
-                                <div className="font-semibold">${macroData.unit_price.toFixed(2)}/{macroData.unit}</div>
+                                <div className="font-semibold text-gray-900">${macroData.unit_price.toFixed(2)}/{macroData.unit}</div>
                               </div>
                               <div>
                                 <div className="text-gray-600">Total RCV:</div>
@@ -8163,6 +8795,60 @@ function EstimatePageContent() {
                           <div className="space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Type of Roof Access Issues (select all that apply): *
+                              </label>
+                              <div className="space-y-2 bg-gray-50 p-3 rounded-lg border border-gray-300">
+                                {[
+                                  'Cracked/broken driveway',
+                                  'Aggregate paver driveway',
+                                  'Boomtruck can not reach',
+                                  'Gate clearance issues',
+                                  'Landscaping blocks equipment',
+                                  'Other'
+                                ].map((issueType) => (
+                                  <label key={issueType} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-2 rounded">
+                                    <input
+                                      type="checkbox"
+                                      checked={roofAccessIssueTypes.includes(issueType)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setRoofAccessIssueTypes([...roofAccessIssueTypes, issueType]);
+                                        } else {
+                                          setRoofAccessIssueTypes(roofAccessIssueTypes.filter(t => t !== issueType));
+                                          // Clear other text if unchecking "Other"
+                                          if (issueType === 'Other') {
+                                            setOtherIssueText('');
+                                          }
+                                        }
+                                      }}
+                                      className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                      {issueType === 'Other' ? 'Other issue' : issueType}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Show text input if "Other" is selected */}
+                            {roofAccessIssueTypes.includes('Other') && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Describe the other issue: *
+                                </label>
+                                <textarea
+                                  value={otherIssueText}
+                                  onChange={(e) => setOtherIssueText(e.target.value)}
+                                  placeholder="Please describe the roof access issue..."
+                                  rows={3}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Number of Stories:
                               </label>
                               <input
@@ -8206,12 +8892,15 @@ function EstimatePageContent() {
                             </div>
 
                             {/* Preview calculations */}
-                            {numberOfStories && roofstockingDelivery === true && (
+                            {roofAccessIssueTypes.length > 0 && numberOfStories && roofstockingDelivery === true && (
                               <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
                                 <div className="text-sm text-orange-800">
-                                  <strong>Will calculate labor cost based on:</strong>
+                                  <strong>Line item will include:</strong>
                                 </div>
                                 <div className="text-sm text-orange-700 mt-2 space-y-1">
+                                  <div><strong>Issues:</strong> {roofAccessIssueTypes.map(type => 
+                                    type === 'Other' ? otherIssueText : type
+                                  ).join(', ')}</div>
                                   <div>• Bundles = Total Roof Area × 3</div>
                                   <div>• Labor time = (bundles × {parseInt(numberOfStories) === 1 ? '2.75' : '3.13'}) ÷ 60 hours</div>
                                   <div>• Labor cost = labor time × "Roofing - General Laborer - per hour" rate</div>
@@ -8241,9 +8930,9 @@ function EstimatePageContent() {
                   </button>
                   <button
                     onClick={handleAddRoofAccessLabor}
-                    disabled={roofAccessIssues === null || (roofAccessIssues === true && (!numberOfStories || roofstockingDelivery === null))}
+                    disabled={roofAccessIssues === null || (roofAccessIssues === true && (roofAccessIssueTypes.length === 0 || (roofAccessIssueTypes.includes('Other') && !otherIssueText) || !numberOfStories || roofstockingDelivery === null))}
                     className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                      roofAccessIssues === false || (roofAccessIssues === true && numberOfStories && roofstockingDelivery !== null)
+                      roofAccessIssues === false || (roofAccessIssues === true && roofAccessIssueTypes.length > 0 && (!roofAccessIssueTypes.includes('Other') || otherIssueText) && numberOfStories && roofstockingDelivery !== null)
                         ? 'bg-orange-600 text-white hover:bg-orange-700'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
