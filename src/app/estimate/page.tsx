@@ -163,6 +163,11 @@ function EstimatePageContent() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemIndex: number } | null>(null);
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
 
+  // Debug and Error state
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<string>('');
+  const [localStorageData, setLocalStorageData] = useState<any>(null);
+
   // Roof Master Macro Upload state
   const [isUploadingRMM, setIsUploadingRMM] = useState(false);
   const [rmmUploadStatus, setRmmUploadStatus] = useState<{ success: boolean; message: string; itemCount?: number } | null>(null);
@@ -212,11 +217,19 @@ function EstimatePageContent() {
     console.log('StoredData exists:', !!storedData);
     console.log('StoredData length:', storedData?.length || 0);
     
+    // Set debug info for display
+    setDebugInfo({
+      hasStoredData: !!storedData,
+      storedDataLength: storedData?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+    
     if (storedData) {
       try {
         const parsedData = JSON.parse(storedData);
         console.log('Parsed data:', parsedData);
         setRawAgentData(parsedData);
+        setLocalStorageData(parsedData);
         
         // Extract line items from claim agent response
         if (parsedData.claimAgentResponse?.response) {
@@ -243,16 +256,44 @@ function EstimatePageContent() {
                 lineItemsArray = JSON.parse(jsonMatch[0]);
               } catch (parseError) {
                 console.error('Failed to parse extracted JSON array:', parseError);
+                setErrorDetails(`Failed to parse line items: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
               }
             }
           }
           
           console.log('Extracted line items array:', lineItemsArray);
           setExtractedLineItems(lineItemsArray);
+          
+          // Update debug info
+          setDebugInfo((prev: any) => ({
+            ...prev,
+            hasClaimAgentResponse: true,
+            claimAgentResponseLength: responseStr?.length || 0,
+            extractedLineItemsCount: lineItemsArray.length,
+            claimAgentError: null
+          }));
+        } else {
+          setErrorDetails('No claim agent response found in stored data');
+          setDebugInfo((prev: any) => ({
+            ...prev,
+            hasClaimAgentResponse: false,
+            claimAgentError: 'Missing claimAgentResponse.response'
+          }));
         }
       } catch (error) {
         console.error('Error parsing stored data:', error);
+        setErrorDetails(`Error parsing localStorage data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setDebugInfo((prev: any) => ({
+          ...prev,
+          parseError: error instanceof Error ? error.message : 'Unknown error'
+        }));
       }
+    } else {
+      setErrorDetails('No data found in localStorage. Please upload and process claim documents first.');
+      setDebugInfo((prev: any) => ({
+        ...prev,
+        localStorageError: 'No extractedClaimData found'
+      }));
     }
     
     setLoading(false);
@@ -3311,19 +3352,117 @@ function EstimatePageContent() {
 
   if (extractedLineItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto">
-          <div className="bg-yellow-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <span className="text-2xl">⚠️</span>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="bg-yellow-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">No Claim Data Available</h1>
+            <p className="text-gray-600 mb-6">Please upload and process insurance claim documents first.</p>
+            <button
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium transition-colors"
+            >
+              Go to Upload Page
+            </button>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">No Claim Data Available</h1>
-          <p className="text-gray-600 mb-6">Please upload and process insurance claim documents first.</p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium transition-colors"
-          >
-            Go to Upload Page
-          </button>
+
+          {/* Debug Information Panel */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🔍 Debug Information</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Debug Info */}
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">System Status</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">LocalStorage Data:</span>
+                    <span className={debugInfo?.hasStoredData ? 'text-green-600' : 'text-red-600'}>
+                      {debugInfo?.hasStoredData ? 'Found' : 'Not Found'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Data Size:</span>
+                    <span className="text-gray-900">{debugInfo?.storedDataLength || 0} bytes</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Check Time:</span>
+                    <span className="text-gray-900">{debugInfo?.timestamp ? new Date(debugInfo.timestamp).toLocaleTimeString() : 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Claim Agent Response:</span>
+                    <span className={debugInfo?.hasClaimAgentResponse ? 'text-green-600' : 'text-red-600'}>
+                      {debugInfo?.hasClaimAgentResponse ? 'Found' : 'Not Found'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Line Items Count:</span>
+                    <span className="text-gray-900">{debugInfo?.extractedLineItemsCount || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Details */}
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Error Details</h3>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  {errorDetails ? (
+                    <p className="text-red-800 text-sm">{errorDetails}</p>
+                  ) : (
+                    <p className="text-gray-600 text-sm">No specific error details available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* LocalStorage Data Preview */}
+            {localStorageData && (
+              <div className="mt-6">
+                <h3 className="font-medium text-gray-900 mb-3">LocalStorage Data Preview</h3>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <pre className="text-xs text-gray-700 overflow-x-auto">
+                    {JSON.stringify({
+                      hasClaimAgentResponse: !!localStorageData.claimAgentResponse,
+                      hasRoofAgentResponse: !!localStorageData.roofAgentResponse,
+                      claimAgentResponseLength: localStorageData.claimAgentResponse?.response?.length || 0,
+                      roofAgentResponseLength: localStorageData.roofAgentResponse?.response?.length || 0,
+                      timestamp: localStorageData.timestamp
+                    }, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Troubleshooting Steps */}
+            <div className="mt-6">
+              <h3 className="font-medium text-gray-900 mb-3">🔧 Troubleshooting Steps</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <ol className="text-sm text-blue-800 space-y-2">
+                  <li>1. Go back to the upload page and ensure both PDF files are uploaded</li>
+                  <li>2. Wait for both OCR extraction and agent processing to complete</li>
+                  <li>3. Check that the "Ready - View Extracted Claim" button is enabled</li>
+                  <li>4. Click the button to process and store the data</li>
+                  <li>5. If issues persist, check the browser console for detailed error messages</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Clear Data Button */}
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => {
+                  localStorage.removeItem('extractedClaimData');
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+              >
+                Clear Stored Data & Reload
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );

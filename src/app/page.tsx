@@ -58,11 +58,18 @@ export default function HomePage() {
 
   const checkLyzrStatus = async () => {
     try {
+      console.log('🔍 Checking Lyzr status...');
       // Test Lyzr connection
       const response = await fetch('/api/lyzr-status');
+      console.log('Lyzr status response:', response.status, response.statusText);
+      
       if (response.ok) {
+        const data = await response.json();
+        console.log('Lyzr status data:', data);
         setLyzrStatus('connected');
       } else {
+        const errorText = await response.text();
+        console.error('Lyzr status error:', response.status, errorText);
         setLyzrStatus('error');
       }
     } catch (error) {
@@ -569,6 +576,87 @@ export default function HomePage() {
               {processingStatus}
             </p>
           )}
+
+          {/* Debug Information Panel */}
+          <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">🔍 Debug Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Lyzr Status */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-2">Lyzr Status</h4>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${lyzrStatus === 'connected' ? 'bg-green-500' : lyzrStatus === 'checking' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                  <span className="text-sm text-gray-600 capitalize">{lyzrStatus}</span>
+                </div>
+              </div>
+
+              {/* Claim OCR Status */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-2">Claim OCR</h4>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${claimOcrResponse ? 'bg-green-500' : isExtractingClaimOcr ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-sm text-gray-600">
+                    {claimOcrResponse ? 'Complete' : isExtractingClaimOcr ? 'Processing' : 'Waiting'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Claim Agent Status */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-2">Claim Agent</h4>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${claimAgentResponse ? 'bg-green-500' : isProcessingClaimAgent ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-sm text-gray-600">
+                    {claimAgentResponse ? 'Complete' : isProcessingClaimAgent ? 'Processing' : 'Waiting'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Roof Agent Status */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-2">Roof Agent</h4>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${roofAgentResponse ? 'bg-green-500' : isProcessingRoofAgent ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-sm text-gray-600">
+                    {roofAgentResponse ? 'Complete' : isProcessingRoofAgent ? 'Processing' : 'Waiting'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Messages */}
+            {(claimOcrStatus || claimAgentStatus || roofOcrStatus || roofAgentStatus) && (
+              <div className="mt-4 space-y-2">
+                <h4 className="font-medium text-gray-900">Status Messages</h4>
+                <div className="space-y-1 text-sm">
+                  {claimOcrStatus && (
+                    <div className="text-blue-600">📄 Claim OCR: {claimOcrStatus}</div>
+                  )}
+                  {claimAgentStatus && (
+                    <div className="text-purple-600">🤖 Claim Agent: {claimAgentStatus}</div>
+                  )}
+                  {roofOcrStatus && (
+                    <div className="text-green-600">📄 Roof OCR: {roofOcrStatus}</div>
+                  )}
+                  {roofAgentStatus && (
+                    <div className="text-orange-600">🏠 Roof Agent: {roofAgentStatus}</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Error Details */}
+            {lyzrStatus === 'error' && (
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                <h4 className="font-medium text-red-900 mb-2">⚠️ Lyzr Connection Error</h4>
+                <p className="text-sm text-red-700">
+                  The Lyzr service is not responding. Check the console for detailed error messages.
+                  This may be due to network issues or service unavailability.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Claim OCR Debug Window */}
