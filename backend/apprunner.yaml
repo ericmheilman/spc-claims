@@ -1,0 +1,6 @@
+version: 1.0
+runtime: docker
+dockerfile: Dockerfile
+port: 8080
+healthcheck:
+  path: /
