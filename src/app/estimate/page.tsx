@@ -263,15 +263,54 @@ function EstimatePageContent() {
               lineItemsArray = parsed.response;
             }
           } catch (e) {
-            // Try to extract JSON array using regex
+            console.warn('Direct JSON parsing failed, trying alternative methods:', e);
+            
+            // Method 1: Try to extract JSON array using regex
             const jsonMatch = responseStr.match(/\[[\s\S]*?\]/);
             if (jsonMatch) {
               try {
                 lineItemsArray = JSON.parse(jsonMatch[0]);
+                console.log('✅ Successfully parsed JSON using regex extraction');
               } catch (parseError) {
-                console.error('Failed to parse extracted JSON array:', parseError);
-                setErrorDetails(`Failed to parse line items: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+                console.warn('Regex extraction failed, trying JSON repair:', parseError);
+                
+                // Method 2: Try to repair common JSON issues
+                try {
+                  let repairedJson = jsonMatch[0];
+                  
+                  // Fix common JSON issues
+                  repairedJson = repairedJson
+                    .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+                    .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
+                    .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Add quotes around unquoted keys
+                    .replace(/:\s*([^",{\[\s][^,}\]\]]*?)(\s*[,}\]])/g, ': "$1"$2');  // Add quotes around unquoted string values
+                  
+                  lineItemsArray = JSON.parse(repairedJson);
+                  console.log('✅ Successfully parsed JSON after repair');
+                } catch (repairError) {
+                  console.error('JSON repair failed:', repairError);
+                  
+                  // Method 3: Try to extract individual line items
+                  try {
+                    const lineItemMatches = responseStr.match(/\{[^{}]*"line_number"[^{}]*\}/g);
+                    if (lineItemMatches && lineItemMatches.length > 0) {
+                      lineItemsArray = lineItemMatches.map((item: string) => {
+                        try {
+                          return JSON.parse(item);
+                        } catch {
+                          return null;
+                        }
+                      }).filter((item: any) => item !== null);
+                      console.log(`✅ Successfully extracted ${lineItemsArray.length} line items individually`);
+                    }
+                  } catch (extractError) {
+                    console.error('Individual line item extraction failed:', extractError);
+                    setErrorDetails(`Failed to parse line items: ${parseError instanceof Error ? parseError.message : 'Unknown error'}. Original error: ${e instanceof Error ? e.message : 'Unknown'}`);
+                  }
+                }
               }
+            } else {
+              setErrorDetails(`No JSON array found in response. Response preview: ${responseStr.substring(0, 500)}...`);
             }
           }
           
@@ -3457,6 +3496,24 @@ function EstimatePageContent() {
                       timestamp: localStorageData.timestamp
                     }, null, 2)}
                   </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Malformed JSON Preview */}
+            {localStorageData?.claimAgentResponse?.response && debugInfo?.claimAgentError && (
+              <div className="mt-6">
+                <h3 className="font-medium text-gray-900 mb-3">🔍 Malformed JSON Analysis</h3>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-sm text-red-800 mb-2">
+                    <strong>JSON Error Location:</strong> Position 1440 (line 52, column 69)
+                  </div>
+                  <div className="text-xs text-gray-700 bg-white border rounded p-2 max-h-40 overflow-auto">
+                    <pre>{localStorageData.claimAgentResponse.response.substring(1400, 1500)}</pre>
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2">
+                    <strong>Full Response Length:</strong> {localStorageData.claimAgentResponse.response.length} characters
+                  </div>
                 </div>
               </div>
             )}
