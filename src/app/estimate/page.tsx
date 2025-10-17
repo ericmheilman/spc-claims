@@ -1440,6 +1440,8 @@ function EstimatePageContent() {
       console.log('🔍 Debug: Python audit log:', ruleData.data?.audit_log);
       console.log('🔍 Debug: Python original items count:', ruleData.data?.original_line_items?.length);
       console.log('🔍 Debug: Python adjusted items count:', ruleData.data?.adjusted_line_items?.length);
+      console.log('🔍 Debug: Sample adjusted item:', ruleData.data?.adjusted_line_items?.[0]);
+      console.log('🔍 Debug: Items with narratives:', ruleData.data?.adjusted_line_items?.filter((item: any) => item.narrative));
 
       if (!ruleData.success) {
         throw new Error(`Python rule engine error: ${ruleData.error}`);
@@ -1467,6 +1469,9 @@ function EstimatePageContent() {
       const newItems = adjustedItems.filter((item: any) => !originalLineNumbers.has(item.line_number));
       
       const finalLineItems = [...combinedLineItems, ...newItems];
+      
+      console.log('🔍 Debug: Final line items with narratives:', finalLineItems.filter((item: any) => item.narrative));
+      console.log('🔍 Debug: Sample final item:', finalLineItems[0]);
       
       const resultsWithLineItems = {
         ...ruleData.data,

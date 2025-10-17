@@ -142,6 +142,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Execute Python script
+      console.log('🐍 Attempting to execute Python script:', pythonScript);
+      console.log('📁 Input file:', tempInputFile);
+      console.log('📁 Output file:', tempOutputFile);
       
       const pythonProcess = spawn('python3', [
         pythonScript,
@@ -182,10 +185,12 @@ export async function POST(request: NextRequest) {
         pythonProcess.on('error', (error) => {
           // Handle ENOENT error gracefully
           if (error.message.includes('ENOENT')) {
-            console.log('Python3 not found, falling back to mock response');
+            console.log('❌ Python3 not found, falling back to mock response');
+            console.log('🔍 Error details:', error.message);
             resolve(); // Continue with fallback logic below
             return;
           }
+          console.error('❌ Failed to start Python script:', error.message);
           reject(new Error(`Failed to start Python script: ${error.message}`));
         });
 
@@ -213,6 +218,24 @@ export async function POST(request: NextRequest) {
         console.log('Could not read Python output file, providing fallback response');
         results = {
           success: true,
+          original_line_items: pythonInputData.line_items,
+          adjusted_line_items: pythonInputData.line_items.map((item: any, index: number) => ({
+            ...item,
+            line_number: String(index + 1),
+            narrative: `Field Changed: quantity |Explanation: Mock adjustment - Python execution failed, returning original data with test narrative`
+          })),
+          audit_log: [
+            {
+              line_number: "1",
+              description: "Mock adjustment",
+              field: "quantity",
+              before: 0,
+              after: 0,
+              action: "adjusted",
+              explanation: "Python execution failed - using mock response",
+              rule_applied: "Mock Rule"
+            }
+          ],
           adjustment_results: {
             adjusted_line_items: pythonInputData.line_items.map((item: any, index: number) => ({
               ...item,
