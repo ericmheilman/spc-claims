@@ -13,7 +13,8 @@ frontend:
         - pyenv install 3.9.6
         - pyenv global 3.9.6
         - python --version
-        - echo "Installing dependencies..."
+        - echo "Python dependencies are built-in modules (no pip install needed)"
+        - echo "Installing Node.js dependencies..."
         - npm ci
     build:
       commands:
