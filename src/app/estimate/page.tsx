@@ -4876,12 +4876,15 @@ function EstimatePageContent() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
                         {ruleResults.line_items.map((item: any, index: number) => {
-                          // Find if this item has an audit log entry
+                          // Find ALL audit log entries for this item
                           // Try matching by line number first, then by description as fallback
-                          const auditEntry = ruleResults.audit_log?.find((log: any) => 
+                          const auditEntries = ruleResults.audit_log?.filter((log: any) => 
                             String(log.line_number) === String(item.line_number) ||
                             log.description === item.description
-                          );
+                          ) || [];
+                          
+                          // For backward compatibility, keep the first audit entry as the primary one
+                          const auditEntry = auditEntries[0];
                           
                           // Debug logging for Python adjustments
                           if (ruleResults.audit_log && ruleResults.audit_log.length > 0 && !auditEntry) {
@@ -4904,15 +4907,19 @@ function EstimatePageContent() {
                               description: item.description,
                               narrative: item.narrative,
                               hasAuditEntry: !!auditEntry,
-                              auditEntryField: auditEntry?.field,
-                              auditEntryBefore: auditEntry?.before,
-                              auditEntryAfter: auditEntry?.after,
+                              auditEntriesCount: auditEntries.length,
+                              allAuditEntries: auditEntries.map((entry: any) => ({
+                                field: entry.field,
+                                before: entry.before,
+                                after: entry.after,
+                                action: entry.action
+                              })),
                               hasUserPromptWorkflow: !!item.user_prompt_workflow
                             });
                           }
                           
                           // Determine color scheme based on type of change
-                          const getColorScheme = (auditEntry: any, item: any) => {
+                          const getColorScheme = (auditEntries: any[], item: any) => {
                             // Check for user prompt workflow items first (highest priority)
                             if (item.user_prompt_workflow) {
                               const stepColors = {
@@ -5002,10 +5009,11 @@ function EstimatePageContent() {
                             }
                             
                             // Check audit log entries FIRST to determine automated adjustment types
-                            if (auditEntry) {
-                              const field = auditEntry.field;
-                              const rule = auditEntry.rule_applied;
-                              const action = auditEntry.action;
+                            if (auditEntries.length > 0) {
+                              const primaryEntry = auditEntries[0];
+                              const field = primaryEntry.field;
+                              const rule = primaryEntry.rule_applied;
+                              const action = primaryEntry.action;
                               
                               // New items (added)
                               if (action === 'added' || rule.includes('Missing Line Item') || rule.includes('Added missing')) {
@@ -5072,7 +5080,7 @@ function EstimatePageContent() {
                             }
                             
                             // Check for custom narrative LAST (only for true manual adjustments without audit entries)
-                            if (item.narrative && !auditEntry) {
+                            if (item.narrative && auditEntries.length === 0) {
                               return {
                                 rowClass: 'bg-yellow-50 border-l-4 border-yellow-500',
                                 badgeColor: 'bg-yellow-600',
@@ -5087,7 +5095,7 @@ function EstimatePageContent() {
                             return null;
                           };
                           
-                          const colorScheme = getColorScheme(auditEntry, item);
+                          const colorScheme = getColorScheme(auditEntries, item);
                           const rowClass = colorScheme ? colorScheme.rowClass : 'hover:bg-gray-50';
                           
                           return (
@@ -5113,6 +5121,15 @@ function EstimatePageContent() {
                                         {item.user_prompt_workflow ? (
                                           <div className="text-gray-700 mb-2">
                                             Added by user during {item.user_prompt_step} step of the SPC workflow
+                                          </div>
+                                        ) : auditEntries.length > 0 ? (
+                                          <div className="text-gray-700 mb-2">
+                                            {auditEntries.map((entry: any, idx: any) => (
+                                              <div key={idx} className="mb-1">
+                                                <strong className={colorScheme.boxTextColor}>Field Changed:</strong> {entry.field} | 
+                                                <strong className={colorScheme.boxTextColor}> Explanation:</strong> {entry.explanation}
+                                              </div>
+                                            ))}
                                           </div>
                                         ) : item.narrative ? (
                                           <div className="text-gray-700 mb-2">
@@ -5141,16 +5158,16 @@ function EstimatePageContent() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 {(() => {
-                                  const quantityChange = auditEntry?.field === 'quantity';
+                                  const quantityChange = auditEntries.find((entry: any) => entry.field === 'quantity');
                                   
-                                  if (auditEntry && quantityChange && colorScheme) {
+                                  if (quantityChange && quantityChange.before !== quantityChange.after) {
                                     return (
                                       <div className="space-y-1">
-                                        <div className={`font-bold ${colorScheme.boxTextColor} bg-blue-100 px-2 py-1 rounded inline-block`}>
+                                        <div className={`font-bold ${colorScheme?.boxTextColor || 'text-blue-700'} bg-blue-100 px-2 py-1 rounded inline-block`}>
                                           {item.quantity?.toFixed(2)}
                                         </div>
                                         <div className="text-xs text-gray-500 line-through">
-                                          Was: {auditEntry.before?.toFixed(2)}
+                                          Was: {quantityChange.before?.toFixed(2)}
                                         </div>
                                       </div>
                                     );
@@ -5166,16 +5183,16 @@ function EstimatePageContent() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 {(() => {
-                                  const priceChange = auditEntry?.field === 'unit_price';
+                                  const priceChange = auditEntries.find((entry: any) => entry.field === 'unit_price');
                                   
-                                  if (auditEntry && priceChange && colorScheme) {
+                                  if (priceChange && priceChange.before !== priceChange.after) {
                                     return (
                                       <div className="space-y-1">
-                                        <div className={`font-bold ${colorScheme.boxTextColor} bg-green-100 px-2 py-1 rounded inline-block`}>
-                                          {formatCurrency(auditEntry.after || item.unit_price || 0)}
+                                        <div className={`font-bold ${colorScheme?.boxTextColor || 'text-green-700'} bg-green-100 px-2 py-1 rounded inline-block`}>
+                                          {formatCurrency(priceChange.after || item.unit_price || 0)}
                                         </div>
                                         <div className="text-xs text-gray-500 line-through">
-                                          Was: {formatCurrency(auditEntry.before || 0)}
+                                          Was: {formatCurrency(priceChange.before || 0)}
                                         </div>
                                       </div>
                                     );
