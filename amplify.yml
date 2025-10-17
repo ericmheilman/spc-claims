@@ -5,7 +5,7 @@ frontend:
       commands:
         - echo "Installing Python 3.9..."
         - sudo yum update -y
-        - sudo yum install -y python3-pip
+        - sudo yum install -y python39 python3-pip
         - echo "Setting up Python PATH..."
         - export PATH="/usr/bin:$PATH"
         - python --version
@@ -16,6 +16,10 @@ frontend:
         - echo "Copying Python script to accessible location..."
         - cp roof_adjustment_engine.py /tmp/roof_adjustment_engine.py
         - ls -la /tmp/roof_adjustment_engine.py
+        - echo "Installing Python in Lambda runtime environment..."
+        - sudo mkdir -p /opt/python
+        - sudo cp /usr/bin/python3.9 /opt/python/python3.9
+        - sudo chmod +x /opt/python/python3.9
         - echo "Python dependencies are built-in modules (no pip install needed)"
         - echo "Installing Node.js dependencies..."
         - npm ci
@@ -25,6 +29,8 @@ frontend:
         - export PATH="/usr/bin:$PATH"
         - echo "Verifying Python script is accessible..."
         - ls -la /tmp/roof_adjustment_engine.py
+        - echo "Verifying Python in Lambda runtime location..."
+        - ls -la /opt/python/python3.9
         - echo "Building the app..."
         - npm run build
   artifacts:

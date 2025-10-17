@@ -146,54 +146,61 @@ export async function POST(request: NextRequest) {
       console.log('📁 Input file:', tempInputFile);
       console.log('📁 Output file:', tempOutputFile);
       
-      // Try python3 first, then fall back to python
+      // Try to find Python executable - check multiple possible locations
       const pythonCommand = await new Promise<string>((resolve, reject) => {
-        console.log('🔍 Testing python3 availability...');
-        const testProcess = spawn('python3', ['--version'], { stdio: 'pipe' });
-        testProcess.on('close', (code) => {
-          if (code === 0) {
-            console.log('✅ Using python3 command');
-            resolve('python3');
-          } else {
-            console.log('⚠️ python3 not found, trying python');
-            const testProcess2 = spawn('python', ['--version'], { stdio: 'pipe' });
-            testProcess2.on('close', (code2) => {
-              if (code2 === 0) {
-                console.log('✅ Using python command');
-                resolve('python');
-              } else {
-                console.log('❌ Neither python3 nor python found');
-                console.log('🔍 Available commands in PATH:');
-                const { exec } = require('child_process');
-                exec('which python3 python python3.9 python3.8', (error: any, stdout: string, stderr: string) => {
-                  console.log('PATH check result:', stdout || stderr);
-                  reject(new Error('Neither python3 nor python found'));
-                });
-              }
-            });
-            testProcess2.on('error', (error) => {
-              console.log('❌ python command error:', error.message);
+        console.log('🔍 Testing Python availability in runtime environment...');
+        
+        // List of possible Python executable paths
+        const pythonPaths = [
+          '/opt/python/python3.9',  // Lambda runtime location
+          '/usr/bin/python3.9',     // Amazon Linux 2023 default
+          '/usr/bin/python3',       // Common symlink
+          '/usr/bin/python',        // Common symlink
+          '/usr/local/bin/python3.9',
+          '/usr/local/bin/python3',
+          '/usr/local/bin/python',
+          'python3',                // PATH lookup
+          'python'                  // PATH lookup
+        ];
+
+        let currentIndex = 0;
+        
+        const testNextPython = () => {
+          if (currentIndex >= pythonPaths.length) {
+            console.log('❌ No Python executable found in any expected location');
+            console.log('🔍 Available commands in PATH:');
+            const { exec } = require('child_process');
+            exec('ls -la /usr/bin/python* /usr/local/bin/python* 2>/dev/null || echo "No Python found in standard locations"', (error: any, stdout: string, stderr: string) => {
+              console.log('Python locations check:', stdout || stderr);
               reject(new Error('Neither python3 nor python found'));
             });
+            return;
           }
-        });
-        testProcess.on('error', (error) => {
-          console.log('❌ python3 command error:', error.message);
-          console.log('⚠️ python3 not found, trying python');
-          const testProcess2 = spawn('python', ['--version'], { stdio: 'pipe' });
-          testProcess2.on('close', (code2) => {
-            if (code2 === 0) {
-              console.log('✅ Using python command');
-              resolve('python');
+
+          const pythonPath = pythonPaths[currentIndex];
+          console.log(`🔍 Testing Python path: ${pythonPath}`);
+          
+          const testProcess = spawn(pythonPath, ['--version'], { stdio: 'pipe' });
+          
+          testProcess.on('close', (code) => {
+            if (code === 0) {
+              console.log(`✅ Found working Python at: ${pythonPath}`);
+              resolve(pythonPath);
             } else {
-              console.log('❌ Neither python3 nor python found');
-              reject(new Error('Neither python3 nor python found'));
+              console.log(`❌ Python not found at: ${pythonPath}`);
+              currentIndex++;
+              testNextPython();
             }
           });
-          testProcess2.on('error', () => {
-            reject(new Error('Neither python3 nor python found'));
+          
+          testProcess.on('error', (error) => {
+            console.log(`❌ Python error at ${pythonPath}:`, error.message);
+            currentIndex++;
+            testNextPython();
           });
-        });
+        };
+
+        testNextPython();
       });
       
       const pythonProcess = spawn(pythonCommand, [
