@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
 
     // Get the Lambda function URL from environment variables
     const lambdaUrl = process.env.ROOF_ADJUSTMENT_LAMBDA_URL || 
-                     process.env.AMPLIFY_API_URL + '/roofAdjustmentEngine' ||
                      'https://your-lambda-url.amazonaws.com/roofAdjustmentEngine';
 
     console.log('🔗 Lambda URL:', lambdaUrl);
