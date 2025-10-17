@@ -5245,7 +5245,7 @@ function EstimatePageContent() {
                               const action = primaryEntry.action;
                               
                               // New items (added)
-                              if (action === 'added' || rule.includes('Missing Line Item') || rule.includes('Added missing')) {
+                              if (action === 'added' || (rule && rule.includes('Missing Line Item')) || (rule && rule.includes('Added missing'))) {
                                 return {
                                   rowClass: 'bg-purple-50 border-l-4 border-purple-500',
                                   badgeColor: 'bg-purple-600',
@@ -5284,7 +5284,7 @@ function EstimatePageContent() {
                               }
                               
                               // Description changes (replacements)
-                              if (field === 'description' || rule.includes('Line Item Replacements') || rule.includes('REPLACED')) {
+                              if (field === 'description' || (rule && rule.includes('Line Item Replacements')) || (rule && rule.includes('REPLACED'))) {
                                 return {
                                   rowClass: 'bg-orange-50 border-l-4 border-orange-500',
                                   badgeColor: 'bg-orange-600',
