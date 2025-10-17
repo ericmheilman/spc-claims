@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RoofAdjustmentEngine } from '@/lib/roofAdjustmentEngine';
 import fs from 'fs/promises';
 import path from 'path';
-import { parse } from 'csv-parse/sync';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,10 +16,21 @@ export async function POST(request: NextRequest) {
     const csvPath = path.join(process.cwd(), 'public', 'roof_master_macro.csv');
     const csvContent = await fs.readFile(csvPath, 'utf-8');
     
-    const records = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-    });
+    // Simple CSV parsing without external library
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const records = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      if (values.length === headers.length) {
+        const record: any = {};
+        headers.forEach((header, index) => {
+          record[header] = values[index];
+        });
+        records.push(record);
+      }
+    }
 
     // Convert CSV records to the format expected by the engine
     const roofMasterMacroData: Record<string, any> = {};
