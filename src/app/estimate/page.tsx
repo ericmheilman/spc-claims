@@ -4916,7 +4916,7 @@ function EstimatePageContent() {
                                 removal: {
                                   rowClass: 'bg-red-50 border-l-4 border-red-500',
                                   badgeColor: 'bg-red-600',
-                                  badgeText: '🔄 USER ADDED - REMOVAL',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-red-50 border-l-3 border-red-500',
                                   boxTitle: '👤 User Added - Removal Step:',
                                   boxTitleColor: 'text-red-900',
@@ -4925,7 +4925,7 @@ function EstimatePageContent() {
                                 installation: {
                                   rowClass: 'bg-indigo-50 border-l-4 border-indigo-500',
                                   badgeColor: 'bg-indigo-600',
-                                  badgeText: '🔄 USER ADDED - INSTALLATION',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-indigo-50 border-l-3 border-indigo-500',
                                   boxTitle: '👤 User Added - Installation Step:',
                                   boxTitleColor: 'text-indigo-900',
@@ -4934,7 +4934,7 @@ function EstimatePageContent() {
                                 ridge_vent: {
                                   rowClass: 'bg-amber-50 border-l-4 border-amber-500',
                                   badgeColor: 'bg-amber-600',
-                                  badgeText: '🔄 USER ADDED - RIDGE VENT',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-amber-50 border-l-3 border-amber-500',
                                   boxTitle: '👤 User Added - Ridge Vent Step:',
                                   boxTitleColor: 'text-amber-900',
@@ -4943,7 +4943,7 @@ function EstimatePageContent() {
                                 chimney_cricket: {
                                   rowClass: 'bg-cyan-50 border-l-4 border-cyan-500',
                                   badgeColor: 'bg-cyan-600',
-                                  badgeText: '🔄 USER ADDED - CHIMNEY CRICKET',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-cyan-50 border-l-3 border-cyan-500',
                                   boxTitle: '👤 User Added - Chimney Cricket Step:',
                                   boxTitleColor: 'text-cyan-900',
@@ -4952,7 +4952,7 @@ function EstimatePageContent() {
                                 additional_layers: {
                                   rowClass: 'bg-emerald-50 border-l-4 border-emerald-500',
                                   badgeColor: 'bg-emerald-600',
-                                  badgeText: '🔄 USER ADDED - ADDITIONAL LAYERS',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-emerald-50 border-l-3 border-emerald-500',
                                   boxTitle: '👤 User Added - Additional Layers Step:',
                                   boxTitleColor: 'text-emerald-900',
@@ -4961,7 +4961,7 @@ function EstimatePageContent() {
                                 permit: {
                                   rowClass: 'bg-blue-50 border-l-4 border-blue-500',
                                   badgeColor: 'bg-blue-600',
-                                  badgeText: '🔄 USER ADDED - PERMIT',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-blue-50 border-l-3 border-blue-500',
                                   boxTitle: '👤 User Added - Permit Step:',
                                   boxTitleColor: 'text-blue-900',
@@ -4970,7 +4970,7 @@ function EstimatePageContent() {
                                 hidden_damages: {
                                   rowClass: 'bg-gray-50 border-l-4 border-gray-500',
                                   badgeColor: 'bg-gray-600',
-                                  badgeText: '🔄 USER ADDED - HIDDEN DAMAGES',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-gray-50 border-l-3 border-gray-500',
                                   boxTitle: '👤 User Added - Hidden Damages Step:',
                                   boxTitleColor: 'text-gray-900',
@@ -4979,7 +4979,7 @@ function EstimatePageContent() {
                                 roof_access: {
                                   rowClass: 'bg-orange-50 border-l-4 border-orange-500',
                                   badgeColor: 'bg-orange-600',
-                                  badgeText: '🔄 USER ADDED - ROOF ACCESS',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-orange-50 border-l-3 border-orange-500',
                                   boxTitle: '👤 User Added - Roof Access Step:',
                                   boxTitleColor: 'text-orange-900',
@@ -4988,7 +4988,7 @@ function EstimatePageContent() {
                                 op: {
                                   rowClass: 'bg-purple-50 border-l-4 border-purple-500',
                                   badgeColor: 'bg-purple-600',
-                                  badgeText: '🔄 USER ADDED - O&P',
+                                  badgeText: '👤 USER',
                                   boxClass: 'bg-purple-50 border-l-3 border-purple-500',
                                   boxTitle: '👤 User Added - O&P Step:',
                                   boxTitleColor: 'text-purple-900',
@@ -5003,9 +5003,9 @@ function EstimatePageContent() {
                               return {
                                 rowClass: 'bg-yellow-50 border-l-4 border-yellow-500',
                                 badgeColor: 'bg-yellow-600',
-                                badgeText: '✏️ MANUALLY ADJUSTED',
+                                badgeText: '✋ MANUAL',
                                 boxClass: 'bg-yellow-50 border-l-3 border-yellow-500',
-                                boxTitle: '✏️ Manual Adjustment:',
+                                boxTitle: '✋ Manual Adjustment:',
                                 boxTitleColor: 'text-yellow-900',
                                 boxTextColor: 'text-yellow-800'
                               };
@@ -5022,7 +5022,7 @@ function EstimatePageContent() {
                               return {
                                 rowClass: 'bg-purple-50 border-l-4 border-purple-500',
                                 badgeColor: 'bg-purple-600',
-                                badgeText: '🆕 NEW ITEM',
+                                badgeText: '🏷️ NEW',
                                 boxClass: 'bg-purple-50 border-l-3 border-purple-500',
                                 boxTitle: '📦 New Item Added:',
                                 boxTitleColor: 'text-purple-900',
@@ -5035,7 +5035,7 @@ function EstimatePageContent() {
                               return {
                                 rowClass: 'bg-blue-50 border-l-4 border-blue-500',
                                 badgeColor: 'bg-blue-600',
-                                badgeText: '📏 QUANTITY ADJUSTED',
+                                badgeText: '📏 QUANTITY',
                                 boxClass: 'bg-blue-50 border-l-3 border-blue-500',
                                 boxTitle: '📏 Quantity Adjustment:',
                                 boxTitleColor: 'text-blue-900',
@@ -5048,7 +5048,7 @@ function EstimatePageContent() {
                               return {
                                 rowClass: 'bg-green-50 border-l-4 border-green-500',
                                 badgeColor: 'bg-green-600',
-                                badgeText: '💰 PRICE ADJUSTED',
+                                badgeText: '💰 PRICE',
                                 boxClass: 'bg-green-50 border-l-3 border-green-500',
                                 boxTitle: '💰 Price Adjustment:',
                                 boxTitleColor: 'text-green-900',
@@ -5061,7 +5061,7 @@ function EstimatePageContent() {
                               return {
                                 rowClass: 'bg-orange-50 border-l-4 border-orange-500',
                                 badgeColor: 'bg-orange-600',
-                                badgeText: '🔄 ITEM REPLACED',
+                                badgeText: '🔄 REPLACED',
                                 boxClass: 'bg-orange-50 border-l-3 border-orange-500',
                                 boxTitle: '🔄 Item Replacement:',
                                 boxTitleColor: 'text-orange-900',
@@ -5073,7 +5073,7 @@ function EstimatePageContent() {
                             return {
                               rowClass: 'bg-gray-50 border-l-4 border-gray-500',
                               badgeColor: 'bg-gray-600',
-                              badgeText: 'SPC ADJUSTED',
+                              badgeText: '🏷️ OTHER',
                               boxClass: 'bg-gray-50 border-l-3 border-gray-500',
                               boxTitle: '📏 Rule Applied:',
                               boxTitleColor: 'text-gray-900',
