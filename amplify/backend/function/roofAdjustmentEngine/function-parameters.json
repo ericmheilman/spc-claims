@@ -1,0 +1,6 @@
+# amplify/backend/function/roofAdjustmentEngine/function-parameters.json
+{
+  "lambdaRuntime": "python3.9",
+  "lambdaTimeout": 30,
+  "lambdaMemory": 1024
+}

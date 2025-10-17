@@ -11,5 +11,21 @@
         }
       }
     }
+  },
+  "function": {
+    "roofAdjustmentEngine": {
+      "pluginManager": {
+        "plugins": {
+          "awscloudformation": {
+            "dependsOn": [],
+            "category": "function",
+            "service": "Lambda",
+            "providerPlugin": "awscloudformation",
+            "build": true,
+            "runtime": "python3.9"
+          }
+        }
+      }
+    }
   }
 }

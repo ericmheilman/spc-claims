@@ -1,0 +1,303 @@
+# amplify/backend/function/roofAdjustmentEngine/roofAdjustmentEngine-cloudformation-template.json
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Lambda function for roof adjustment engine",
+  "Parameters": {
+    "env": {
+      "Type": "String"
+    },
+    "s3Key": {
+      "Type": "String"
+    },
+    "deploymentBucketName": {
+      "Type": "String"
+    }
+  },
+  "Conditions": {},
+  "Resources": {
+    "LambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Metadata": {
+        "aws:asset:path": "./src",
+        "aws:asset:property": "Code"
+      },
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "deploymentBucketName"
+          },
+          "S3Key": {
+            "Ref": "s3Key"
+          }
+        },
+        "FunctionName": {
+          "Fn::If": [
+            "ShouldNotCreateEnvResources",
+            "roofAdjustmentEngine",
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "roofAdjustmentEngine",
+                  "-",
+                  {
+                    "Ref": "env"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "ENV": {
+              "Ref": "env"
+            }
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Handler": "index.handler",
+        "Runtime": "python3.9",
+        "Layers": [],
+        "Timeout": 30,
+        "MemorySize": 1024
+      }
+    },
+    "LambdaExecutionRole": {
+      "DependsOn": [],
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::If": [
+            "ShouldNotCreateEnvResources",
+            "roofAdjustmentEngineLambdaRole",
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "roofAdjustmentEngineLambdaRole",
+                  "-",
+                  {
+                    "Ref": "env"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CloudWatchLogs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": [
+                      "arn:aws:logs:${region}:${account}:log-group:/aws/lambda/${lambda}:log-stream:*",
+                      {
+                        "region": {
+                          "Ref": "AWS::Region"
+                        },
+                        "account": {
+                          "Ref": "AWS::AccountId"
+                        },
+                        "lambda": {
+                          "Ref": "LambdaFunction"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LambdaFunctionPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "LambdaFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:aws:execute-api:${region}:${account}:${apiId}/*/*",
+            {
+              "region": {
+                "Ref": "AWS::Region"
+              },
+              "account": {
+                "Ref": "AWS::AccountId"
+              },
+              "apiId": {
+                "Ref": "API"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "API": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": {
+          "Fn::If": [
+            "ShouldNotCreateEnvResources",
+            "roofAdjustmentEngine",
+            {
+              "Fn::Join": [
+                "",
+                [
+                  "roofAdjustmentEngine",
+                  "-",
+                  {
+                    "Ref": "env"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "Deployment": {
+      "DependsOn": [
+        "LambdaFunctionPermission"
+      ],
+      "Type": "AWS::ApiGateway::Deployment",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "API"
+        },
+        "StageName": {
+          "Ref": "env"
+        }
+      }
+    },
+    "RootMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "API"
+        },
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "API",
+            "RootResourceId"
+          ]
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambda}/invocations",
+              {
+                "region": {
+                  "Ref": "AWS::Region"
+                },
+                "lambda": {
+                  "Ref": "LambdaFunction"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "Name": {
+      "Value": {
+        "Ref": "LambdaFunction"
+      }
+    },
+    "Arn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "LambdaFunction",
+          "Arn"
+        ]
+      }
+    },
+    "Region": {
+      "Value": {
+        "Ref": "AWS::Region"
+      }
+    },
+    "LambdaExecutionRole": {
+      "Value": {
+        "Ref": "LambdaExecutionRole"
+      }
+    },
+    "ApiName": {
+      "Value": {
+        "Ref": "API"
+      }
+    },
+    "RootResourceId": {
+      "Value": {
+        "Fn::GetAtt": [
+          "API",
+          "RootResourceId"
+        ]
+      }
+    },
+    "ApiId": {
+      "Value": {
+        "Ref": "API"
+      }
+    },
+    "URL": {
+      "Value": {
+        "Fn::Sub": [
+          "https://${apiId}.execute-api.${region}.amazonaws.com/${env}",
+          {
+            "apiId": {
+              "Ref": "API"
+            },
+            "region": {
+              "Ref": "AWS::Region"
+            },
+            "env": {
+              "Ref": "env"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
