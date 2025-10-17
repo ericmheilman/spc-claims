@@ -25,7 +25,7 @@ interface LineItem {
   page_number: number;
 }
 
-// Sample adjustment patterns that should be ignored
+// Sample adjustment patterns that should be ignored - very specific to avoid false positives
 const SAMPLE_ADJUSTMENT_PATTERNS = [
   /Your guide to reading your adjuster summary/i,
   /Insured: John Smith/i,
@@ -34,9 +34,9 @@ const SAMPLE_ADJUSTMENT_PATTERNS = [
   /Claim Number: 1234567890/i,
   /Policy Number: 000000123456789/i,
   /Type of Loss: Wind Damage/i,
-  /This is a sample guide/i,
-  /©2018 Allstate Insurance Company/i,
-  /Xactware/i,
+  /This is a sample guide for understanding your insurance claim/i,
+  /Sample claim for demonstration purposes only/i,
+  /This is an example of how to read your claim/i,
   /LF = Linear Feet SQ = 100 Square Feet/i,
   /This amount reflects the Replacement Cost Value/i,
   /The category or state of an item/i,
@@ -64,7 +64,10 @@ const LINE_ITEM_PATTERNS = [
   /^(\d+)\.\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY)\s+(\d+(?:\.\d+)?)\s+(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s+(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s+(\d+(?:\.\d+)?%|NA)\s+\(([-\d,]+\.\d+)\)\s+([\d,]+\.\d+)$/im,
   
   // Pattern 4: Table format with pipes (simplified) - more flexible
-  /^\|\s*(\d+)\.\s+(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY|FA)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s*\|\s*(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s*\|\s*(\d+(?:\.\d+)?%|NA)\s*\|\s*\(([-\d,]+\.\d+)\)\s*\|\s*([\d,]+\.\d+)\s*\|$/im
+  /^\|\s*(\d+)\.\s+(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY|FA)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s*\|\s*(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s*\|\s*(\d+(?:\.\d+)?%|NA)\s*\|\s*\(([-\d,]+\.\d+)\)\s*\|\s*([\d,]+\.\d+)\s*\|$/im,
+  
+  // Pattern 5: Multi-line format with line breaks (Allstate continued pages)
+  /^(\d+)\.\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY|FA)\s+([-\d,]+\.\d+)\s+([-\d,]+\.\d+)\s+(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s+(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s+(\d+(?:\.\d+)?%|NA)\s+\(([-\d,]+\.\d+)\)\s+([\d,]+\.\d+)$/im
 ];
 
 export function parseOCRToLineItems(ocrData: OCRData): LineItem[] {
@@ -114,6 +117,7 @@ function extractLineItemsFromPage(content: string, pageNumber: number): LineItem
   
   console.log(`  Page ${pageNumber}: ${lines.length} lines to process`);
   
+  // First, try single-line patterns
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
@@ -135,6 +139,86 @@ function extractLineItemsFromPage(content: string, pageNumber: number): LineItem
           console.warn(`  ⚠️ Failed to parse line item from: ${line}`, error);
         }
         break; // Found a match, no need to try other patterns
+      }
+    }
+  }
+  
+  // If no line items found, try multi-line patterns
+  if (lineItems.length === 0) {
+    console.log(`  No single-line matches found, trying multi-line patterns...`);
+    
+    // Look for multi-line patterns like:
+    // 17. Remove Additional charge for high roof (2
+    // 30.64 SQ
+    // 7.12
+    // 218.16
+    // 0/NA Avg.
+    // NA
+    // (0.00)
+    // 218.16
+    // stories or greater)
+    
+    for (let i = 0; i < lines.length - 7; i++) {
+      const line1 = lines[i].trim();
+      const line2 = lines[i + 1]?.trim() || '';
+      const line3 = lines[i + 2]?.trim() || '';
+      const line4 = lines[i + 3]?.trim() || '';
+      const line5 = lines[i + 4]?.trim() || '';
+      const line6 = lines[i + 5]?.trim() || '';
+      const line7 = lines[i + 6]?.trim() || '';
+      const line8 = lines[i + 7]?.trim() || '';
+      
+      // Check if this looks like a multi-line line item
+      const multiLineMatch = line1.match(/^(\d+)\.\s+(.+)$/);
+      if (multiLineMatch && 
+          line2.match(/^\d+(?:\.\d+)?\s+(SF|SQ|LF|EA|HR|SY|FA)$/) &&
+          line3.match(/^[\d,]+\.\d+$/) &&
+          line4.match(/^[\d,]+\.\d+$/) &&
+          line5.match(/^\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA$/) &&
+          line6.match(/^(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)$/) &&
+          line7.match(/^(\d+(?:\.\d+)?%|NA)$/) &&
+          line8.match(/^\([\d,]+\.\d+\)$/) &&
+          lines[i + 8]?.trim().match(/^[\d,]+\.\d+$/)) {
+        
+        console.log(`  Found multi-line pattern starting at line ${i + 1}: ${line1.substring(0, 50)}...`);
+        
+        try {
+          const lineNumber = multiLineMatch[1];
+          const description = multiLineMatch[2];
+          const quantity = parseFloat(line2.split(/\s+/)[0]);
+          const unit = line2.split(/\s+/)[1];
+          const unitPrice = parseFloat(line3.replace(/,/g, ''));
+          const rcv = parseFloat(line4.replace(/,/g, ''));
+          const ageLife = line5;
+          const condition = line6;
+          const depPercent = line7 === 'NA' ? null : parseFloat(line7.replace('%', '')) / 100;
+          const depreciationAmount = parseFloat(line8.replace(/[(),]/g, ''));
+          const acv = parseFloat(lines[i + 8].trim().replace(/,/g, ''));
+          
+          const lineItem: LineItem = {
+            line_number: lineNumber,
+            description: description,
+            quantity: quantity,
+            unit: unit,
+            unit_price: unitPrice,
+            RCV: rcv,
+            age_life: ageLife,
+            condition: condition,
+            dep_percent: depPercent,
+            depreciation_amount: depreciationAmount,
+            ACV: acv,
+            location_room: determineLocationRoom(description),
+            category: determineCategory(description),
+            page_number: pageNumber
+          };
+          
+          if (isValidLineItem(lineItem)) {
+            lineItems.push(lineItem);
+            console.log(`  ✅ Extracted multi-line item: ${lineItem.line_number}. ${lineItem.description}`);
+          }
+        } catch (error) {
+          console.warn(`  ⚠️ Failed to parse multi-line item:`, error);
+        }
       }
     }
   }
