@@ -20,6 +20,7 @@ export class LyzrAPIService {
   private baseURL = 'https://agent-prod.studio.lyzr.ai/v3/inference/chat/';
   private apiKey = 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K';
   private agentId = '68de85dca3e9701820177801';
+  private lineItemsAgentId = '68e559ebdc57add4679b89dd';
   private userId = 'gdnaaccount@lyzr.ai';
   
   // Managed agents from the orchestrator configuration
@@ -202,7 +203,7 @@ Include detailed analysis results for both the insurance claim and roof measurem
 
   async processClaimAgent(ocrResult: any): Promise<LyzrAgentResponse> {
     try {
-      const sessionId = `${this.agentId}-${Date.now()}`;
+      const sessionId = `${this.lineItemsAgentId}-${Date.now()}`;
       
       // Create a message for the line items extractor agent
       const message = `Extract line items from this OCR data:
@@ -228,21 +229,23 @@ Return the extracted line items as a JSON array.`;
       
       const requestData: LyzrAgentRequest = {
         user_id: this.userId,
-        agent_id: this.agentId,
+        agent_id: this.lineItemsAgentId,
         session_id: sessionId,
         message: message
       };
 
-      console.log('Sending OCR data to Lyzr agent for line item extraction');
+      console.log('Sending OCR data to Line Items Extractor agent');
+      console.log('Agent ID:', this.lineItemsAgentId);
+      console.log('Session ID:', sessionId);
       
       const response: AxiosResponse<LyzrAgentResponse> = await this.api.post('', requestData);
       
-      console.log('Lyzr agent line item extraction response:', response.data);
+      console.log('Line Items Extractor agent response:', response.data);
       
       return response.data;
     } catch (error) {
-      console.error('Error processing OCR with Lyzr agent:', error);
-      throw new Error(`Lyzr agent processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error processing OCR with Line Items Extractor agent:', error);
+      throw new Error(`Line Items Extractor agent processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
