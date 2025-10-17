@@ -459,7 +459,7 @@ function EstimatePageContent() {
         const lines = csvText.trim().split('\n');
         const macroMap = new Map();
         
-        // Skip header line
+        // Skip (Optional) header line
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
@@ -6286,7 +6286,7 @@ function EstimatePageContent() {
                               }}
                               className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors shadow-md"
                             >
-                              No, Skip
+                              No, Skip (Optional)
                             </button>
                           </div>
                         ) : contestShingleDepreciation ? (
@@ -6791,16 +6791,16 @@ function EstimatePageContent() {
                   </button>
                   
                   <div className="flex gap-3">
-                    {/* Skip Button - Available for all steps except the last one */}
+                    {/* Skip (Optional) Button - Available for all steps except the last one */}
                     {currentWorkflowStep < workflowData.totalSteps - 1 && (
                       <button
                         onClick={() => {
-                          console.log(`⏭️ Skipping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep].title}`);
+                          console.log(`⏭️ Skip (Optional)ping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep].title}`);
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium transition-colors"
                       >
-                        Skip Step
+                        Skip (Optional) Step
                       </button>
                     )}
                     
@@ -7411,12 +7411,12 @@ function EstimatePageContent() {
                           onClick={() => {
                             setShowShingleRemovalModal(false);
                             setShingleRemovalSkipped(true);
-                            console.log('⏭️ Skipping shingle removal - continuing workflow');
+                            console.log('⏭️ Skip (Optional)ping shingle removal - continuing workflow');
                             console.log('Workflow would continue here - User Prompt Workflow removed');
                           }}
                           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                         >
-                          Skip & Continue
+                          Skip (Optional) & Continue
                         </button>
                         <button
                           onClick={handleAddShingleRemoval}
@@ -7580,12 +7580,12 @@ function EstimatePageContent() {
                           onClick={() => {
                             setShowInstallationShinglesModal(false);
                             setInstallationShinglesSkipped(true);
-                            console.log('⏭️ Skipping installation shingles - continuing workflow');
+                            console.log('⏭️ Skip (Optional)ping installation shingles - continuing workflow');
                             console.log('Workflow would continue here - User Prompt Workflow removed');
                           }}
                           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                         >
-                          Skip & Continue
+                          Skip (Optional) & Continue
                         </button>
                         <button
                           onClick={handleAddInstallationShingle}
@@ -7658,12 +7658,12 @@ function EstimatePageContent() {
                     onClick={() => {
                       setShowOPModal(false);
                       setOPSkipped(true);
-                      console.log('⏭️ Skipping O&P - continuing workflow');
+                      console.log('⏭️ Skip (Optional)ping O&P - continuing workflow');
                       console.log('Workflow would continue here - User Prompt Workflow removed');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip & Continue
+                    Skip (Optional) & Continue
                   </button>
                   <button
                     onClick={() => handleAddOP()}
@@ -7684,8 +7684,8 @@ function EstimatePageContent() {
                 <div className="bg-green-600 px-6 py-4 rounded-t-2xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">🏠 Ridge Vent Required</h2>
-                      <p className="text-green-100 text-sm">No ridge vent found but ridge length detected</p>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏠 Ridge Vent (Optional)</h2>
+                      <p className="text-green-100 text-sm">No ridge vent found but ridge length detected - adding one is optional</p>
                     </div>
                     <button
                       onClick={() => setShowRidgeVentModal(false)}
@@ -7804,12 +7804,12 @@ function EstimatePageContent() {
                       onClick={() => {
                         setShowRidgeVentModal(false);
                         setRidgeVentSkipped(true);
-                        console.log('⏭️ Skipping ridge vent - continuing workflow');
+                        console.log('⏭️ Skip (Optional)ping ridge vent - continuing workflow');
                         console.log('Workflow would continue here - User Prompt Workflow removed');
                       }}
                       className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                     >
-                      Skip & Continue
+                      Skip (Optional) (Optional)
                     </button>
                     <button
                       onClick={() => handleAddRidgeVent(extractedLineItems)}
@@ -7872,7 +7872,7 @@ function EstimatePageContent() {
                         <select
                           value={selectedSPCShingleRemoval}
                           onChange={(e) => setSelectedSPCShingleRemoval(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
                         >
                           <option value="">Select removal type...</option>
                           {shingleRemovalOptions.map((option, index) => (
@@ -7894,7 +7894,7 @@ function EstimatePageContent() {
                           value={spcShingleRemovalQuantity}
                           onChange={(e) => setSPCShingleRemovalQuantity(e.target.value)}
                           placeholder="Enter quantity in squares"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
                         />
                       </div>
 
@@ -8078,7 +8078,7 @@ function EstimatePageContent() {
                         <select
                           value={selectedSPCInstallation}
                           onChange={(e) => setSelectedSPCInstallation(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         >
                           <option value="">Select installation type...</option>
                           {installationShingleOptions.map((option, index) => (
@@ -8100,7 +8100,7 @@ function EstimatePageContent() {
                           value={spcInstallationQuantity}
                           onChange={(e) => setSPCInstallationQuantity(e.target.value)}
                           placeholder="Enter quantity in squares"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         />
                       </div>
 
@@ -8243,9 +8243,9 @@ function EstimatePageContent() {
                 <div className="px-6 py-4 rounded-t-2xl bg-orange-600">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Ridge Vent Required</h2>
+                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Ridge Vent (Optional)</h2>
                       <p className="text-orange-100 text-sm">
-                        No ridge vent items found but ridges detected in measurements
+                        No ridge vent items found but ridges detected in measurements - adding one is optional
                       </p>
                     </div>
                     <button
@@ -8353,7 +8353,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddSPCRidgeVent}
@@ -8647,7 +8647,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddChimneyCricket}
@@ -8972,7 +8972,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddAdditionalLayers}
@@ -9186,7 +9186,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddPermit}
@@ -9375,7 +9375,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddHiddenDamages}
@@ -9597,7 +9597,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddRoofAccessLabor}
@@ -9699,7 +9699,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip
+                    Skip (Optional)
                   </button>
                   <button
                     onClick={handleAddOP}
