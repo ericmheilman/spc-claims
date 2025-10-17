@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Upload, FileText, Settings, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { SPCClaimsOrchestrator } from '@/lib/SPCClaimsOrchestrator';
 import { AgentResponse } from '@/types';
-import { parseOCRToLineItems } from '@/utils/ocrLineItemParser';
 
 export default function HomePage() {
   const router = useRouter();
@@ -31,8 +30,6 @@ export default function HomePage() {
   const [roofAgentStatus, setRoofAgentStatus] = useState<string>('');
   const [readyButtonCountdown, setReadyButtonCountdown] = useState<number>(10);
   const [isReadyButtonEnabled, setIsReadyButtonEnabled] = useState(false);
-  const [parsingResults, setParsingResults] = useState<any>(null);
-  const [showParsingDebug, setShowParsingDebug] = useState(false);
 
   useEffect(() => {
     checkLyzrStatus();
@@ -135,89 +132,23 @@ export default function HomePage() {
       setClaimOcrResponse(ocrResult);
       console.log('Claim OCR extraction result:', ocrResult);
       
-      // Parse OCR data directly to line items
+      // Process with Lyzr agent for line item extraction
       setIsProcessingClaimAgent(true);
-      setClaimAgentStatus('Parsing OCR data to extract line items...');
+      setClaimAgentStatus('Processing with Lyzr agent for line item extraction...');
       
       try {
-        console.log('=== DIRECT OCR PARSING ===');
-        const extractedLineItems = parseOCRToLineItems(ocrResult);
-        console.log(`Extracted ${extractedLineItems.length} line items from OCR data`);
+        const agentResult = await orchestrator.processClaimAgent(ocrResult);
+        console.log('Claim agent result:', agentResult);
         
-        // Create detailed parsing results for debugging
-        const debugResults = {
-          totalPages: Object.keys(ocrResult.data || {}).length,
-          skippedPages: [] as any[],
-          processedPages: [] as any[],
-          extractedLineItems: extractedLineItems,
-          parsingStats: {
-            totalItems: extractedLineItems.length,
-            categories: {} as Record<string, number>,
-            locations: {} as Record<string, number>,
-            totalRCV: extractedLineItems.reduce((sum, item) => sum + item.RCV, 0),
-            totalACV: extractedLineItems.reduce((sum, item) => sum + item.ACV, 0)
-          },
-          rawOCRData: ocrResult,
-          timestamp: Date.now()
-        };
-        
-        // Analyze categories and locations
-        extractedLineItems.forEach(item => {
-          debugResults.parsingStats.categories[item.category] = (debugResults.parsingStats.categories[item.category] || 0) + 1;
-          if (item.location_room) {
-            debugResults.parsingStats.locations[item.location_room] = (debugResults.parsingStats.locations[item.location_room] || 0) + 1;
-          }
-        });
-        
-        // Identify skipped pages (sample adjustments)
-        Object.values(ocrResult.data || {}).forEach((page: any) => {
-          if (page.content && (
-            page.content.includes('John Smith') ||
-            page.content.includes('1234 Oak Street') ||
-            page.content.includes('This is a sample guide') ||
-            page.content.includes('Your guide to reading')
-          )) {
-            debugResults.skippedPages.push({
-              pageNumber: page.page,
-              reason: 'Sample adjustment page',
-              preview: page.content.substring(0, 200) + '...'
-            });
-          } else {
-            debugResults.processedPages.push({
-              pageNumber: page.page,
-              contentLength: page.content?.length || 0,
-              preview: page.content?.substring(0, 100) + '...'
-            });
-          }
-        });
-        
-        setParsingResults(debugResults);
-        setShowParsingDebug(true);
-        
-        // Create a mock agent response structure to maintain compatibility
-        const mockAgentResponse = {
-          response: JSON.stringify(extractedLineItems, null, 2),
-          extractedLineItems: extractedLineItems,
-          parsingMethod: 'direct-ocr-parsing',
-          debugResults: debugResults,
-          timestamp: Date.now()
-        };
-        
-        setClaimAgentStatus(`✅ Line items extraction completed! Found ${extractedLineItems.length} items`);
-        setClaimAgentResponse(mockAgentResponse);
-        console.log('Direct parsing result:', mockAgentResponse);
-        
-      } catch (parseError) {
-        console.error('Error parsing OCR data:', parseError);
-        setClaimAgentStatus(`❌ Parsing Error: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-        
-        // Set error results for debugging
-        setParsingResults({
-          error: parseError instanceof Error ? parseError.message : 'Unknown error',
-          rawOCRData: ocrResult,
-          timestamp: Date.now()
-        });
-        setShowParsingDebug(true);
+        if (agentResult.success) {
+          setClaimAgentStatus(`✅ Line items extraction completed! Found ${agentResult.data?.extractedLineItems?.length || 0} items`);
+          setClaimAgentResponse(agentResult.data);
+        } else {
+          setClaimAgentStatus(`❌ Agent Error: ${agentResult.error}`);
+        }
+      } catch (agentError) {
+        console.error('Error processing with claim agent:', agentError);
+        setClaimAgentStatus(`❌ Agent Error: ${agentError instanceof Error ? agentError.message : 'Unknown error'}`);
       } finally {
         setIsProcessingClaimAgent(false);
       }
@@ -366,11 +297,11 @@ export default function HomePage() {
       return;
     }
 
-    // Check if we have the claim agent response with line items
-    if (!claimAgentResponse) {
-      alert('Please wait for the insurance claim to be processed and line items to be extracted');
-      return;
-    }
+      // Check if we have the claim agent response with line items
+      if (!claimAgentResponse) {
+        alert('Please wait for the insurance claim to be processed by the Lyzr agent');
+        return;
+      }
 
     setIsProcessing(true);
     setProcessingStatus('Preparing line items data...');
@@ -511,9 +442,9 @@ export default function HomePage() {
             <div className="flex items-center">
               <FileText className="w-8 h-8 text-blue-600 mr-3" />
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">SPC Claims Carrier Network</h1>
-                <p className="text-sm text-blue-600">Direct OCR Processing</p>
-                <p className="text-xs text-gray-500">Intelligent line item extraction from insurance claims</p>
+        <h1 className="text-xl font-semibold text-gray-900">SPC Claims Carrier Network</h1>
+        <p className="text-sm text-blue-600">Powered by Lyzr Orchestrator Agent</p>
+        <p className="text-xs text-gray-500">Coordinating 6 specialized agents for complete workflow</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -545,9 +476,9 @@ export default function HomePage() {
               <Upload className="w-10 h-10 text-blue-400 mx-auto mb-3" />
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-gray-900">Insurance Claim PDF</h3>
-                <p className="text-xs text-gray-600">
-                  Upload your insurance claim PDF (OCR + Direct line items parsing)
-                </p>
+              <p className="text-xs text-gray-600">
+                Upload your insurance claim PDF (OCR + AI line items extraction)
+              </p>
                 <input
                   type="file"
                   accept=".pdf"
@@ -628,14 +559,14 @@ export default function HomePage() {
               disabled={isProcessing || !uploadedClaimFile || !uploadedRoofReportFile || !claimAgentResponse || !isReadyButtonEnabled}
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessing ? 'Processing...' : 
-               claimAgentResponse && !isReadyButtonEnabled ? `⏳ Ready in ${readyButtonCountdown}s...` :
-               claimAgentResponse ? '✅ Ready - View Extracted Claim' : 
-               'Waiting for Line Items Extraction...'}
+        {isProcessing ? 'Processing...' : 
+         claimAgentResponse && !isReadyButtonEnabled ? `⏳ Ready in ${readyButtonCountdown}s...` :
+         claimAgentResponse ? '✅ Ready - View Extracted Claim' : 
+         'Waiting for Agent Processing...'}
             </button>
             {!claimAgentResponse && uploadedClaimFile && (
               <p className="text-xs text-gray-500 mt-2">
-                Please wait for the line items extraction to finish processing
+                Please wait for the agent processing to finish
               </p>
             )}
             {claimAgentResponse && !isReadyButtonEnabled && (
@@ -644,17 +575,6 @@ export default function HomePage() {
               </p>
             )}
             
-            {/* Show Debug Button */}
-            {parsingResults && (
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => setShowParsingDebug(!showParsingDebug)}
-                  className="px-4 py-2 bg-blue-100 text-blue-700 text-sm rounded-lg hover:bg-blue-200 transition-colors"
-                >
-                  {showParsingDebug ? '🔍 Hide Parsing Debug' : '🔍 Show Parsing Debug'}
-                </button>
-              </div>
-            )}
           </div>
 
           {processingStatus && (
@@ -663,135 +583,6 @@ export default function HomePage() {
             </p>
           )}
 
-          {/* Parsing Debug Panel */}
-          {showParsingDebug && parsingResults && (
-            <div className="mt-8 bg-blue-50 rounded-lg p-6 border border-blue-200">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-blue-900">🔍 OCR Parsing Debug Results</h3>
-                <button
-                  onClick={() => setShowParsingDebug(false)}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  Hide Debug
-                </button>
-              </div>
-              
-              {parsingResults.error ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-medium text-red-900 mb-2">❌ Parsing Error</h4>
-                  <p className="text-red-800 text-sm">{parsingResults.error}</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Parsing Statistics */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="font-medium text-gray-900 mb-3">📊 Parsing Statistics</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Total Pages:</span>
-                        <span className="ml-2 font-medium">{parsingResults.totalPages}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Skipped Pages:</span>
-                        <span className="ml-2 font-medium">{parsingResults.skippedPages.length}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Line Items:</span>
-                        <span className="ml-2 font-medium">{parsingResults.parsingStats.totalItems}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Total RCV:</span>
-                        <span className="ml-2 font-medium">${parsingResults.parsingStats.totalRCV.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Categories Breakdown */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="font-medium text-gray-900 mb-3">📋 Categories Breakdown</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                      {Object.entries(parsingResults.parsingStats.categories).map(([category, count]) => (
-                        <div key={category} className="flex justify-between">
-                          <span className="text-gray-600">{category}:</span>
-                          <span className="font-medium">{count as number}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Locations Breakdown */}
-                  {Object.keys(parsingResults.parsingStats.locations).length > 0 && (
-                    <div className="bg-white rounded-lg p-4 border border-blue-200">
-                      <h4 className="font-medium text-gray-900 mb-3">🏠 Locations Breakdown</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                        {Object.entries(parsingResults.parsingStats.locations).map(([location, count]) => (
-                          <div key={location} className="flex justify-between">
-                            <span className="text-gray-600">{location}:</span>
-                            <span className="font-medium">{count as number}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Skipped Pages */}
-                  {parsingResults.skippedPages.length > 0 && (
-                    <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                      <h4 className="font-medium text-yellow-900 mb-3">⚠️ Skipped Pages (Sample Adjustments)</h4>
-                      <div className="space-y-2">
-                        {parsingResults.skippedPages.map((page: any, index: number) => (
-                          <div key={index} className="text-sm">
-                            <span className="font-medium">Page {page.pageNumber}:</span>
-                            <span className="ml-2 text-yellow-800">{page.reason}</span>
-                            <div className="text-xs text-yellow-700 mt-1 italic">{page.preview}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Processed Pages */}
-                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <h4 className="font-medium text-green-900 mb-3">✅ Processed Pages</h4>
-                    <div className="space-y-2">
-                      {parsingResults.processedPages.map((page: any, index: number) => (
-                        <div key={index} className="text-sm">
-                          <span className="font-medium">Page {page.pageNumber}:</span>
-                          <span className="ml-2 text-green-800">{page.contentLength} characters</span>
-                          <div className="text-xs text-green-700 mt-1 italic">{page.preview}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Extracted Line Items Preview */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="font-medium text-gray-900 mb-3">📝 Extracted Line Items Preview</h4>
-                    <div className="max-h-60 overflow-y-auto">
-                      <div className="space-y-2 text-sm">
-                        {parsingResults.extractedLineItems.slice(0, 10).map((item: any, index: number) => (
-                          <div key={index} className="border-b border-gray-200 pb-2">
-                            <div className="font-medium">{item.line_number}. {item.description}</div>
-                            <div className="text-gray-600">
-                              {item.quantity} {item.unit} • RCV: ${item.RCV.toLocaleString()} • ACV: ${item.ACV.toLocaleString()}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Category: {item.category} • Location: {item.location_room || 'N/A'}
-                            </div>
-                          </div>
-                        ))}
-                        {parsingResults.extractedLineItems.length > 10 && (
-                          <div className="text-center text-gray-500 text-sm">
-                            ... and {parsingResults.extractedLineItems.length - 10} more items
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Debug Information Panel */}
           <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
@@ -818,16 +609,16 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Line Items Extraction Status */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-2">Line Items</h4>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${claimAgentResponse ? 'bg-green-500' : isProcessingClaimAgent ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm text-gray-600">
-                    {claimAgentResponse ? 'Complete' : isProcessingClaimAgent ? 'Processing' : 'Waiting'}
-                  </span>
-                </div>
+            {/* Claim Agent Status */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h4 className="font-medium text-gray-900 mb-2">Claim Agent</h4>
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${claimAgentResponse ? 'bg-green-500' : isProcessingClaimAgent ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
+                <span className="text-sm text-gray-600">
+                  {claimAgentResponse ? 'Complete' : isProcessingClaimAgent ? 'Processing' : 'Waiting'}
+                </span>
               </div>
+            </div>
 
               {/* Roof Agent Status */}
               <div className="bg-white p-4 rounded-lg border border-gray-200">
