@@ -4998,8 +4998,78 @@ function EstimatePageContent() {
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
                             }
                             
-                            // Check for custom narrative (user edits, manual adjustments)
-                            if (item.narrative) {
+                            // Check audit log entries FIRST to determine automated adjustment types
+                            if (auditEntry) {
+                              const field = auditEntry.field;
+                              const rule = auditEntry.rule_applied;
+                              const action = auditEntry.action;
+                              
+                              // New items (added)
+                              if (action === 'added' || rule.includes('Missing Line Item') || rule.includes('Added missing')) {
+                                return {
+                                  rowClass: 'bg-purple-50 border-l-4 border-purple-500',
+                                  badgeColor: 'bg-purple-600',
+                                  badgeText: '🏷️ NEW',
+                                  boxClass: 'bg-purple-50 border-l-3 border-purple-500',
+                                  boxTitle: '📦 New Item Added:',
+                                  boxTitleColor: 'text-purple-900',
+                                  boxTextColor: 'text-purple-800'
+                                };
+                              }
+                              
+                              // Quantity changes
+                              if (field === 'quantity') {
+                                return {
+                                  rowClass: 'bg-blue-50 border-l-4 border-blue-500',
+                                  badgeColor: 'bg-blue-600',
+                                  badgeText: '📏 QUANTITY',
+                                  boxClass: 'bg-blue-50 border-l-3 border-blue-500',
+                                  boxTitle: '📏 Quantity Adjustment:',
+                                  boxTitleColor: 'text-blue-900',
+                                  boxTextColor: 'text-blue-800'
+                                };
+                              }
+                              
+                              // Unit price changes
+                              if (field === 'unit_price') {
+                                return {
+                                  rowClass: 'bg-green-50 border-l-4 border-green-500',
+                                  badgeColor: 'bg-green-600',
+                                  badgeText: '💰 PRICE',
+                                  boxClass: 'bg-green-50 border-l-3 border-green-500',
+                                  boxTitle: '💰 Price Adjustment:',
+                                  boxTitleColor: 'text-green-900',
+                                  boxTextColor: 'text-green-800'
+                                };
+                              }
+                              
+                              // Description changes (replacements)
+                              if (field === 'description' || rule.includes('Line Item Replacements') || rule.includes('REPLACED')) {
+                                return {
+                                  rowClass: 'bg-orange-50 border-l-4 border-orange-500',
+                                  badgeColor: 'bg-orange-600',
+                                  badgeText: '🔄 REPLACED',
+                                  boxClass: 'bg-orange-50 border-l-3 border-orange-500',
+                                  boxTitle: '🔄 Item Replacement:',
+                                  boxTitleColor: 'text-orange-900',
+                                  boxTextColor: 'text-orange-800'
+                                };
+                              }
+                              
+                              // Default for other automated changes
+                              return {
+                                rowClass: 'bg-gray-50 border-l-4 border-gray-500',
+                                badgeColor: 'bg-gray-600',
+                                badgeText: '🏷️ OTHER',
+                                boxClass: 'bg-gray-50 border-l-3 border-gray-500',
+                                boxTitle: '📏 Rule Applied:',
+                                boxTitleColor: 'text-gray-900',
+                                boxTextColor: 'text-gray-800'
+                              };
+                            }
+                            
+                            // Check for custom narrative LAST (only for true manual adjustments without audit entries)
+                            if (item.narrative && !auditEntry) {
                               return {
                                 rowClass: 'bg-yellow-50 border-l-4 border-yellow-500',
                                 badgeColor: 'bg-yellow-600',
@@ -5011,74 +5081,7 @@ function EstimatePageContent() {
                               };
                             }
                             
-                            if (!auditEntry) return null;
-                            
-                            const field = auditEntry.field;
-                            const rule = auditEntry.rule_applied;
-                            const action = auditEntry.action;
-                            
-                            // New items (added)
-                            if (action === 'added' || rule.includes('Missing Line Item') || rule.includes('Added missing')) {
-                              return {
-                                rowClass: 'bg-purple-50 border-l-4 border-purple-500',
-                                badgeColor: 'bg-purple-600',
-                                badgeText: '🏷️ NEW',
-                                boxClass: 'bg-purple-50 border-l-3 border-purple-500',
-                                boxTitle: '📦 New Item Added:',
-                                boxTitleColor: 'text-purple-900',
-                                boxTextColor: 'text-purple-800'
-                              };
-                            }
-                            
-                            // Quantity changes
-                            if (field === 'quantity') {
-                              return {
-                                rowClass: 'bg-blue-50 border-l-4 border-blue-500',
-                                badgeColor: 'bg-blue-600',
-                                badgeText: '📏 QUANTITY',
-                                boxClass: 'bg-blue-50 border-l-3 border-blue-500',
-                                boxTitle: '📏 Quantity Adjustment:',
-                                boxTitleColor: 'text-blue-900',
-                                boxTextColor: 'text-blue-800'
-                              };
-                            }
-                            
-                            // Unit price changes
-                            if (field === 'unit_price') {
-                              return {
-                                rowClass: 'bg-green-50 border-l-4 border-green-500',
-                                badgeColor: 'bg-green-600',
-                                badgeText: '💰 PRICE',
-                                boxClass: 'bg-green-50 border-l-3 border-green-500',
-                                boxTitle: '💰 Price Adjustment:',
-                                boxTitleColor: 'text-green-900',
-                                boxTextColor: 'text-green-800'
-                              };
-                            }
-                            
-                            // Description changes (replacements)
-                            if (field === 'description' || rule.includes('Line Item Replacements') || rule.includes('REPLACED')) {
-                              return {
-                                rowClass: 'bg-orange-50 border-l-4 border-orange-500',
-                                badgeColor: 'bg-orange-600',
-                                badgeText: '🔄 REPLACED',
-                                boxClass: 'bg-orange-50 border-l-3 border-orange-500',
-                                boxTitle: '🔄 Item Replacement:',
-                                boxTitleColor: 'text-orange-900',
-                                boxTextColor: 'text-orange-800'
-                              };
-                            }
-                            
-                            // Default for other changes
-                            return {
-                              rowClass: 'bg-gray-50 border-l-4 border-gray-500',
-                              badgeColor: 'bg-gray-600',
-                              badgeText: '🏷️ OTHER',
-                              boxClass: 'bg-gray-50 border-l-3 border-gray-500',
-                              boxTitle: '📏 Rule Applied:',
-                              boxTitleColor: 'text-gray-900',
-                              boxTextColor: 'text-gray-800'
-                            };
+                            return null;
                           };
                           
                           const colorScheme = getColorScheme(auditEntry, item);
