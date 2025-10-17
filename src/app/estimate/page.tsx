@@ -4040,18 +4040,6 @@ function EstimatePageContent() {
               </label>
               
               <button
-                onClick={runRuleEngine}
-                disabled={isRunningRules || !rawAgentData}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isRunningRules || !rawAgentData
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-green-700 text-white hover:bg-green-800 border border-green-600'
-                }`}
-              >
-                {isRunningRules ? 'Processing...' : 'Python Rules Engine'}
-              </button>
-              
-              <button
                 onClick={runJavaScriptRuleEngine}
                 disabled={isRunningJSRules || !rawAgentData}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
