@@ -5232,6 +5232,10 @@ function EstimatePageContent() {
                               const rule = primaryEntry.rule_applied;
                               const action = primaryEntry.action;
                               
+                              // Check if both price and quantity were changed
+                              const hasPriceChange = auditEntries.some(entry => entry.field === 'unit_price');
+                              const hasQuantityChange = auditEntries.some(entry => entry.field === 'quantity');
+                              
                               // New items (added)
                               if (action === 'added' || (rule && rule.includes('Missing Line Item')) || (rule && rule.includes('Added missing'))) {
                                 return {
@@ -5245,8 +5249,21 @@ function EstimatePageContent() {
                                 };
                               }
                               
-                              // Quantity changes
-                              if (field === 'quantity') {
+                              // Both price and quantity changes (special case)
+                              if (hasPriceChange && hasQuantityChange) {
+                                return {
+                                  rowClass: 'bg-yellow-50 border-l-4 border-yellow-500',
+                                  badgeColor: 'bg-yellow-600',
+                                  badgeText: '💰📏 PRICE + QTY',
+                                  boxClass: 'bg-yellow-50 border-l-3 border-yellow-500',
+                                  boxTitle: '💰📏 Price + Quantity Adjustment:',
+                                  boxTitleColor: 'text-yellow-900',
+                                  boxTextColor: 'text-yellow-800'
+                                };
+                              }
+                              
+                              // Quantity changes only
+                              if (field === 'quantity' && !hasPriceChange) {
                                 return {
                                   rowClass: 'bg-blue-50 border-l-4 border-blue-500',
                                   badgeColor: 'bg-blue-600',
@@ -5258,8 +5275,8 @@ function EstimatePageContent() {
                                 };
                               }
                               
-                              // Unit price changes
-                              if (field === 'unit_price') {
+                              // Unit price changes only
+                              if (field === 'unit_price' && !hasQuantityChange) {
                                 return {
                                   rowClass: 'bg-green-50 border-l-4 border-green-500',
                                   badgeColor: 'bg-green-600',
@@ -5483,6 +5500,13 @@ function EstimatePageContent() {
                     <div>
                       <div className="text-gray-900 font-bold">Blue Highlighted Rows</div>
                       <div className="text-gray-600">Quantity adjustments</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-600 text-white mr-3 mt-1">💰📏 PRICE + QTY</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Yellow Highlighted Rows</div>
+                      <div className="text-gray-600">Both price and quantity adjustments</div>
                     </div>
                   </div>
                   <div className="flex items-start">
