@@ -272,6 +272,9 @@ function EstimatePageContent() {
               lineItemsArray = parsed;
             } else if (parsed.response && Array.isArray(parsed.response)) {
               lineItemsArray = parsed.response;
+            } else if (parsed.line_items && Array.isArray(parsed.line_items)) {
+              // Handle JavaScript engine response format
+              lineItemsArray = parsed.line_items;
             }
           } catch (e) {
             console.warn('Direct JSON parsing failed, trying alternative methods:', e);
@@ -300,6 +303,8 @@ function EstimatePageContent() {
                   console.log('✅ Successfully parsed JSON after repair');
                 } catch (repairError) {
                   console.error('JSON repair failed:', repairError);
+                  // Don't throw error, continue with empty array
+                  lineItemsArray = [];
                   
                   // Method 3: Try to extract individual line items
                   try {
@@ -327,6 +332,12 @@ function EstimatePageContent() {
           
           console.log('Extracted line items array:', lineItemsArray);
           setExtractedLineItems(lineItemsArray);
+          
+          } catch (jsonParseError) {
+            console.error('JSON parsing failed completely:', jsonParseError);
+            setErrorDetails(`Failed to parse line items: ${jsonParseError instanceof Error ? jsonParseError.message : 'Unknown error'}`);
+            setExtractedLineItems([]);
+          }
           
           // Update debug info
           setDebugInfo((prev: any) => ({
