@@ -3,19 +3,18 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing Python 3.9..."  # Keep your Python setup if needed
+        - echo "Installing Python 3.9..."
         - sudo yum update -y
-        - sudo yum install -y python3-pip  # Your fixed command
-        # Add any other pre-build steps, e.g., npm ci
+        - sudo yum install -y python3-pip
+        - npm ci
+        - python3 --version
+        - echo "Python3 available for roof adjustment engine"
     build:
       commands:
-        - npm ci  # Install dependencies
-        - npm run build  # Your build script
+        - npm run build
   artifacts:
-    baseDirectory: .next  # Next.js builds to .next directory
+    baseDirectory: .next
     files:
       - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-# No 'backend' section needed for frontend-only
+      - roof_adjustment_engine.py
+      - roof_master_macro.csv
