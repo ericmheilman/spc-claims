@@ -122,7 +122,41 @@ export async function POST(request: NextRequest) {
       }
 
       if (!pythonCommand) {
-        throw new Error('No Python executable found in any expected location');
+        // Enhanced debugging - check what's actually available
+        console.log('❌ No Python executable found in any expected location');
+        console.log('🔍 Debugging Lambda runtime environment...');
+        
+        const { exec } = require('child_process');
+        
+        // Check what's in common directories
+        const debugCommands = [
+          'ls -la /usr/bin/python*',
+          'ls -la /usr/local/bin/python*',
+          'which python3',
+          'which python',
+          'echo $PATH',
+          'ls -la /opt/python*',
+          'find /usr -name python* -type f 2>/dev/null | head -10'
+        ];
+        
+        for (const cmd of debugCommands) {
+          try {
+            const result = await new Promise<string>((resolve, reject) => {
+              exec(cmd, (error, stdout, stderr) => {
+                if (error) {
+                  resolve(`Error: ${error.message}`);
+                } else {
+                  resolve(stdout || stderr || 'No output');
+                }
+              });
+            });
+            console.log(`🔍 ${cmd}:`, result.trim());
+          } catch (e) {
+            console.log(`🔍 ${cmd}: Error executing command`);
+          }
+        }
+        
+        throw new Error('No Python executable found in any expected location - check debug output above');
       }
 
       console.log('🔍 Using Python command:', pythonCommand);
