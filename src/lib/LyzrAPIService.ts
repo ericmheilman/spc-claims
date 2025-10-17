@@ -200,6 +200,52 @@ Include detailed analysis results for both the insurance claim and roof measurem
     }
   }
 
+  async processClaimAgent(ocrResult: any): Promise<LyzrAgentResponse> {
+    try {
+      const sessionId = `${this.agentId}-${Date.now()}`;
+      
+      // Create a message for the line items extractor agent
+      const message = `Extract line items from this OCR data:
+
+OCR Data: ${JSON.stringify(ocrResult, null, 2)}
+
+Please analyze the OCR text and extract all line items with the following information:
+- Line number
+- Description
+- Quantity
+- Unit
+- Unit price
+- RCV (Replacement Cost Value)
+- ACV (Actual Cash Value)
+- Age/Life
+- Condition
+- Depreciation percentage
+- Depreciation amount
+- Category
+- Location/Room
+
+Return the extracted line items as a JSON array.`;
+      
+      const requestData: LyzrAgentRequest = {
+        user_id: this.userId,
+        agent_id: this.agentId,
+        session_id: sessionId,
+        message: message
+      };
+
+      console.log('Sending OCR data to Lyzr agent for line item extraction');
+      
+      const response: AxiosResponse<LyzrAgentResponse> = await this.api.post('', requestData);
+      
+      console.log('Lyzr agent line item extraction response:', response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error processing OCR with Lyzr agent:', error);
+      throw new Error(`Lyzr agent processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async getAgentStatus(): Promise<{ connected: boolean; error?: string; details?: any }> {
     try {
       const sessionId = `${this.agentId}-${Date.now()}`;

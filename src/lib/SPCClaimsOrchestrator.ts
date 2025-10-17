@@ -206,6 +206,32 @@ export class SPCClaimsOrchestrator {
     }
   }
 
+  async processClaimAgent(ocrResult: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      console.log('Processing claim with Lyzr agent for line item extraction...');
+      
+      // Call the Lyzr API to process the OCR result for line item extraction
+      const response = await this.lyzrAPI.processClaimAgent(ocrResult);
+      
+      console.log('Claim agent response:', response);
+      
+      return {
+        success: true,
+        data: response
+      };
+    } catch (error) {
+      console.error('Error processing claim agent:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   async processClaim(pdfContent: Buffer, fileName: string): Promise<{
     claim: XactimateClaim;
     spcQuote: SPCQuote;
