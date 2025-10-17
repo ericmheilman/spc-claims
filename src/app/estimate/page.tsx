@@ -1294,11 +1294,32 @@ function EstimatePageContent() {
 
       const pythonData = pythonResult.data;
 
-      // Combine results
+      // Combine results - preserve original line items with adjustments
+      const originalItems = pythonData.original_line_items || [];
+      const adjustedItems = pythonData.adjusted_line_items || [];
+      
+      // Create a map of adjusted items by line number for easy lookup
+      const adjustedItemsMap = new Map();
+      adjustedItems.forEach((item: any) => {
+        adjustedItemsMap.set(item.line_number, item);
+      });
+      
+      // Start with original items and replace with adjusted versions where they exist
+      const combinedLineItems = originalItems.map((originalItem: any) => {
+        const adjustedItem = adjustedItemsMap.get(originalItem.line_number);
+        return adjustedItem || originalItem;
+      });
+      
+      // Add any new items that weren't in the original list
+      const originalLineNumbers = new Set(originalItems.map((item: any) => item.line_number));
+      const newItems = adjustedItems.filter((item: any) => !originalLineNumbers.has(item.line_number));
+      
+      const finalLineItems = [...combinedLineItems, ...newItems];
+      
       const combinedData = {
         rmm_results: rmmData,
         python_results: pythonData,
-        final_line_items: pythonData.adjusted_line_items || rmmData.updated_line_items || extractedLineItems,
+        final_line_items: finalLineItems,
         combined_audit_log: [
           ...(rmmData.audit_log || []).map((entry: any) => ({
             ...entry,
@@ -1421,16 +1442,38 @@ function EstimatePageContent() {
       }
 
       // Store the results and ensure line_items is populated
+      // Combine original line items with adjusted line items to preserve all items
+      const originalItems = ruleData.data?.original_line_items || [];
+      const adjustedItems = ruleData.data?.adjusted_line_items || [];
+      
+      // Create a map of adjusted items by line number for easy lookup
+      const adjustedItemsMap = new Map();
+      adjustedItems.forEach((item: any) => {
+        adjustedItemsMap.set(item.line_number, item);
+      });
+      
+      // Start with original items and replace with adjusted versions where they exist
+      const combinedLineItems = originalItems.map((originalItem: any) => {
+        const adjustedItem = adjustedItemsMap.get(originalItem.line_number);
+        return adjustedItem || originalItem;
+      });
+      
+      // Add any new items that weren't in the original list
+      const originalLineNumbers = new Set(originalItems.map((item: any) => item.line_number));
+      const newItems = adjustedItems.filter((item: any) => !originalLineNumbers.has(item.line_number));
+      
+      const finalLineItems = [...combinedLineItems, ...newItems];
+      
       const resultsWithLineItems = {
         ...ruleData.data,
-        line_items: ruleData.data?.line_items || ruleData.data?.adjusted_line_items || []
+        line_items: finalLineItems
       };
       setRuleResults(resultsWithLineItems);
       setShowRuleResults(true);
 
       // After SPC Adjustment Engine completes, check for shingle removal items
       // Get the updated line items from the results
-      const updatedLineItems = ruleData.data?.line_items || ruleData.data?.adjusted_line_items || extractedLineItems;
+      const updatedLineItems = finalLineItems;
       
       // Store the current line items for the workflow
       setCurrentSPCLineItems(updatedLineItems);
@@ -8095,13 +8138,13 @@ function EstimatePageContent() {
                           <div className="grid grid-cols-3 gap-4 text-sm">
                             <div>
                               <div className="text-gray-600">Unit Price:</div>
-                              <div className="font-semibold">
+                              <div className="font-semibold text-purple-700">
                                 ${roofMasterMacro.get(selectedSPCShingleRemoval).unit_price.toFixed(2)}
                               </div>
                             </div>
                             <div>
                               <div className="text-gray-600">Quantity:</div>
-                              <div className="font-semibold">{spcShingleRemovalQuantity} SQ</div>
+                              <div className="font-semibold text-purple-700">{spcShingleRemovalQuantity} SQ</div>
                             </div>
                             <div>
                               <div className="text-gray-600">Total RCV:</div>
