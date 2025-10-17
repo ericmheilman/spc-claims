@@ -4904,6 +4904,9 @@ function EstimatePageContent() {
                               description: item.description,
                               narrative: item.narrative,
                               hasAuditEntry: !!auditEntry,
+                              auditEntryField: auditEntry?.field,
+                              auditEntryBefore: auditEntry?.before,
+                              auditEntryAfter: auditEntry?.after,
                               hasUserPromptWorkflow: !!item.user_prompt_workflow
                             });
                           }
