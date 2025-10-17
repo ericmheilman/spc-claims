@@ -3764,13 +3764,13 @@ function EstimatePageContent() {
       
       let totalRCV = 0;
       
-      lineItems.forEach((item: any) => {
+      lineItems.forEach((item: any, index: number) => {
         if (yPosition > pageHeight - 20) {
           pdf.addPage();
           yPosition = 20;
         }
         
-        pdf.text(item.line_number || '-', 15, yPosition);
+        pdf.text(String(index + 1), 15, yPosition);
         pdf.text(item.description.substring(0, 50), 30, yPosition);
         pdf.text((item.quantity || 0).toFixed(2), 120, yPosition);
         pdf.text(item.unit || '', 135, yPosition);
@@ -4230,7 +4230,7 @@ function EstimatePageContent() {
                         return (
                           <tr key={index} className={rowClass}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {item.line_number || '-'}
+                              {index + 1}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <div className="max-w-md">
@@ -4493,7 +4493,7 @@ function EstimatePageContent() {
                         return (
                           <tr key={index} className={rowClass}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {item.line_number || '-'}
+                              {index + 1}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <div className="max-w-md">
