@@ -83,8 +83,48 @@ export async function POST(request: NextRequest) {
       console.log('📁 Input file:', tempInputFile);
       console.log('📁 Output file:', tempOutputFile);
       
-      // Use python3 command (should be available from amplify.yml installation)
-      const pythonCommand = 'python3';
+      // Try to find Python executable - check multiple possible locations
+      const pythonPaths = [
+        '/usr/bin/python3.9',     // Amazon Linux 2023 default
+        '/usr/bin/python3',       // Common symlink
+        '/usr/bin/python',        // Common symlink
+        '/usr/local/bin/python3.9',
+        '/usr/local/bin/python3',
+        '/usr/local/bin/python',
+        'python3',                // PATH lookup
+        'python'                  // PATH lookup
+      ];
+
+      let pythonCommand = null;
+      for (const path of pythonPaths) {
+        try {
+          console.log(`🔍 Testing Python path: ${path}`);
+          const testProcess = spawn(path, ['--version'], { stdio: 'pipe' });
+          await new Promise<void>((resolve, reject) => {
+            testProcess.on('close', (code) => {
+              if (code === 0) {
+                pythonCommand = path;
+                console.log(`✅ Found working Python at: ${path}`);
+                resolve();
+              } else {
+                reject(new Error(`Python not found at ${path}`));
+              }
+            });
+            testProcess.on('error', () => {
+              reject(new Error(`Python error at ${path}`));
+            });
+          });
+          break; // Found working Python, exit loop
+        } catch (error) {
+          console.log(`❌ Python not found at: ${path}`);
+          continue; // Try next path
+        }
+      }
+
+      if (!pythonCommand) {
+        throw new Error('No Python executable found in any expected location');
+      }
+
       console.log('🔍 Using Python command:', pythonCommand);
       
       const pythonProcess = spawn(pythonCommand, [
