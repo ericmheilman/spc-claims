@@ -5052,7 +5052,6 @@ function EstimatePageContent() {
               {/* Narratives Section */}
               {(() => {
                 const narrativesWithLineNumbers = ruleResults.line_items
-                  .filter((item: any) => item.narrative || item.audit_entry)
                   .map((item: any) => {
                     // Check if this item has an audit log entry
                     const auditEntry = ruleResults.audit_log?.find((log: any) => 
@@ -5060,10 +5059,24 @@ function EstimatePageContent() {
                       log.description === item.description
                     );
                     
-                    // Use custom narrative if available, otherwise build from audit entry
-                    let narrative = item.narrative;
-                    if (!narrative && auditEntry) {
-                      narrative = `Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
+                    // Build narrative from multiple sources
+                    let narrative = null;
+                    
+                    // 1. Check for custom narrative first
+                    if (item.narrative) {
+                      narrative = item.narrative;
+                    }
+                    // 2. Check for user prompt workflow narratives
+                    else if (item.user_prompt_workflow) {
+                      narrative = `Added by user during ${item.user_prompt_step} step of the SPC workflow`;
+                    }
+                    // 3. Check for audit log entries
+                    else if (auditEntry) {
+                      if (auditEntry.rule_applied) {
+                        narrative = `Rule: ${auditEntry.rule_applied} |Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
+                      } else {
+                        narrative = `Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
+                      }
                     }
                     
                     return {
