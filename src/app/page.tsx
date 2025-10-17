@@ -31,6 +31,8 @@ export default function HomePage() {
   const [roofAgentStatus, setRoofAgentStatus] = useState<string>('');
   const [readyButtonCountdown, setReadyButtonCountdown] = useState<number>(10);
   const [isReadyButtonEnabled, setIsReadyButtonEnabled] = useState(false);
+  const [parsingResults, setParsingResults] = useState<any>(null);
+  const [showParsingDebug, setShowParsingDebug] = useState(false);
 
   useEffect(() => {
     checkLyzrStatus();
@@ -142,11 +144,62 @@ export default function HomePage() {
         const extractedLineItems = parseOCRToLineItems(ocrResult);
         console.log(`Extracted ${extractedLineItems.length} line items from OCR data`);
         
+        // Create detailed parsing results for debugging
+        const debugResults = {
+          totalPages: Object.keys(ocrResult.data || {}).length,
+          skippedPages: [] as any[],
+          processedPages: [] as any[],
+          extractedLineItems: extractedLineItems,
+          parsingStats: {
+            totalItems: extractedLineItems.length,
+            categories: {} as Record<string, number>,
+            locations: {} as Record<string, number>,
+            totalRCV: extractedLineItems.reduce((sum, item) => sum + item.RCV, 0),
+            totalACV: extractedLineItems.reduce((sum, item) => sum + item.ACV, 0)
+          },
+          rawOCRData: ocrResult,
+          timestamp: Date.now()
+        };
+        
+        // Analyze categories and locations
+        extractedLineItems.forEach(item => {
+          debugResults.parsingStats.categories[item.category] = (debugResults.parsingStats.categories[item.category] || 0) + 1;
+          if (item.location_room) {
+            debugResults.parsingStats.locations[item.location_room] = (debugResults.parsingStats.locations[item.location_room] || 0) + 1;
+          }
+        });
+        
+        // Identify skipped pages (sample adjustments)
+        Object.values(ocrResult.data || {}).forEach((page: any) => {
+          if (page.content && (
+            page.content.includes('John Smith') ||
+            page.content.includes('1234 Oak Street') ||
+            page.content.includes('This is a sample guide') ||
+            page.content.includes('Your guide to reading')
+          )) {
+            debugResults.skippedPages.push({
+              pageNumber: page.page,
+              reason: 'Sample adjustment page',
+              preview: page.content.substring(0, 200) + '...'
+            });
+          } else {
+            debugResults.processedPages.push({
+              pageNumber: page.page,
+              contentLength: page.content?.length || 0,
+              preview: page.content?.substring(0, 100) + '...'
+            });
+          }
+        });
+        
+        setParsingResults(debugResults);
+        setShowParsingDebug(true);
+        
         // Create a mock agent response structure to maintain compatibility
         const mockAgentResponse = {
           response: JSON.stringify(extractedLineItems, null, 2),
           extractedLineItems: extractedLineItems,
           parsingMethod: 'direct-ocr-parsing',
+          debugResults: debugResults,
           timestamp: Date.now()
         };
         
@@ -157,6 +210,14 @@ export default function HomePage() {
       } catch (parseError) {
         console.error('Error parsing OCR data:', parseError);
         setClaimAgentStatus(`❌ Parsing Error: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        
+        // Set error results for debugging
+        setParsingResults({
+          error: parseError instanceof Error ? parseError.message : 'Unknown error',
+          rawOCRData: ocrResult,
+          timestamp: Date.now()
+        });
+        setShowParsingDebug(true);
       } finally {
         setIsProcessingClaimAgent(false);
       }
@@ -582,12 +643,154 @@ export default function HomePage() {
                 Processing complete! Button will be enabled in {readyButtonCountdown} seconds...
               </p>
             )}
+            
+            {/* Show Debug Button */}
+            {parsingResults && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowParsingDebug(!showParsingDebug)}
+                  className="px-4 py-2 bg-blue-100 text-blue-700 text-sm rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  {showParsingDebug ? '🔍 Hide Parsing Debug' : '🔍 Show Parsing Debug'}
+                </button>
+              </div>
+            )}
           </div>
 
           {processingStatus && (
             <p className="text-sm text-blue-600 mt-4 text-center">
               {processingStatus}
             </p>
+          )}
+
+          {/* Parsing Debug Panel */}
+          {showParsingDebug && parsingResults && (
+            <div className="mt-8 bg-blue-50 rounded-lg p-6 border border-blue-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-blue-900">🔍 OCR Parsing Debug Results</h3>
+                <button
+                  onClick={() => setShowParsingDebug(false)}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  Hide Debug
+                </button>
+              </div>
+              
+              {parsingResults.error ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h4 className="font-medium text-red-900 mb-2">❌ Parsing Error</h4>
+                  <p className="text-red-800 text-sm">{parsingResults.error}</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Parsing Statistics */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="font-medium text-gray-900 mb-3">📊 Parsing Statistics</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Total Pages:</span>
+                        <span className="ml-2 font-medium">{parsingResults.totalPages}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Skipped Pages:</span>
+                        <span className="ml-2 font-medium">{parsingResults.skippedPages.length}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Line Items:</span>
+                        <span className="ml-2 font-medium">{parsingResults.parsingStats.totalItems}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Total RCV:</span>
+                        <span className="ml-2 font-medium">${parsingResults.parsingStats.totalRCV.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Categories Breakdown */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="font-medium text-gray-900 mb-3">📋 Categories Breakdown</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                      {Object.entries(parsingResults.parsingStats.categories).map(([category, count]) => (
+                        <div key={category} className="flex justify-between">
+                          <span className="text-gray-600">{category}:</span>
+                          <span className="font-medium">{count as number}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Locations Breakdown */}
+                  {Object.keys(parsingResults.parsingStats.locations).length > 0 && (
+                    <div className="bg-white rounded-lg p-4 border border-blue-200">
+                      <h4 className="font-medium text-gray-900 mb-3">🏠 Locations Breakdown</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                        {Object.entries(parsingResults.parsingStats.locations).map(([location, count]) => (
+                          <div key={location} className="flex justify-between">
+                            <span className="text-gray-600">{location}:</span>
+                            <span className="font-medium">{count as number}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skipped Pages */}
+                  {parsingResults.skippedPages.length > 0 && (
+                    <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                      <h4 className="font-medium text-yellow-900 mb-3">⚠️ Skipped Pages (Sample Adjustments)</h4>
+                      <div className="space-y-2">
+                        {parsingResults.skippedPages.map((page: any, index: number) => (
+                          <div key={index} className="text-sm">
+                            <span className="font-medium">Page {page.pageNumber}:</span>
+                            <span className="ml-2 text-yellow-800">{page.reason}</span>
+                            <div className="text-xs text-yellow-700 mt-1 italic">{page.preview}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Processed Pages */}
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="font-medium text-green-900 mb-3">✅ Processed Pages</h4>
+                    <div className="space-y-2">
+                      {parsingResults.processedPages.map((page: any, index: number) => (
+                        <div key={index} className="text-sm">
+                          <span className="font-medium">Page {page.pageNumber}:</span>
+                          <span className="ml-2 text-green-800">{page.contentLength} characters</span>
+                          <div className="text-xs text-green-700 mt-1 italic">{page.preview}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Extracted Line Items Preview */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="font-medium text-gray-900 mb-3">📝 Extracted Line Items Preview</h4>
+                    <div className="max-h-60 overflow-y-auto">
+                      <div className="space-y-2 text-sm">
+                        {parsingResults.extractedLineItems.slice(0, 10).map((item: any, index: number) => (
+                          <div key={index} className="border-b border-gray-200 pb-2">
+                            <div className="font-medium">{item.line_number}. {item.description}</div>
+                            <div className="text-gray-600">
+                              {item.quantity} {item.unit} • RCV: ${item.RCV.toLocaleString()} • ACV: ${item.ACV.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Category: {item.category} • Location: {item.location_room || 'N/A'}
+                            </div>
+                          </div>
+                        ))}
+                        {parsingResults.extractedLineItems.length > 10 && (
+                          <div className="text-center text-gray-500 text-sm">
+                            ... and {parsingResults.extractedLineItems.length - 10} more items
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Debug Information Panel */}
