@@ -1,25 +1,21 @@
 version: 1
-backend:
-  phases:
-    build:
-      commands:
-        - '# Execute Amplify CLI with the helper script'
-        - amplifyPush --simple
 frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing Node.js dependencies..."
-        - npm ci
+        - echo "Installing Python 3.9..."  # Keep your Python setup if needed
+        - sudo yum update -y
+        - sudo yum install -y python3-pip  # Your fixed command
+        # Add any other pre-build steps, e.g., npm ci
     build:
       commands:
-        - echo "Building the app..."
-        - npm run build
+        - npm ci  # Install dependencies
+        - npm run build  # Your build script
   artifacts:
-    baseDirectory: .next
+    baseDirectory: .next  # Next.js builds to .next directory
     files:
       - '**/*'
   cache:
     paths:
       - node_modules/**/*
-      - .next/cache/**/*
+# No 'backend' section needed for frontend-only
