@@ -54,6 +54,7 @@ function EstimatePageContent() {
   // SPC Adjustment Engine state
   const [ruleResults, setRuleResults] = useState<any>(null);
   const [isRunningRules, setIsRunningRules] = useState(false);
+  const [isRunningJSRules, setIsRunningJSRules] = useState(false);
   const [showRuleResults, setShowRuleResults] = useState(false);
   const [showPythonDebugOutput, setShowPythonDebugOutput] = useState(false);
   const [showPythonExecutionDebug, setShowPythonExecutionDebug] = useState(false);
@@ -1617,6 +1618,212 @@ function EstimatePageContent() {
       // No installation items found, show modal for user selection
       console.log('⚠️ No installation items found, showing SPC installation modal');
       setShowSPCInstallationModal(true);
+    }
+  };
+
+  // JavaScript Rules Engine function
+  const runJavaScriptRuleEngine = async () => {
+    console.log('=== RUNNING JAVASCRIPT RULE ENGINE ===');
+    setIsRunningJSRules(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningJSRules(false);
+        return;
+      }
+
+      // Get roof measurements using the helper function
+      const roofMeasurementsObj = extractRoofMeasurements(rawAgentData);
+      
+      if (!roofMeasurementsObj) {
+        alert('Could not extract roof measurements. Please check that roof report was processed correctly.');
+        setIsRunningJSRules(false);
+        return;
+      }
+
+      // Convert to the format expected by JavaScript script
+      let roofMeasurements: Record<string, any> = {};
+      
+      // Map the extracted data to the expected format
+      if (roofMeasurementsObj.roofMeasurements) {
+        roofMeasurements = roofMeasurementsObj.roofMeasurements;
+      } else {
+        // If the data is at the root level, use it directly
+        roofMeasurements = roofMeasurementsObj;
+      }
+      
+      console.log('📊 Using extracted roof measurements:', roofMeasurements);
+      
+      // Store the extracted measurements for UI display
+      setExtractedRoofMeasurements(roofMeasurements);
+      
+      // If we have individual ridge/hip lengths but no combined field, create it
+      if (roofMeasurements.ridgeLength !== undefined && roofMeasurements.hipLength !== undefined && !roofMeasurements["Total Ridges/Hips Length"]) {
+        const combinedLength = roofMeasurements.ridgeLength + roofMeasurements.hipLength;
+        roofMeasurements["Total Ridges/Hips Length"] = { value: combinedLength };
+      }
+
+      console.log('📊 Using LIVE roof measurements:', roofMeasurements);
+
+      // Prepare data for JavaScript script
+      const jsInputData = {
+        line_items: extractedLineItems.map(item => ({
+          line_number: item.line_number || 'N/A',
+          description: item.description || 'Unknown',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'EA',
+          unit_price: item.unit_price || 0,
+          RCV: item.RCV || 0,
+          age_life: item.age_life || '',
+          condition: item.condition || '',
+          dep_percent: item.dep_percent || 0,
+          depreciation_amount: item.depreciation_amount || 0,
+          ACV: item.ACV || 0,
+          location_room: item.location_room || 'Unknown',
+          category: item.category || 'Unknown',
+          page_number: item.page_number || 1
+        })),
+        roof_measurements: roofMeasurements
+      };
+
+      console.log('Sending data to JavaScript script:', jsInputData);
+
+      // Call the JavaScript rule engine API endpoint
+      const response = await fetch('/api/run-javascript-rules', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(jsInputData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`JavaScript rule engine failed: ${errorData.error || response.statusText}`);
+      }
+
+      const ruleData = await response.json();
+      console.log('JavaScript rule engine results:', ruleData);
+      console.log('🔍 Debug: JavaScript audit log:', ruleData.data?.audit_log);
+      console.log('🔍 Debug: JavaScript original items count:', ruleData.data?.original_line_items?.length);
+      console.log('🔍 Debug: JavaScript adjusted items count:', ruleData.data?.adjusted_line_items?.length);
+      console.log('🔍 Debug: Sample adjusted item:', ruleData.data?.adjusted_line_items?.[0]);
+      console.log('🔍 Debug: Items with narratives:', ruleData.data?.adjusted_line_items?.filter((item: any) => item.narrative));
+
+      if (!ruleData.success) {
+        throw new Error(`JavaScript rule engine error: ${ruleData.error}`);
+      }
+
+      // Store the results and ensure line_items is populated
+      // Combine original line items with adjusted line items to preserve all items
+      const originalItems = ruleData.data?.original_line_items || [];
+      const adjustedItems = ruleData.data?.adjusted_line_items || [];
+      
+      // Create a map of adjusted items by line number for easy lookup
+      const adjustedItemsMap = new Map();
+      adjustedItems.forEach((item: any) => {
+        adjustedItemsMap.set(item.line_number, item);
+      });
+
+      // Merge: Start with all original items, then overwrite with adjusted versions
+      const finalLineItems = originalItems.map((origItem: any) => {
+        const adjustedItem = adjustedItemsMap.get(origItem.line_number);
+        if (adjustedItem) {
+          adjustedItemsMap.delete(origItem.line_number); // Mark as processed
+          return adjustedItem; // Use adjusted version
+        }
+        return origItem; // Keep original if no adjustment
+      });
+
+      // Add any new items that were only in adjusted (newly added items)
+      adjustedItemsMap.forEach((item: any) => {
+        finalLineItems.push(item);
+      });
+
+      console.log('🔍 Debug: Final merged items count:', finalLineItems.length);
+      console.log('🔍 Debug: Sample final item:', finalLineItems[0]);
+      
+      const resultsWithLineItems = {
+        ...ruleData.data,
+        line_items: finalLineItems,
+        audit_log: ruleData.data?.audit_log || [] // Preserve the audit log
+      };
+      setRuleResults(resultsWithLineItems);
+      setShowRuleResults(true);
+
+      // Update extracted line items with the final results
+      setExtractedLineItems(finalLineItems);
+
+      // After JavaScript Adjustment Engine completes, check for shingle removal items
+      const updatedLineItems = finalLineItems;
+      setCurrentSPCLineItems(updatedLineItems);
+      
+      // Check if any of the required removal line items are present
+      console.log('🔍 Checking for shingle removal items in:', updatedLineItems.length, 'line items');
+      console.log('🔍 Required items:', shingleRemovalOptions);
+      console.log('🔍 All line item descriptions:', updatedLineItems.map((item: any) => item.description));
+      
+      const foundRemovalItems = updatedLineItems.filter((item: any) => {
+        if (!item.description) return false;
+        
+        console.log('🔍 Checking item:', item.description);
+        
+        return shingleRemovalOptions.some(requiredItem => {
+          // Try exact match first
+          if (item.description === requiredItem) {
+            console.log('✅ Found exact match:', item.description);
+            return true;
+          }
+          
+          // Try case-insensitive match
+          if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
+            console.log('✅ Found case-insensitive match:', item.description, '===', requiredItem);
+            return true;
+          }
+          
+          // Check for removal items containing key terms
+          const itemDesc = item.description.toLowerCase();
+          const requiredDesc = requiredItem.toLowerCase();
+          
+          // Check if it's a removal item and contains key shingle type terms
+          if (itemDesc.includes('remove')) {
+            const hasLaminated = (itemDesc.includes('laminated') && requiredDesc.includes('laminated')) || 
+                               (!itemDesc.includes('laminated') && !requiredDesc.includes('laminated'));
+            const has3Tab = (itemDesc.includes('3 tab') && requiredDesc.includes('3 tab')) || 
+                           (!itemDesc.includes('3 tab') && !requiredDesc.includes('3 tab'));
+            const hasComp = itemDesc.includes('comp') && requiredDesc.includes('comp');
+            const hasShingle = itemDesc.includes('shingle') && requiredDesc.includes('shingle');
+            const hasFelt = (itemDesc.includes('felt') && requiredDesc.includes('felt'));
+            
+            if (hasComp && hasShingle && (hasLaminated || has3Tab || hasFelt)) {
+              console.log('✅ Found removal item match:', item.description, 'matches pattern for', requiredItem);
+              return true;
+            }
+          }
+          
+          return false;
+        });
+      });
+      
+      console.log('🔍 Found removal items:', foundRemovalItems.map((item: any) => item.description));
+      
+      if (foundRemovalItems.length > 0) {
+        // Show message that removal items were found
+        console.log('✅ Removal line items found, proceeding without modal');
+        setFoundRemovalItems(foundRemovalItems);
+        setShowSPCItemsFoundModal(true);
+      } else {
+        // No removal items found, show modal for user selection
+        console.log('⚠️ No removal items found, showing SPC shingle removal modal');
+        setShowSPCShingleRemovalModal(true);
+      }
+
+    } catch (error) {
+      console.error('Error running JavaScript rule engine:', error);
+      alert(`JavaScript rule engine failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningJSRules(false);
     }
   };
 
@@ -3832,7 +4039,19 @@ function EstimatePageContent() {
                     : 'bg-green-700 text-white hover:bg-green-800 border border-green-600'
                 }`}
               >
-                {isRunningRules ? 'Processing...' : 'SPC Adjustment Engine'}
+                {isRunningRules ? 'Processing...' : 'Python Rules Engine'}
+              </button>
+              
+              <button
+                onClick={runJavaScriptRuleEngine}
+                disabled={isRunningJSRules || !rawAgentData}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isRunningJSRules || !rawAgentData
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-700 text-white hover:bg-blue-800 border border-blue-600'
+                }`}
+              >
+                {isRunningJSRules ? 'Processing...' : 'JavaScript Rules Engine'}
               </button>
               <button 
                 onClick={() => router.push('/')}
