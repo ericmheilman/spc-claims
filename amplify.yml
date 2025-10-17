@@ -13,13 +13,15 @@ frontend:
         - which python
         - which python3
         - python3 -m pip --version
+        - echo "Creating Python Lambda layer..."
+        - mkdir -p python
+        - cp /usr/bin/python3.9 python/python3.9
+        - cp -r /usr/lib64/python3.9 python/lib64/
+        - cp -r /usr/lib/python3.9 python/lib/
+        - chmod +x python/python3.9
         - echo "Copying Python script to accessible location..."
         - cp roof_adjustment_engine.py /tmp/roof_adjustment_engine.py
         - ls -la /tmp/roof_adjustment_engine.py
-        - echo "Installing Python in Lambda runtime environment..."
-        - sudo mkdir -p /opt/python
-        - sudo cp /usr/bin/python3.9 /opt/python/python3.9
-        - sudo chmod +x /opt/python/python3.9
         - echo "Python dependencies are built-in modules (no pip install needed)"
         - echo "Installing Node.js dependencies..."
         - npm ci
@@ -29,8 +31,8 @@ frontend:
         - export PATH="/usr/bin:$PATH"
         - echo "Verifying Python script is accessible..."
         - ls -la /tmp/roof_adjustment_engine.py
-        - echo "Verifying Python in Lambda runtime location..."
-        - ls -la /opt/python/python3.9
+        - echo "Verifying Python Lambda layer..."
+        - ls -la python/python3.9
         - echo "Building the app..."
         - npm run build
   artifacts:

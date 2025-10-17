@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
         
         // List of possible Python executable paths
         const pythonPaths = [
+          './python/python3.9',      // Lambda layer location
           '/opt/python/python3.9',  // Lambda runtime location
           '/usr/bin/python3.9',     // Amazon Linux 2023 default
           '/usr/bin/python3',       // Common symlink
