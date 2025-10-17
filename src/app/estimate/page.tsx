@@ -4147,6 +4147,13 @@ function EstimatePageContent() {
                       <div className="text-gray-600">Justification/reason</div>
                     </div>
                   </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-50 border-l-2 border-gray-400 rounded mr-3 mt-1"></div>
+                    <div>
+                      <div className="text-gray-900 font-bold">Gray Box</div>
+                      <div className="text-gray-600">Narrative/notes</div>
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-900">
@@ -5100,6 +5107,14 @@ function EstimatePageContent() {
                                       </div>
                                     </>
                                   )}
+                                  
+                                  {/* Show narrative even if no highlighting */}
+                                  {!colorScheme && item.narrative && (
+                                    <div className="mt-2 p-3 bg-gray-50 border-l-3 border-gray-400 rounded-lg text-xs">
+                                      <div className="font-semibold text-gray-900 mb-1">📝 Note:</div>
+                                      <div className="text-gray-700">{item.narrative}</div>
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -5309,67 +5324,12 @@ function EstimatePageContent() {
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-900">
                     <span className="font-semibold">🎨 Color Coding:</span> Each type of adjustment has its own color scheme for easy identification. 
-                    Modified values show prominently with original values crossed out below. Each adjustment includes detailed explanations and rule information.
+                    Modified values show prominently with original values crossed out below. Narratives and explanations appear directly under each item description.
                   </p>
                 </div>
               </div>
 
-              {/* Narratives Section */}
-              {(() => {
-                const narrativesWithLineNumbers = ruleResults.line_items
-                  .map((item: any) => {
-                    // Check if this item has an audit log entry
-                    const auditEntry = ruleResults.audit_log?.find((log: any) => 
-                      String(log.line_number) === String(item.line_number) ||
-                      log.description === item.description
-                    );
-                    
-                    // Build narrative from multiple sources
-                    let narrative = null;
-                    
-                    // 1. Check for custom narrative first
-                    if (item.narrative) {
-                      narrative = item.narrative;
-                    }
-                    // 2. Check for user prompt workflow narratives
-                    else if (item.user_prompt_workflow) {
-                      narrative = `Added by user during ${item.user_prompt_step} step of the SPC workflow`;
-                    }
-                    // 3. Check for audit log entries
-                    else if (auditEntry) {
-                      if (auditEntry.rule_applied) {
-                        narrative = `Rule: ${auditEntry.rule_applied} |Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
-                      } else {
-                        narrative = `Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
-                      }
-                    }
-                    
-                    return {
-                      lineNumber: item.line_number,
-                      description: item.description,
-                      narrative: narrative
-                    };
-                  })
-                  .filter((item: any) => item.narrative); // Only include items with narratives
-                
-                if (narrativesWithLineNumbers.length > 0) {
-                  return (
-                    <div className="px-8 pb-8">
-                      <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4">📝 Estimate Notes & Narratives</h3>
-                        <div className="space-y-3">
-                          {narrativesWithLineNumbers.map((item: any, index: number) => (
-                            <div key={index} className="text-gray-800 leading-relaxed">
-                              <span className="font-semibold text-gray-900">Line {item.lineNumber}:</span> {item.narrative}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+              {/* Narratives Section - REMOVED - Now displayed inline with line items */}
 
               {/* Debug Output */}
               {ruleResults.debug_output && (
