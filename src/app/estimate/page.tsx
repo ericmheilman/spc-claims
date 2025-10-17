@@ -4897,6 +4897,17 @@ function EstimatePageContent() {
                             });
                           }
                           
+                          // Debug logging for narratives
+                          if (item.narrative) {
+                            console.log('🔍 Debug: Item has narrative:', {
+                              lineNumber: item.line_number,
+                              description: item.description,
+                              narrative: item.narrative,
+                              hasAuditEntry: !!auditEntry,
+                              hasUserPromptWorkflow: !!item.user_prompt_workflow
+                            });
+                          }
+                          
                           // Determine color scheme based on type of change
                           const getColorScheme = (auditEntry: any, item: any) => {
                             // Check for user prompt workflow items first (highest priority)
