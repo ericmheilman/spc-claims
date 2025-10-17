@@ -12,12 +12,19 @@ frontend:
         - echo "Installing Python 3.9.6..."
         - pyenv install 3.9.6
         - pyenv global 3.9.6
+        - echo "Setting up Python PATH..."
+        - export PATH="$HOME/.pyenv/versions/3.9.6/bin:$PATH"
         - python --version
+        - python3 --version
+        - which python
+        - which python3
         - echo "Python dependencies are built-in modules (no pip install needed)"
         - echo "Installing Node.js dependencies..."
         - npm ci
     build:
       commands:
+        - echo "Setting up Python PATH for build..."
+        - export PATH="$HOME/.pyenv/versions/3.9.6/bin:$PATH"
         - echo "Building the app..."
         - npm run build
   artifacts:

@@ -146,7 +146,47 @@ export async function POST(request: NextRequest) {
       console.log('📁 Input file:', tempInputFile);
       console.log('📁 Output file:', tempOutputFile);
       
-      const pythonProcess = spawn('python3', [
+      // Try python3 first, then fall back to python
+      const pythonCommand = await new Promise<string>((resolve, reject) => {
+        const testProcess = spawn('python3', ['--version'], { stdio: 'pipe' });
+        testProcess.on('close', (code) => {
+          if (code === 0) {
+            console.log('✅ Using python3 command');
+            resolve('python3');
+          } else {
+            console.log('⚠️ python3 not found, trying python');
+            const testProcess2 = spawn('python', ['--version'], { stdio: 'pipe' });
+            testProcess2.on('close', (code2) => {
+              if (code2 === 0) {
+                console.log('✅ Using python command');
+                resolve('python');
+              } else {
+                reject(new Error('Neither python3 nor python found'));
+              }
+            });
+            testProcess2.on('error', () => {
+              reject(new Error('Neither python3 nor python found'));
+            });
+          }
+        });
+        testProcess.on('error', () => {
+          console.log('⚠️ python3 not found, trying python');
+          const testProcess2 = spawn('python', ['--version'], { stdio: 'pipe' });
+          testProcess2.on('close', (code2) => {
+            if (code2 === 0) {
+              console.log('✅ Using python command');
+              resolve('python');
+            } else {
+              reject(new Error('Neither python3 nor python found'));
+            }
+          });
+          testProcess2.on('error', () => {
+            reject(new Error('Neither python3 nor python found'));
+          });
+        });
+      });
+      
+      const pythonProcess = spawn(pythonCommand, [
         pythonScript,
         '--input', tempInputFile,
         '--output', tempOutputFile
