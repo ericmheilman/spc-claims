@@ -81,10 +81,37 @@ export async function POST(request: NextRequest) {
                        pythonRoofMeasurements["Area for Pitch 9/12 (sq ft)"].value
            });
 
-    // Update inputData with Python-formatted roof measurements
+    // Load Roof Master Macro data
+    let roofMasterMacroData = {};
+    try {
+      const csvPath = join(process.cwd(), 'public', 'roof_master_macro.csv');
+      const csvContent = await import('fs').then(fs => fs.promises.readFile(csvPath, 'utf8'));
+      
+      // Parse CSV content
+      const lines = csvContent.split('\n').filter(line => line.trim());
+      const headers = lines[0].split('\t'); // Assuming tab-delimited
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split('\t');
+        if (values.length >= 3) {
+          roofMasterMacroData[values[0]] = {
+            description: values[0],
+            unit: values[1],
+            unit_price: parseFloat(values[2]) || 0
+          };
+        }
+      }
+      
+      console.log('Loaded Roof Master Macro data:', Object.keys(roofMasterMacroData).length, 'items');
+    } catch (error) {
+      console.warn('Could not load Roof Master Macro CSV:', error);
+    }
+
+    // Update inputData with Python-formatted roof measurements and Roof Master Macro
     const pythonInputData = {
       line_items: inputData.line_items,
-      roof_measurements: pythonRoofMeasurements
+      roof_measurements: pythonRoofMeasurements,
+      roof_master_macro: roofMasterMacroData
     };
 
     // Create temporary input file

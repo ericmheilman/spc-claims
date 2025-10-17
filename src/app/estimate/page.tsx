@@ -4956,6 +4956,19 @@ function EstimatePageContent() {
                               return stepColors[item.user_prompt_step as keyof typeof stepColors] || stepColors.removal;
                             }
                             
+                            // Check for custom narrative (user edits, manual adjustments)
+                            if (item.narrative) {
+                              return {
+                                rowClass: 'bg-yellow-50 border-l-4 border-yellow-500',
+                                badgeColor: 'bg-yellow-600',
+                                badgeText: '✏️ MANUALLY ADJUSTED',
+                                boxClass: 'bg-yellow-50 border-l-3 border-yellow-500',
+                                boxTitle: '✏️ Manual Adjustment:',
+                                boxTitleColor: 'text-yellow-900',
+                                boxTextColor: 'text-yellow-800'
+                              };
+                            }
+                            
                             if (!auditEntry) return null;
                             
                             const field = auditEntry.field;
@@ -5050,6 +5063,10 @@ function EstimatePageContent() {
                                         {item.user_prompt_workflow ? (
                                           <div className="text-gray-700 mb-2">
                                             Added by user during {item.user_prompt_step} step of the SPC workflow
+                                          </div>
+                                        ) : item.narrative ? (
+                                          <div className="text-gray-700 mb-2">
+                                            {item.narrative}
                                           </div>
                                         ) : (
                                           <>
@@ -5188,6 +5205,13 @@ function EstimatePageContent() {
                     <div>
                       <div className="text-gray-900 font-bold">Orange Highlighted Rows</div>
                       <div className="text-gray-600">Item replacements</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-600 text-white mr-3 mt-1">✏️ MANUAL</span>
+                    <div>
+                      <div className="text-gray-900 font-bold">Yellow Highlighted Rows</div>
+                      <div className="text-gray-600">Manually adjusted items</div>
                     </div>
                   </div>
                   <div className="flex items-start">
