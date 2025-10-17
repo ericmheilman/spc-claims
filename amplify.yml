@@ -3,11 +3,13 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing Python 3.9.6..."
-        - pyenv install 3.9.6
-        - pyenv global 3.9.6
+        - echo "Installing Python 3.9..."
+        - sudo apt-get update
+        - sudo apt-get install -y python3.9 python3.9-venv python3-pip
+        - sudo ln -sf /usr/bin/python3.9 /usr/bin/python3
+        - sudo ln -sf /usr/bin/python3.9 /usr/bin/python
         - echo "Setting up Python PATH..."
-        - export PATH="$HOME/.pyenv/versions/3.9.6/bin:$PATH"
+        - export PATH="/usr/bin:$PATH"
         - python --version
         - python3 --version
         - which python
@@ -18,7 +20,7 @@ frontend:
     build:
       commands:
         - echo "Setting up Python PATH for build..."
-        - export PATH="$HOME/.pyenv/versions/3.9.6/bin:$PATH"
+        - export PATH="/usr/bin:$PATH"
         - echo "Building the app..."
         - npm run build
   artifacts:
