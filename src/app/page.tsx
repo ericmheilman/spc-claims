@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Upload, FileText, Settings, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { SPCClaimsOrchestrator } from '@/lib/SPCClaimsOrchestrator';
 import { AgentResponse } from '@/types';
+import { parseOCRToLineItems } from '@/utils/ocrLineItemParser';
 
 export default function HomePage() {
   const router = useRouter();
@@ -132,53 +133,30 @@ export default function HomePage() {
       setClaimOcrResponse(ocrResult);
       console.log('Claim OCR extraction result:', ocrResult);
       
-      // Send OCR results to line items extraction agent
+      // Parse OCR data directly to line items
       setIsProcessingClaimAgent(true);
-      setClaimAgentStatus('Sending OCR results to line items extraction agent...');
+      setClaimAgentStatus('Parsing OCR data to extract line items...');
       
       try {
-        const sessionId = `68e559ebdc57add4679b89dd-${Date.now()}`;
+        console.log('=== DIRECT OCR PARSING ===');
+        const extractedLineItems = parseOCRToLineItems(ocrResult);
+        console.log(`Extracted ${extractedLineItems.length} line items from OCR data`);
         
-        // Format the OCR data as a message
-        let ocrMessage = 'Insurance Claim OCR Extraction Results:\n\n';
-        if (ocrResult.data) {
-          Object.entries(ocrResult.data).forEach(([key, value]: [string, any]) => {
-            if (value && value.content) {
-              ocrMessage += `Page ${value.page}:\n${value.content}\n\n`;
-            }
-          });
-        } else {
-          ocrMessage += JSON.stringify(ocrResult, null, 2);
-        }
-
-        const agentResponse = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
-          },
-          body: JSON.stringify({
-            user_id: 'gdnaaccount@lyzr.ai',
-            agent_id: '68e559ebdc57add4679b89dd',
-            session_id: sessionId,
-            message: ocrMessage
-          })
-        });
-
-        if (!agentResponse.ok) {
-          const errorData = await agentResponse.json();
-          throw new Error(`Agent processing failed: ${errorData.error || agentResponse.statusText}`);
-        }
-
-        const agentResult = await agentResponse.json();
+        // Create a mock agent response structure to maintain compatibility
+        const mockAgentResponse = {
+          response: JSON.stringify(extractedLineItems, null, 2),
+          extractedLineItems: extractedLineItems,
+          parsingMethod: 'direct-ocr-parsing',
+          timestamp: Date.now()
+        };
         
-        setClaimAgentStatus('✅ Line items extraction completed!');
-        setClaimAgentResponse(agentResult);
-        console.log('Claim agent response:', agentResult);
+        setClaimAgentStatus(`✅ Line items extraction completed! Found ${extractedLineItems.length} items`);
+        setClaimAgentResponse(mockAgentResponse);
+        console.log('Direct parsing result:', mockAgentResponse);
         
-      } catch (agentError) {
-        console.error('Error processing with line items agent:', agentError);
-        setClaimAgentStatus(`❌ Agent Error: ${agentError instanceof Error ? agentError.message : 'Unknown error'}`);
+      } catch (parseError) {
+        console.error('Error parsing OCR data:', parseError);
+        setClaimAgentStatus(`❌ Parsing Error: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
       } finally {
         setIsProcessingClaimAgent(false);
       }
@@ -329,7 +307,7 @@ export default function HomePage() {
 
     // Check if we have the claim agent response with line items
     if (!claimAgentResponse) {
-      alert('Please wait for the insurance claim to be processed by the line items extraction agent');
+      alert('Please wait for the insurance claim to be processed and line items to be extracted');
       return;
     }
 
@@ -473,8 +451,8 @@ export default function HomePage() {
               <FileText className="w-8 h-8 text-blue-600 mr-3" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">SPC Claims Carrier Network</h1>
-                <p className="text-sm text-blue-600">Powered by Lyzr Orchestrator Agent</p>
-                <p className="text-xs text-gray-500">Coordinating 6 specialized agents for complete workflow</p>
+                <p className="text-sm text-blue-600">Direct OCR Processing</p>
+                <p className="text-xs text-gray-500">Intelligent line item extraction from insurance claims</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -507,7 +485,7 @@ export default function HomePage() {
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-gray-900">Insurance Claim PDF</h3>
                 <p className="text-xs text-gray-600">
-                  Upload your Xactimate claim PDF (auto OCR + Line Items extraction)
+                  Upload your insurance claim PDF (OCR + Direct line items parsing)
                 </p>
                 <input
                   type="file"
@@ -592,11 +570,11 @@ export default function HomePage() {
               {isProcessing ? 'Processing...' : 
                claimAgentResponse && !isReadyButtonEnabled ? `⏳ Ready in ${readyButtonCountdown}s...` :
                claimAgentResponse ? '✅ Ready - View Extracted Claim' : 
-               'Waiting for Agent Processing...'}
+               'Waiting for Line Items Extraction...'}
             </button>
             {!claimAgentResponse && uploadedClaimFile && (
               <p className="text-xs text-gray-500 mt-2">
-                Please wait for the line items extraction agent to finish processing
+                Please wait for the line items extraction to finish processing
               </p>
             )}
             {claimAgentResponse && !isReadyButtonEnabled && (
@@ -637,9 +615,9 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Claim Agent Status */}
+              {/* Line Items Extraction Status */}
               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-2">Claim Agent</h4>
+                <h4 className="font-medium text-gray-900 mb-2">Line Items</h4>
                 <div className="flex items-center space-x-2">
                   <div className={`w-3 h-3 rounded-full ${claimAgentResponse ? 'bg-green-500' : isProcessingClaimAgent ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
                   <span className="text-sm text-gray-600">
