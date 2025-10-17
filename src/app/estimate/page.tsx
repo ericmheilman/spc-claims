@@ -333,12 +333,6 @@ function EstimatePageContent() {
           console.log('Extracted line items array:', lineItemsArray);
           setExtractedLineItems(lineItemsArray);
           
-          } catch (jsonParseError) {
-            console.error('JSON parsing failed completely:', jsonParseError);
-            setErrorDetails(`Failed to parse line items: ${jsonParseError instanceof Error ? jsonParseError.message : 'Unknown error'}`);
-            setExtractedLineItems([]);
-          }
-          
           // Update debug info
           setDebugInfo((prev: any) => ({
             ...prev,
@@ -347,8 +341,7 @@ function EstimatePageContent() {
             extractedLineItemsCount: lineItemsArray.length,
             claimAgentError: null
           }));
-        }
-      } else {
+        } else {
           // Check if claimAgentResponse exists but doesn't have response
           if (parsedData.claimAgentResponse) {
             console.log('Claim agent response exists but no response field:', parsedData.claimAgentResponse);
