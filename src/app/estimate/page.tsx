@@ -292,19 +292,20 @@ function EstimatePageContent() {
                 try {
                   let repairedJson = jsonMatch[0];
                   
-                  // Fix common JSON issues
+                  // More comprehensive JSON repair
                   repairedJson = repairedJson
                     .replace(/,\s*}/g, '}')  // Remove trailing commas before }
                     .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
                     .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Add quotes around unquoted keys
-                    .replace(/:\s*([^",{\[\s][^,}\]\]]*?)(\s*[,}\]])/g, ': "$1"$2');  // Add quotes around unquoted string values
+                    .replace(/:\s*([^",{\[\s][^,}\]\]]*?)(\s*[,}\]])/g, ': "$1"$2')  // Add quotes around unquoted string values
+                    .replace(/:\s*([0-9]+\.?[0-9]*)\s*([,}\]])/g, ': $1$2')  // Ensure numbers don't get quoted
+                    .replace(/:\s*(true|false|null)\s*([,}\]])/g, ': $1$2');  // Ensure booleans/null don't get quoted
                   
                   lineItemsArray = JSON.parse(repairedJson);
                   console.log('✅ Successfully parsed JSON after repair');
                 } catch (repairError) {
                   console.error('JSON repair failed:', repairError);
-                  // Don't throw error, continue with empty array
-                  lineItemsArray = [];
+                  console.log('Problematic JSON snippet:', jsonMatch[0].substring(4100, 4200));
                   
                   // Method 3: Try to extract individual line items
                   try {
@@ -318,10 +319,30 @@ function EstimatePageContent() {
                         }
                       }).filter((item: any) => item !== null);
                       console.log(`✅ Successfully extracted ${lineItemsArray.length} line items individually`);
+                    } else {
+                      // Method 4: Fallback - try to extract any JSON-like objects
+                      const objectMatches = responseStr.match(/\{[^{}]*\}/g);
+                      if (objectMatches && objectMatches.length > 0) {
+                        lineItemsArray = objectMatches.map((item: string) => {
+                          try {
+                            const parsed = JSON.parse(item);
+                            // Only include if it looks like a line item
+                            if (parsed.description || parsed.line_number || parsed.quantity !== undefined) {
+                              return parsed;
+                            }
+                            return null;
+                          } catch {
+                            return null;
+                          }
+                        }).filter((item: any) => item !== null);
+                        console.log(`✅ Successfully extracted ${lineItemsArray.length} objects as line items`);
+                      }
                     }
                   } catch (extractError) {
                     console.error('Individual line item extraction failed:', extractError);
-                    setErrorDetails(`Failed to parse line items: ${parseError instanceof Error ? parseError.message : 'Unknown error'}. Original error: ${e instanceof Error ? e.message : 'Unknown'}`);
+                    // Final fallback - set empty array and provide detailed error
+                    lineItemsArray = [];
+                    setErrorDetails(`Failed to parse line items after all methods. JSON repair error: ${repairError instanceof Error ? repairError.message : 'Unknown'}. Original error: ${e instanceof Error ? e.message : 'Unknown'}. Response preview: ${responseStr.substring(0, 200)}...`);
                   }
                 }
               }
