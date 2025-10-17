@@ -334,7 +334,8 @@ class RoofAdjustmentEngine:
             "ACV": acv,
             "location_room": location_room,
             "category": category,
-            "page_number": max(int(item.get("page_number", 0)) for item in line_items)
+            "page_number": max(int(item.get("page_number", 0)) for item in line_items),
+            "narrative": f"Field Changed: quantity |Explanation: New line item added based on roof measurements and standard roofing practices"
         }
         line_items.append(new_item)
         print(f"    ✅ Added: {desc} - Qty: {rounded_qty} {macro_unit} @ ${unit_price:.2f}/{macro_unit} = ${rcv:.2f}")
@@ -469,6 +470,8 @@ class RoofAdjustmentEngine:
                             print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                             self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                                       f"Quantity should equal Total Roof Area / 100 ({total_squares:.2f})")
+                            # Add narrative to the line item for frontend highlighting
+                            item["narrative"] = f"Field Changed: quantity |Explanation: Shingle removal quantity adjusted to match roof area calculation (Total Roof Area / 100 = {total_squares:.2f} SQ)"
                             # Add audit log entry
                             self.results.add_audit_entry_for_item(
                                 item, 'quantity', old_qty, item["quantity"],
@@ -507,6 +510,8 @@ class RoofAdjustmentEngine:
                         print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                         self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                                   f"Quantity should equal Total Roof Area / 100 ({total_squares:.2f})")
+                        # Add narrative to the line item for frontend highlighting
+                        item["narrative"] = f"Field Changed: quantity |Explanation: Shingle installation quantity adjusted to match roof area calculation (Total Roof Area / 100 = {total_squares:.2f} SQ)"
                         # Add audit log entry
                         self.results.add_audit_entry_for_item(
                             item, 'quantity', old_qty, item["quantity"],
@@ -533,6 +538,8 @@ class RoofAdjustmentEngine:
                     item["quantity"] = math.ceil(qty * 4) / 4
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               "Laminated shingles should be rounded up to nearest 0.25")
+                    # Add narrative to the line item for frontend highlighting
+                    item["narrative"] = f"Field Changed: quantity |Explanation: Laminated shingle quantity rounded up to nearest 0.25 (standard roofing practice)"
                     # Add audit log entry
                     self.results.add_audit_entry_for_item(
                         item, 'quantity', old_qty, item["quantity"],
@@ -556,6 +563,8 @@ class RoofAdjustmentEngine:
                     item["quantity"] = math.ceil(qty * 3) / 3
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               "3-tab shingles should be rounded up to nearest 0.33")
+                    # Add narrative to the line item for frontend highlighting
+                    item["narrative"] = f"Field Changed: quantity |Explanation: 3-tab shingle quantity rounded up to nearest 0.33 (standard roofing practice)"
                     # Add audit log entry
                     self.results.add_audit_entry_for_item(
                         item, 'quantity', old_qty, item["quantity"],
@@ -582,6 +591,8 @@ class RoofAdjustmentEngine:
                             item["quantity"] = starter_qty
                             self.results.add_adjustment(starter_desc, old_qty, item["quantity"], 
                                                       f"Starter strip quantity should equal (Total Eaves + Total Rakes) / 100 ({starter_qty:.2f})")
+                            # Add narrative to the line item for frontend highlighting
+                            item["narrative"] = f"Field Changed: quantity |Explanation: Starter strip quantity adjusted to match roof perimeter calculation ((Eaves + Rakes) / 100 = {starter_qty:.2f} SQ)"
                             # Add audit log entry
                             self.results.add_audit_entry_for_item(
                                 item, 'quantity', old_qty, item["quantity"],
@@ -609,6 +620,8 @@ class RoofAdjustmentEngine:
                         print(f"      ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                         self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                                   f"Steep roof charge should equal (Area 7/12 + 8/12 + 9/12) / 100 ({rounded_qty:.2f})")
+                        # Add narrative to the line item for frontend highlighting
+                        item["narrative"] = f"Field Changed: quantity |Explanation: Steep roof charge adjusted to match steep roof area calculation (7/12-9/12 slopes = {rounded_qty:.2f} SQ)"
                         # Add audit log entry
                         self.results.add_audit_entry_for_item(
                             item, 'quantity', old_qty, item["quantity"],
@@ -770,6 +783,8 @@ class RoofAdjustmentEngine:
                     print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               f"Drip edge quantity should equal (Total Eaves + Total Rakes) = {drip_edge_length:.2f} LF")
+                    # Add narrative to the line item for frontend highlighting
+                    item["narrative"] = f"Field Changed: quantity |Explanation: Drip edge quantity adjusted to match roof perimeter calculation (Eaves + Rakes = {drip_edge_length:.2f} LF)"
                     # Add audit log entry
                     self.results.add_audit_entry_for_item(
                         item, 'quantity', old_qty, item["quantity"],
@@ -1395,6 +1410,9 @@ class RoofAdjustmentEngine:
                     print(f"  ✅ PRICE INCREASED: '{description[:50]}...'")
                     print(f"     Unit Price: ${old_price:.2f} → ${new_price:.2f}")
                     print(f"     RCV: ${quantity * old_price:.2f} → ${item['RCV']:.2f}")
+                    
+                    # Add narrative to the line item for frontend highlighting
+                    item["narrative"] = f"Field Changed: unit_price |Explanation: Unit price increased to match Roof Master Macro maximum (${new_price:.2f})"
                     
                     # Add audit log entry for unit price adjustment
                     self.results.add_audit_entry_for_item(
