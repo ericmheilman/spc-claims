@@ -8490,7 +8490,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Complete Workflow
+                    Next step
                   </button>
                 </div>
               </div>
@@ -8704,7 +8704,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Complete Workflow
+                    Next step
                   </button>
                 </div>
               </div>
@@ -9008,7 +9008,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Complete Workflow
+                    Next step
                   </button>
                 </div>
               </div>
@@ -9323,7 +9323,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Complete Workflow
+                    Next step
                   </button>
                 </div>
               </div>
@@ -9537,7 +9537,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Complete Workflow
+                    Next step
                   </button>
                 </div>
               </div>
@@ -10045,7 +10045,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Complete Workflow
+                    Next step
                   </button>
                 </div>
               </div>
