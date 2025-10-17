@@ -35,11 +35,18 @@ export async function POST(request: NextRequest) {
     // Convert CSV records to the format expected by the engine
     const roofMasterMacroData: Record<string, any> = {};
     for (const record of records) {
-      roofMasterMacroData[record.description] = {
-        description: record.description,
-        unit: record.unit,
-        unit_price: parseFloat(record.unit_price),
-      };
+      // Handle case-insensitive field names
+      const description = record.Description || record.description;
+      const unit = record.Unit || record.unit;
+      const unitPrice = record['Unit Price'] || record['unit_price'] || record.unit_price;
+      
+      if (description && unit && unitPrice) {
+        roofMasterMacroData[description] = {
+          description: description,
+          unit: unit,
+          unit_price: parseFloat(unitPrice),
+        };
+      }
     }
 
     console.log(`📊 Loaded ${Object.keys(roofMasterMacroData).length} items from roof master macro`);

@@ -75,8 +75,11 @@ export class RoofAdjustmentEngine {
   }
 
   private getRoofMasterItem(description: string): RoofMasterItem | null {
+    console.log(`🔍 Looking for roof master item: "${description}"`);
+    
     // Try exact match first
     if (this.roofMasterMacro.has(description)) {
+      console.log(`✅ Found exact match: "${description}"`);
       return this.roofMasterMacro.get(description)!;
     }
 
@@ -84,10 +87,12 @@ export class RoofAdjustmentEngine {
     const lowerDesc = description.toLowerCase();
     for (const [key, value] of this.roofMasterMacro.entries()) {
       if (key.toLowerCase() === lowerDesc) {
+        console.log(`✅ Found case-insensitive match: "${key}" for "${description}"`);
         return value;
       }
     }
 
+    console.log(`❌ No match found for: "${description}"`);
     return null;
   }
 
@@ -261,13 +266,20 @@ export class RoofAdjustmentEngine {
   private adjustLineItemsAgainstMacro(items: LineItem[]): LineItem[] {
     const adjustedItems: LineItem[] = [];
 
+    console.log(`🔧 Processing ${items.length} items against roof master macro`);
+    console.log(`📊 Available roof master items: ${Array.from(this.roofMasterMacro.keys()).slice(0, 5).join(', ')}...`);
+
     for (const item of items) {
+      console.log(`🔍 Processing item: "${item.description}" (${item.unit_price})`);
       let adjustedItem = { ...item };
       const masterItem = this.getRoofMasterItem(item.description);
 
       if (masterItem) {
+        console.log(`✅ Found master item: ${masterItem.description} - ${masterItem.unit_price}`);
+        
         // Check unit price
         if (Math.abs(item.unit_price - masterItem.unit_price) > 0.01) {
+          console.log(`💰 Adjusting unit price: ${item.unit_price} → ${masterItem.unit_price}`);
           adjustedItem = this.adjustUnitPrice(
             adjustedItem,
             masterItem.unit_price,
@@ -277,6 +289,7 @@ export class RoofAdjustmentEngine {
 
         // Check unit
         if (item.unit !== masterItem.unit) {
+          console.log(`📏 Adjusting unit: ${item.unit} → ${masterItem.unit}`);
           this.logAudit({
             line_number: item.line_number,
             field: 'unit',
@@ -291,6 +304,7 @@ export class RoofAdjustmentEngine {
         if (masterItem.unit === 'SQ' || masterItem.unit === 'Square') {
           const roundedQty = this.roundToNearestSquare(adjustedItem.quantity);
           if (adjustedItem.quantity !== roundedQty) {
+            console.log(`📐 Rounding quantity: ${adjustedItem.quantity} → ${roundedQty}`);
             adjustedItem = this.adjustQuantity(
               adjustedItem,
               roundedQty,
@@ -299,6 +313,8 @@ export class RoofAdjustmentEngine {
             this.adjustmentCounts.rounding_adjustments++;
           }
         }
+      } else {
+        console.log(`❌ No master item found for: "${item.description}"`);
       }
 
       adjustedItems.push(adjustedItem);
