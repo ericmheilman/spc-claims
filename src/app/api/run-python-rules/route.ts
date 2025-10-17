@@ -256,6 +256,13 @@ export async function POST(request: NextRequest) {
       } catch (readError) {
         // If we can't read the output file, provide a fallback response
         console.log('Could not read Python output file, providing fallback response');
+        console.log('🔍 Debug: Python command used:', pythonCommand);
+        console.log('🔍 Debug: Script path:', scriptPath);
+        console.log('🔍 Debug: Input file:', tempInputFile);
+        console.log('🔍 Debug: Output file:', tempOutputFile);
+        console.log('🔍 Debug: STDOUT:', stdout);
+        console.log('🔍 Debug: STDERR:', stderr);
+        
         results = {
           success: true,
           original_line_items: pythonInputData.line_items,
@@ -276,6 +283,16 @@ export async function POST(request: NextRequest) {
               rule_applied: "Mock Rule"
             }
           ],
+          debug_output: {
+            execution_time: new Date().toISOString(),
+            stdout: stdout || 'No stdout output',
+            stderr: stderr || 'No stderr output',
+            python_command: pythonCommand,
+            script_path: scriptPath,
+            input_file: tempInputFile,
+            output_file: tempOutputFile,
+            error_details: `Could not read output file: ${readError instanceof Error ? readError.message : 'Unknown error'}`
+          },
           adjustment_results: {
             adjusted_line_items: pythonInputData.line_items.map((item: any, index: number) => ({
               ...item,
