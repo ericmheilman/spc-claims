@@ -40,7 +40,7 @@ export class LyzrAPIService {
         'Content-Type': 'application/json',
         'x-api-key': this.apiKey,
       },
-      timeout: 30000, // 30 seconds timeout
+      timeout: 120000, // 2 minutes timeout for line items extraction
     });
   }
 
