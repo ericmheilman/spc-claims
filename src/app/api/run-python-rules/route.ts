@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
       
       // Try python3 first, then fall back to python
       const pythonCommand = await new Promise<string>((resolve, reject) => {
+        console.log('🔍 Testing python3 availability...');
         const testProcess = spawn('python3', ['--version'], { stdio: 'pipe' });
         testProcess.on('close', (code) => {
           if (code === 0) {
@@ -161,15 +162,23 @@ export async function POST(request: NextRequest) {
                 console.log('✅ Using python command');
                 resolve('python');
               } else {
-                reject(new Error('Neither python3 nor python found'));
+                console.log('❌ Neither python3 nor python found');
+                console.log('🔍 Available commands in PATH:');
+                const { exec } = require('child_process');
+                exec('which python3 python python3.9 python3.8', (error: any, stdout: string, stderr: string) => {
+                  console.log('PATH check result:', stdout || stderr);
+                  reject(new Error('Neither python3 nor python found'));
+                });
               }
             });
-            testProcess2.on('error', () => {
+            testProcess2.on('error', (error) => {
+              console.log('❌ python command error:', error.message);
               reject(new Error('Neither python3 nor python found'));
             });
           }
         });
-        testProcess.on('error', () => {
+        testProcess.on('error', (error) => {
+          console.log('❌ python3 command error:', error.message);
           console.log('⚠️ python3 not found, trying python');
           const testProcess2 = spawn('python', ['--version'], { stdio: 'pipe' });
           testProcess2.on('close', (code2) => {
@@ -177,6 +186,7 @@ export async function POST(request: NextRequest) {
               console.log('✅ Using python command');
               resolve('python');
             } else {
+              console.log('❌ Neither python3 nor python found');
               reject(new Error('Neither python3 nor python found'));
             }
           });
