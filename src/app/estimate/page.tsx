@@ -130,10 +130,14 @@ function EstimatePageContent() {
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
   const [workflowData, setWorkflowData] = useState<any>(null);
 
-  // Custom Price Justification state
+  // Custom Price and Quantity Edit state
   const [showPriceEditModal, setShowPriceEditModal] = useState(false);
   const [editingPriceItem, setEditingPriceItem] = useState<any>(null);
-  const [priceJustification, setPriceJustification] = useState({ unit_price: 0, justification_text: '' });
+  const [priceJustification, setPriceJustification] = useState({ 
+    unit_price: 0, 
+    quantity: 0,
+    justification_text: '' 
+  });
 
   // Replace Line Item state
   const [showReplaceModal, setShowReplaceModal] = useState(false);
@@ -3227,11 +3231,12 @@ function EstimatePageContent() {
   ];
 
 
-  // Handle price editing
+  // Handle price and quantity editing
   const handlePriceEdit = (item: any) => {
     setEditingPriceItem(item);
     setPriceJustification({
       unit_price: item.unit_price || 0,
+      quantity: item.quantity || 0,
       justification_text: ''
     });
     setShowPriceEditModal(true);
@@ -3239,33 +3244,51 @@ function EstimatePageContent() {
 
   const handlePriceSave = () => {
     if (!priceJustification.justification_text.trim()) {
-      alert('Please provide justification text for the price change.');
+      alert('Please provide justification text for the changes.');
       return;
     }
 
     if (!editingPriceItem) return;
 
-    // Update the line item with new price
+    // Check if any changes were made
+    const priceChanged = priceJustification.unit_price !== (editingPriceItem.unit_price || 0);
+    const quantityChanged = priceJustification.quantity !== (editingPriceItem.quantity || 0);
+    
+    if (!priceChanged && !quantityChanged) {
+      alert('No changes detected. Please modify either the quantity or unit price.');
+      return;
+    }
+
+    // Build narrative based on what changed
+    const changes = [];
+    if (priceChanged) changes.push('unit_price');
+    if (quantityChanged) changes.push('quantity');
+    
+    const narrative = `Field Changed: ${changes.join(', ')} |Explanation: ${priceJustification.justification_text}`;
+
+    // Update the line item with new values
     setExtractedLineItems(prev => prev.map(item => 
       item.line_number === editingPriceItem.line_number 
         ? { 
             ...item, 
             unit_price: priceJustification.unit_price,
-            RCV: priceJustification.unit_price * item.quantity,
-            ACV: priceJustification.unit_price * item.quantity * (1 - (item.dep_percent || 0) / 100)
+            quantity: priceJustification.quantity,
+            RCV: priceJustification.unit_price * priceJustification.quantity,
+            ACV: priceJustification.unit_price * priceJustification.quantity * (1 - (item.dep_percent || 0) / 100),
+            narrative: narrative
           }
         : item
     ));
     
     setShowPriceEditModal(false);
     setEditingPriceItem(null);
-    setPriceJustification({ unit_price: 0, justification_text: '' });
+    setPriceJustification({ unit_price: 0, quantity: 0, justification_text: '' });
   };
 
   const handlePriceCancel = () => {
     setShowPriceEditModal(false);
     setEditingPriceItem(null);
-    setPriceJustification({ unit_price: 0, justification_text: '' });
+    setPriceJustification({ unit_price: 0, quantity: 0, justification_text: '' });
   };
 
   // Handle delete line item
@@ -4812,8 +4835,7 @@ function EstimatePageContent() {
                                           <>
                                             <div className="text-gray-700 mb-2 italic">"{auditEntry?.rule_applied}"</div>
                                         <div className="text-gray-600">
-                                              <strong className={colorScheme.boxTextColor}>Field Changed:</strong> {auditEntry?.field} | 
-                                              <strong className={`${colorScheme.boxTextColor} ml-2`}>Explanation:</strong> {auditEntry?.explanation}
+                                              <strong className={colorScheme.boxTextColor}>Field Changed:</strong> {auditEntry?.field}
                                         </div>
                                           </>
                                         )}
@@ -5029,19 +5051,41 @@ function EstimatePageContent() {
 
               {/* Narratives Section */}
               {(() => {
-                const narratives = ruleResults.line_items
-                  .filter((item: any) => item.narrative)
-                  .map((item: any) => item.narrative);
+                const narrativesWithLineNumbers = ruleResults.line_items
+                  .filter((item: any) => item.narrative || item.audit_entry)
+                  .map((item: any) => {
+                    // Check if this item has an audit log entry
+                    const auditEntry = ruleResults.audit_log?.find((log: any) => 
+                      String(log.line_number) === String(item.line_number) ||
+                      log.description === item.description
+                    );
+                    
+                    // Use custom narrative if available, otherwise build from audit entry
+                    let narrative = item.narrative;
+                    if (!narrative && auditEntry) {
+                      narrative = `Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
+                    }
+                    
+                    return {
+                      lineNumber: item.line_number,
+                      description: item.description,
+                      narrative: narrative
+                    };
+                  })
+                  .filter((item: any) => item.narrative); // Only include items with narratives
                 
-                if (narratives.length > 0) {
+                if (narrativesWithLineNumbers.length > 0) {
                   return (
                     <div className="px-8 pb-8">
                       <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">📝 Estimate Notes & Narratives</h3>
-                        <p className="text-gray-800 leading-relaxed">
-                          {narratives.join('. ')}
-                          {narratives.length > 0 && !narratives[narratives.length - 1].endsWith('.') ? '.' : ''}
-                        </p>
+                        <div className="space-y-3">
+                          {narrativesWithLineNumbers.map((item: any, index: number) => (
+                            <div key={index} className="text-gray-800 leading-relaxed">
+                              <span className="font-semibold text-gray-900">Line {item.lineNumber}:</span> {item.narrative}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   );
@@ -6869,7 +6913,7 @@ function EstimatePageContent() {
                 <div className="bg-blue-800 px-6 py-4 rounded-t-2xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">✏️ Edit Unit Price</h2>
+                      <h2 className="text-xl font-semibold text-white mb-1">✏️ Edit Line Item</h2>
                       <p className="text-gray-300 text-sm">Line {editingPriceItem.line_number}: {editingPriceItem.description}</p>
                     </div>
                     <button
@@ -6884,40 +6928,67 @@ function EstimatePageContent() {
                 {/* Content */}
                 <div className="px-6 py-6">
                   <div className="space-y-4">
-                    {/* Current Price Display */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="text-sm text-gray-600 mb-1">Current Price</div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(editingPriceItem.unit_price || 0)}
+                    {/* Current Values Display */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-sm text-gray-600 mb-1">Current Price</div>
+                        <div className="text-xl font-bold text-gray-900">
+                          {formatCurrency(editingPriceItem.unit_price || 0)}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-sm text-gray-600 mb-1">Current Quantity</div>
+                        <div className="text-xl font-bold text-gray-900">
+                          {(editingPriceItem.quantity || 0).toFixed(2)}
+                        </div>
                       </div>
                     </div>
 
-                    {/* New Price Input */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        New Unit Price
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={priceJustification.unit_price}
-                        onChange={(e) => setPriceJustification(prev => ({
-                          ...prev,
-                          unit_price: parseFloat(e.target.value) || 0
-                        }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="0.00"
-                      />
+                    {/* New Values Input */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          New Unit Price
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={priceJustification.unit_price}
+                          onChange={(e) => setPriceJustification(prev => ({
+                            ...prev,
+                            unit_price: parseFloat(e.target.value) || 0
+                          }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          New Quantity
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={priceJustification.quantity}
+                          onChange={(e) => setPriceJustification(prev => ({
+                            ...prev,
+                            quantity: parseFloat(e.target.value) || 0
+                          }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
 
                     {/* Justification Textarea */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Justification for Price Change <span className="text-red-500">*</span>
+                        Justification for Changes <span className="text-red-500">*</span>
                       </label>
                       <textarea
-                        placeholder="Explain why this price adjustment is necessary..."
+                        placeholder="Explain why these changes are necessary..."
                         value={priceJustification.justification_text}
                         onChange={(e) => setPriceJustification(prev => ({
                           ...prev,
@@ -6932,21 +7003,22 @@ function EstimatePageContent() {
                       </div>
                     </div>
 
-                    {/* Price Impact Preview */}
-                    {priceJustification.unit_price !== (editingPriceItem.unit_price || 0) && (
+                    {/* Impact Preview */}
+                    {(priceJustification.unit_price !== (editingPriceItem.unit_price || 0) || 
+                      priceJustification.quantity !== (editingPriceItem.quantity || 0)) && (
                       <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="text-sm font-medium text-blue-800 mb-2">Price Impact Preview</div>
+                        <div className="text-sm font-medium text-blue-800 mb-2">Impact Preview</div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <div className="text-gray-600">New RCV:</div>
                             <div className="font-semibold text-blue-700">
-                              {formatCurrency(priceJustification.unit_price * editingPriceItem.quantity)}
+                              {formatCurrency(priceJustification.unit_price * priceJustification.quantity)}
                             </div>
                           </div>
                           <div>
                             <div className="text-gray-600">New ACV:</div>
                             <div className="font-semibold text-blue-700">
-                              {formatCurrency(priceJustification.unit_price * editingPriceItem.quantity * (1 - (editingPriceItem.dep_percent || 0) / 100))}
+                              {formatCurrency(priceJustification.unit_price * priceJustification.quantity * (1 - (editingPriceItem.dep_percent || 0) / 100))}
                             </div>
                           </div>
                         </div>
