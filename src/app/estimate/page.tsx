@@ -5368,7 +5368,48 @@ function EstimatePageContent() {
                 </div>
               </div>
 
-              {/* Narratives Section - REMOVED - Now displayed inline with line items */}
+              {/* Combined Narratives Section */}
+              {ruleResults && ruleResults.line_items && (
+                <div className="bg-white border-t border-gray-200 px-8 py-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📝 Estimate Notes & Narratives</h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="text-sm text-gray-700 leading-relaxed">
+                      {(() => {
+                        // Collect all narratives from line items
+                        const allNarratives: string[] = [];
+                        
+                        ruleResults.line_items.forEach((item: any) => {
+                          // Find all audit entries for this item
+                          const auditEntries = ruleResults.audit_log?.filter((log: any) => 
+                            String(log.line_number) === String(item.line_number) ||
+                            log.description === item.description
+                          ) || [];
+                          
+                          if (auditEntries.length > 0) {
+                            // Add narratives from audit entries
+                            auditEntries.forEach((entry: any) => {
+                              if (entry.explanation) {
+                                allNarratives.push(`${item.line_number}. Field Changed: ${entry.field} | Explanation: ${entry.explanation}`);
+                              }
+                            });
+                          } else if (item.user_prompt_workflow) {
+                            // Add user workflow narratives
+                            allNarratives.push(`${item.line_number}. 👤 User Added - ${item.user_prompt_step} Step: Added by user during ${item.user_prompt_step} step of the SPC workflow`);
+                          } else if (item.narrative) {
+                            // Add custom narratives
+                            allNarratives.push(`${item.line_number}. ${item.narrative}`);
+                          }
+                        });
+                        
+                        // Join all narratives into one paragraph
+                        return allNarratives.length > 0 
+                          ? allNarratives.join(' ')
+                          : 'No adjustments or narratives available for this estimate.';
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Debug Output */}
               {ruleResults.debug_output && (
