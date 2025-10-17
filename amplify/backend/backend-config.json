@@ -1,0 +1,15 @@
+# amplify/backend/backend-config.json
+{
+  "backend": {
+    "pluginManager": {
+      "plugins": {
+        "awscloudformation": {
+          "provider": "awscloudformation",
+          "dependsOn": [],
+          "category": "provider",
+          "runtime": "nodejs18.x"
+        }
+      }
+    }
+  }
+}

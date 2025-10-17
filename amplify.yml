@@ -1,38 +1,18 @@
 version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - '# Execute Amplify CLI with the helper script'
+        - amplifyPush --simple
 frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing Python 3.9..."
-        - sudo yum update -y
-        - sudo yum install -y python39 python3-pip
-        - echo "Setting up Python PATH..."
-        - export PATH="/usr/bin:$PATH"
-        - python --version
-        - python3 --version
-        - which python
-        - which python3
-        - python3 -m pip --version
-        - echo "Creating Python Lambda layer..."
-        - mkdir -p python
-        - cp /usr/bin/python3.9 python/python3.9
-        - cp -r /usr/lib64/python3.9 python/lib64/
-        - cp -r /usr/lib/python3.9 python/lib/
-        - chmod +x python/python3.9
-        - echo "Copying Python script to accessible location..."
-        - cp roof_adjustment_engine.py /tmp/roof_adjustment_engine.py
-        - ls -la /tmp/roof_adjustment_engine.py
-        - echo "Python dependencies are built-in modules (no pip install needed)"
         - echo "Installing Node.js dependencies..."
         - npm ci
     build:
       commands:
-        - echo "Setting up Python PATH for build..."
-        - export PATH="/usr/bin:$PATH"
-        - echo "Verifying Python script is accessible..."
-        - ls -la /tmp/roof_adjustment_engine.py
-        - echo "Verifying Python Lambda layer..."
-        - ls -la python/python3.9
         - echo "Building the app..."
         - npm run build
   artifacts:
