@@ -347,7 +347,8 @@ function EstimatePageContent() {
             extractedLineItemsCount: lineItemsArray.length,
             claimAgentError: null
           }));
-        } else {
+        }
+      } else {
           // Check if claimAgentResponse exists but doesn't have response
           if (parsedData.claimAgentResponse) {
             console.log('Claim agent response exists but no response field:', parsedData.claimAgentResponse);
