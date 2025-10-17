@@ -1320,6 +1320,7 @@ function EstimatePageContent() {
         rmm_results: rmmData,
         python_results: pythonData,
         final_line_items: finalLineItems,
+        audit_log: pythonData.audit_log || [], // Preserve the audit log
         combined_audit_log: [
           ...(rmmData.audit_log || []).map((entry: any) => ({
             ...entry,
@@ -1436,6 +1437,9 @@ function EstimatePageContent() {
 
       const ruleData = await response.json();
       console.log('Python rule engine results:', ruleData);
+      console.log('🔍 Debug: Python audit log:', ruleData.data?.audit_log);
+      console.log('🔍 Debug: Python original items count:', ruleData.data?.original_line_items?.length);
+      console.log('🔍 Debug: Python adjusted items count:', ruleData.data?.adjusted_line_items?.length);
 
       if (!ruleData.success) {
         throw new Error(`Python rule engine error: ${ruleData.error}`);
@@ -1466,7 +1470,8 @@ function EstimatePageContent() {
       
       const resultsWithLineItems = {
         ...ruleData.data,
-        line_items: finalLineItems
+        line_items: finalLineItems,
+        audit_log: ruleData.data?.audit_log || [] // Preserve the audit log
       };
       setRuleResults(resultsWithLineItems);
       setShowRuleResults(true);
@@ -4866,6 +4871,20 @@ function EstimatePageContent() {
                             log.description === item.description
                           );
                           
+                          // Debug logging for Python adjustments
+                          if (ruleResults.audit_log && ruleResults.audit_log.length > 0 && !auditEntry) {
+                            console.log('🔍 Debug: Item not matched with audit log:', {
+                              itemLineNumber: item.line_number,
+                              itemDescription: item.description,
+                              auditLogEntries: ruleResults.audit_log.map((log: any) => ({
+                                lineNumber: log.line_number,
+                                description: log.description,
+                                field: log.field,
+                                rule: log.rule_applied
+                              }))
+                            });
+                          }
+                          
                           // Determine color scheme based on type of change
                           const getColorScheme = (auditEntry: any, item: any) => {
                             // Check for user prompt workflow items first (highest priority)
@@ -5050,7 +5069,9 @@ function EstimatePageContent() {
                               <td className="px-6 py-4 text-sm text-gray-900">
                                 <div className="max-w-md">
                                   <div className="font-medium mb-1">{item.description}</div>
-                                  <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                                  {(item.location_room && item.location_room !== 'unknown' && item.category && item.category !== 'unknown') && (
+                                    <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                                  )}
                                   {colorScheme && (
                                     <>
                                       <div className="mt-2 flex items-center space-x-2">
@@ -5475,7 +5496,9 @@ function EstimatePageContent() {
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <div className="max-w-md">
                                 <div className="font-medium mb-1">{item.description}</div>
-                                <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                                {(item.location_room && item.location_room !== 'unknown' && item.category && item.category !== 'unknown') && (
+                                  <div className="text-xs text-gray-500">{item.location_room} • {item.category}</div>
+                                )}
                                 {hasAnyAudit && (
                                   <div className="mt-2 flex items-center space-x-2">
                                     {rmmAuditEntry && (
