@@ -54,23 +54,36 @@ const SAMPLE_ADJUSTMENT_PATTERNS = [
 
 // Patterns to identify line items
 const LINE_ITEM_PATTERNS = [
-  // Pattern 1: Number. Description QUANTITY UNIT RCV AGE/LIFE COND DEP% DEPREC. ACV
+  // Pattern 1: Table format with pipes (Allstate format) - more flexible
+  /^\|\s*(\d+)\.\s+(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY|FA)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s*\|\s*(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s*\|\s*(\d+(?:\.\d+)?%|NA)\s*\|\s*\(([-\d,]+\.\d+)\)\s*\|\s*([\d,]+\.\d+)\s*\|$/im,
+  
+  // Pattern 2: Multi-line format (Allstate continued pages) - more flexible
+  /^(\d+)\.\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY|FA)\s+([-\d,]+\.\d+)\s+([-\d,]+\.\d+)\s+(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s+(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s+(\d+(?:\.\d+)?%|NA)\s+\(([-\d,]+\.\d+)\)\s+([\d,]+\.\d+)$/im,
+  
+  // Pattern 3: Original format (other insurance companies)
   /^(\d+)\.\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY)\s+(\d+(?:\.\d+)?)\s+(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s+(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s+(\d+(?:\.\d+)?%|NA)\s+\(([-\d,]+\.\d+)\)\s+([\d,]+\.\d+)$/im,
   
-  // Pattern 2: Number. Description QUANTITY UNIT UNIT_PRICE RCV AGE/LIFE COND DEP% DEPREC. ACV
-  /^(\d+)\.\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s+(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s+(\d+(?:\.\d+)?%|NA)\s+\(([-\d,]+\.\d+)\)\s+([\d,]+\.\d+)$/im,
-  
-  // Pattern 3: Table format with pipes
-  /^\|\s*(\d+)\.\s+(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY)\s*\|\s*(\d+(?:\.\d+)?)\s*\|\s*(\d+(?:\.\d+)?)\s*\|\s*(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s*\|\s*(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s*\|\s*(\d+(?:\.\d+)?%|NA)\s*\|\s*\(([-\d,]+\.\d+)\)\s*\|\s*([\d,]+\.\d+)\s*\|$/im
+  // Pattern 4: Table format with pipes (simplified) - more flexible
+  /^\|\s*(\d+)\.\s+(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s+(SF|SQ|LF|EA|HR|SY|FA)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*([-\d,]+\.\d+)\s*\|\s*(\d+\/\d+\s+yrs?|\d+\/NA|0\/NA|Q\/NA)\s*\|\s*(Avg\.|Abv\.\s+Avg\.|Below\s+Avg\.|New)\s*\|\s*(\d+(?:\.\d+)?%|NA)\s*\|\s*\(([-\d,]+\.\d+)\)\s*\|\s*([\d,]+\.\d+)\s*\|$/im
 ];
 
 export function parseOCRToLineItems(ocrData: OCRData): LineItem[] {
+  console.log('=== OCR PARSER DEBUG ===');
+  console.log('OCR Data structure:', {
+    status: ocrData.status,
+    dataKeys: Object.keys(ocrData.data),
+    totalPages: Object.keys(ocrData.data).length
+  });
+  
   const lineItems: LineItem[] = [];
   
   // Get all pages sorted by page number
   const pages = Object.values(ocrData.data).sort((a, b) => a.page - b.page);
+  console.log(`Processing ${pages.length} pages`);
   
   for (const page of pages) {
+    console.log(`\nProcessing page ${page.page}...`);
+    
     // Skip pages that contain sample adjustment data
     if (isSampleAdjustmentPage(page.content)) {
       console.log(`Skipping sample adjustment page ${page.page}`);
@@ -78,8 +91,15 @@ export function parseOCRToLineItems(ocrData: OCRData): LineItem[] {
     }
     
     const pageLineItems = extractLineItemsFromPage(page.content, page.page);
+    console.log(`Found ${pageLineItems.length} line items on page ${page.page}`);
     lineItems.push(...pageLineItems);
   }
+  
+  console.log(`\n=== PARSING COMPLETE ===`);
+  console.log(`Total line items extracted: ${lineItems.length}`);
+  lineItems.forEach((item, index) => {
+    console.log(`${index + 1}. ${item.line_number}. ${item.description} - ${item.quantity} ${item.unit} - RCV: $${item.RCV}`);
+  });
   
   return lineItems;
 }
@@ -92,21 +112,27 @@ function extractLineItemsFromPage(content: string, pageNumber: number): LineItem
   const lineItems: LineItem[] = [];
   const lines = content.split('\n');
   
+  console.log(`  Page ${pageNumber}: ${lines.length} lines to process`);
+  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
     // Try each pattern to match line items
-    for (const pattern of LINE_ITEM_PATTERNS) {
+    for (let j = 0; j < LINE_ITEM_PATTERNS.length; j++) {
+      const pattern = LINE_ITEM_PATTERNS[j];
       const match = line.match(pattern);
       if (match) {
+        console.log(`  Found match with pattern ${j + 1} on line ${i + 1}: ${line.substring(0, 50)}...`);
         try {
           const lineItem = parseLineItemFromMatch(match, pageNumber);
           if (lineItem && isValidLineItem(lineItem)) {
             lineItems.push(lineItem);
-            console.log(`Extracted line item: ${lineItem.line_number}. ${lineItem.description}`);
+            console.log(`  ✅ Extracted line item: ${lineItem.line_number}. ${lineItem.description}`);
+          } else {
+            console.log(`  ❌ Invalid line item: ${line.substring(0, 50)}...`);
           }
         } catch (error) {
-          console.warn(`Failed to parse line item from: ${line}`, error);
+          console.warn(`  ⚠️ Failed to parse line item from: ${line}`, error);
         }
         break; // Found a match, no need to try other patterns
       }
@@ -122,22 +148,29 @@ function parseLineItemFromMatch(match: RegExpMatchArray, pageNumber: number): Li
     let lineNumber, description, quantity, unit, unitPrice, rcv, ageLife, condition, depPercent, depreciationAmount, acv;
     
     if (match.length === 12) {
-      // Pattern 1: Number. Description QUANTITY UNIT RCV AGE/LIFE COND DEP% DEPREC. ACV
-      [, lineNumber, description, quantity, unit, rcv, ageLife, condition, depPercent, depreciationAmount, acv] = match;
-      unitPrice = parseFloat(rcv) / parseFloat(quantity); // Calculate unit price
+      // Pattern 1: Table format with pipes (Allstate format)
+      // | 1. Description | QUANTITY UNIT | UNIT_PRICE | RCV | AGE/LIFE | COND | DEP% | DEPREC. | ACV |
+      [, lineNumber, description, quantity, unit, unitPrice, rcv, ageLife, condition, depPercent, depreciationAmount, acv] = match;
     } else if (match.length === 13) {
-      // Pattern 2: Number. Description QUANTITY UNIT UNIT_PRICE RCV AGE/LIFE COND DEP% DEPREC. ACV
+      // Pattern 2: Multi-line format (Allstate continued pages)
+      // 17. Description QUANTITY UNIT UNIT_PRICE RCV AGE/LIFE COND DEP% DEPREC. ACV
       [, lineNumber, description, quantity, unit, unitPrice, rcv, ageLife, condition, depPercent, depreciationAmount, acv] = match;
     } else if (match.length === 14) {
-      // Pattern 3: Table format
+      // Pattern 3: Original format (other insurance companies)
+      // Number. Description QUANTITY UNIT RCV AGE/LIFE COND DEP% DEPREC. ACV
+      [, lineNumber, description, quantity, unit, rcv, ageLife, condition, depPercent, depreciationAmount, acv] = match;
+      unitPrice = parseFloat(rcv.toString().replace(/,/g, '')) / parseFloat(quantity.toString().replace(/,/g, '')); // Calculate unit price
+    } else if (match.length === 15) {
+      // Pattern 4: Table format with pipes (simplified)
       [, lineNumber, description, quantity, unit, unitPrice, rcv, ageLife, condition, depPercent, depreciationAmount, acv] = match;
     } else {
+      console.warn(`Unexpected match length: ${match.length} for line: ${match[0]}`);
       return null;
     }
     
     // Clean up values
     description = description.trim();
-    quantity = parseFloat(quantity.replace(/,/g, ''));
+    quantity = parseFloat(quantity.toString().replace(/,/g, ''));
     unitPrice = parseFloat(unitPrice.toString().replace(/,/g, ''));
     rcv = parseFloat(rcv.toString().replace(/,/g, ''));
     depreciationAmount = parseFloat(depreciationAmount.toString().replace(/,/g, ''));
@@ -146,7 +179,7 @@ function parseLineItemFromMatch(match: RegExpMatchArray, pageNumber: number): Li
     // Parse depreciation percentage
     let depPercentValue: number | null = null;
     if (depPercent && depPercent !== 'NA') {
-      depPercentValue = parseFloat(depPercent.replace('%', ''));
+      depPercentValue = parseFloat(depPercent.toString().replace('%', '')) / 100;
     }
     
     // Determine category based on description
