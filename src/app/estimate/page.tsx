@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2, Upload } from 'lucide-react';
 import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface LineItem {
   line_number: string;
@@ -171,6 +173,9 @@ function EstimatePageContent() {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [errorDetails, setErrorDetails] = useState<string>('');
   const [localStorageData, setLocalStorageData] = useState<any>(null);
+
+  // PDF Export state
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Roof Master Macro Upload state
   const [isUploadingRMM, setIsUploadingRMM] = useState(false);
@@ -3426,6 +3431,168 @@ function EstimatePageContent() {
     setNewLineItem({ description: '', quantity: 0, unit: 'EA' });
   };
 
+  // Generate PDF export
+  const generatePDF = async () => {
+    setIsGeneratingPDF(true);
+    
+    try {
+      // Get current date for filename
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).replace(/\//g, '-');
+      
+      // Create PDF document
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Add SPC branding header
+      pdf.setFillColor(59, 130, 246); // Blue background
+      pdf.rect(0, 0, pageWidth, 25, 'F');
+      
+      // SPC Logo/Title
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Smart Property Claims', 15, 15);
+      
+      // Subtitle
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Insurance Claim Estimate', 15, 20);
+      
+      // Date and claim info
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      pdf.text(`Generated: ${currentDate}`, pageWidth - 50, 15);
+      
+      // Add line items table
+      const lineItems = ruleResults?.line_items || extractedLineItems;
+      let yPosition = 40;
+      
+      // Table headers
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Line', 15, yPosition);
+      pdf.text('Description', 30, yPosition);
+      pdf.text('Qty', 120, yPosition);
+      pdf.text('Unit', 135, yPosition);
+      pdf.text('Unit Price', 150, yPosition);
+      pdf.text('RCV', 175, yPosition);
+      
+      yPosition += 5;
+      
+      // Draw header line
+      pdf.line(15, yPosition, pageWidth - 15, yPosition);
+      yPosition += 5;
+      
+      // Add line items
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      
+      let totalRCV = 0;
+      
+      lineItems.forEach((item: any) => {
+        if (yPosition > pageHeight - 20) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.text(item.line_number || '-', 15, yPosition);
+        pdf.text(item.description.substring(0, 50), 30, yPosition);
+        pdf.text((item.quantity || 0).toFixed(2), 120, yPosition);
+        pdf.text(item.unit || '', 135, yPosition);
+        pdf.text(`$${(item.unit_price || 0).toFixed(2)}`, 150, yPosition);
+        pdf.text(`$${(item.RCV || 0).toFixed(2)}`, 175, yPosition);
+        
+        totalRCV += item.RCV || 0;
+        yPosition += 5;
+      });
+      
+      // Add totals
+      yPosition += 10;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text(`Total RCV: $${totalRCV.toFixed(2)}`, pageWidth - 50, yPosition);
+      
+      // Add narratives section if available
+      const narrativesWithLineNumbers = lineItems
+        .map((item: any) => {
+          const auditEntry = ruleResults?.audit_log?.find((log: any) => 
+            String(log.line_number) === String(item.line_number) ||
+            log.description === item.description
+          );
+          
+          let narrative = null;
+          if (item.narrative) {
+            narrative = item.narrative;
+          } else if (item.user_prompt_workflow) {
+            narrative = `Added by user during ${item.user_prompt_step} step of the SPC workflow`;
+          } else if (auditEntry) {
+            if (auditEntry.rule_applied) {
+              narrative = `Rule: ${auditEntry.rule_applied} |Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
+            } else {
+              narrative = `Field Changed: ${auditEntry.field} |Explanation: ${auditEntry.explanation}`;
+            }
+          }
+          
+          return {
+            lineNumber: item.line_number,
+            narrative: narrative
+          };
+        })
+        .filter((item: any) => item.narrative);
+      
+      if (narrativesWithLineNumbers.length > 0) {
+        yPosition += 20;
+        if (yPosition > pageHeight - 30) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('Estimate Notes & Narratives', 15, yPosition);
+        yPosition += 10;
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        
+        narrativesWithLineNumbers.forEach((item: any) => {
+          if (yPosition > pageHeight - 20) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          const narrativeText = `Line ${item.lineNumber}: ${item.narrative}`;
+          const lines = pdf.splitTextToSize(narrativeText, pageWidth - 30);
+          pdf.text(lines, 15, yPosition);
+          yPosition += lines.length * 4 + 2;
+        });
+      }
+      
+      // Add footer
+      const footerY = pageHeight - 10;
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text('Generated by Smart Property Claims', pageWidth / 2, footerY, { align: 'center' });
+      
+      // Save PDF
+      const fileName = `SPC_Claim_Estimate_${currentDate}.pdf`;
+      pdf.save(fileName);
+      
+      console.log('✅ PDF generated successfully:', fileName);
+      
+    } catch (error) {
+      console.error('❌ Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -4616,13 +4783,23 @@ function EstimatePageContent() {
                 <div className="p-8">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-gray-900">📋 All Line Items</h3>
-                    <button
-                      onClick={() => setShowAddLineItemModal(true)}
-                      className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium transition-all shadow-md flex items-center space-x-2"
-                    >
-                      <span>➕</span>
-                      <span>Add New Line Item</span>
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={generatePDF}
+                        disabled={isGeneratingPDF}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-md flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{isGeneratingPDF ? 'Generating...' : 'Export PDF'}</span>
+                      </button>
+                      <button
+                        onClick={() => setShowAddLineItemModal(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium transition-all shadow-md flex items-center space-x-2"
+                      >
+                        <span>➕</span>
+                        <span>Add New Line Item</span>
+                      </button>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">

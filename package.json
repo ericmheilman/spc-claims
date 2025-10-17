@@ -2,7 +2,6 @@
   "name": "spc-claims",
   "version": "0.1.0",
   "private": true,
-
   "engines": {
     "node": "20.x"
   },
@@ -24,6 +23,8 @@
     "@types/multer": "^2.0.0",
     "@types/pdf-parse": "^1.1.5",
     "axios": "^1.11.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "lucide-react": "^0.543.0",
     "multer": "^2.0.2",
     "next": "15.5.2",
