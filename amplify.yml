@@ -13,6 +13,9 @@ frontend:
         - which python
         - which python3
         - python3 -m pip --version
+        - echo "Copying Python script to accessible location..."
+        - cp roof_adjustment_engine.py /tmp/roof_adjustment_engine.py
+        - ls -la /tmp/roof_adjustment_engine.py
         - echo "Python dependencies are built-in modules (no pip install needed)"
         - echo "Installing Node.js dependencies..."
         - npm ci
@@ -20,6 +23,8 @@ frontend:
       commands:
         - echo "Setting up Python PATH for build..."
         - export PATH="/usr/bin:$PATH"
+        - echo "Verifying Python script is accessible..."
+        - ls -la /tmp/roof_adjustment_engine.py
         - echo "Building the app..."
         - npm run build
   artifacts:
