@@ -151,7 +151,11 @@ function EstimatePageContent() {
   const filterDuplicateSections = (lineItems: any[]) => {
     if (!lineItems || lineItems.length === 0) return lineItems;
     
-    // Find all items with line_number "1" or line_number 1
+    // Check if this is actually a duplicate section scenario
+    // Look for patterns that indicate duplicate sections:
+    // 1. Multiple "LINE 1" items with different descriptions
+    // 2. Or items that restart numbering (like 1,2,3,4,1,2,3,4)
+    
     const lineOneItems = lineItems.filter(item => 
       String(item.line_number) === '1' || item.line_number === 1
     );
@@ -162,23 +166,34 @@ function EstimatePageContent() {
       return lineItems;
     }
     
-    console.log(`Found ${lineOneItems.length} "LINE 1" items, detecting duplicate sections`);
+    // Check if the "LINE 1" items have different descriptions (indicating different sections)
+    const uniqueDescriptions = new Set(lineOneItems.map(item => item.description));
+    if (uniqueDescriptions.size <= 1) {
+      console.log('All "LINE 1" items have same description, no duplicate sections');
+      return lineItems;
+    }
     
-    // Find the index of the second "LINE 1" item
+    console.log(`Found ${lineOneItems.length} "LINE 1" items with different descriptions, detecting duplicate sections`);
+    
+    // Find the index of the second "LINE 1" item with a different description
     const firstLineOneIndex = lineItems.findIndex(item => 
       String(item.line_number) === '1' || item.line_number === 1
     );
     
+    const firstDescription = lineItems[firstLineOneIndex]?.description;
+    
     const secondLineOneIndex = lineItems.findIndex((item, index) => 
-      index > firstLineOneIndex && (String(item.line_number) === '1' || item.line_number === 1)
+      index > firstLineOneIndex && 
+      (String(item.line_number) === '1' || item.line_number === 1) &&
+      item.description !== firstDescription
     );
     
     if (secondLineOneIndex === -1) {
-      console.log('No second "LINE 1" found, returning all items');
+      console.log('No second "LINE 1" with different description found, returning all items');
       return lineItems;
     }
     
-    // Return items starting from the second "LINE 1"
+    // Return items starting from the second "LINE 1" with different description
     const filteredItems = lineItems.slice(secondLineOneIndex);
     console.log(`Filtered out first ${secondLineOneIndex} items, keeping ${filteredItems.length} items starting from second "LINE 1"`);
     
