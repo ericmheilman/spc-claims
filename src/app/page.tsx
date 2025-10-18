@@ -141,7 +141,7 @@ export default function HomePage() {
         console.log('Claim agent result:', agentResult);
         
         if (agentResult.success) {
-          setClaimAgentStatus(`✅ Line items extraction completed! Found ${agentResult.data?.extractedLineItems?.length || 0} items`);
+          setClaimAgentStatus('✅ Line items extraction completed!');
           setClaimAgentResponse(agentResult.data);
         } else {
           setClaimAgentStatus(`❌ Agent Error: ${agentResult.error}`);
