@@ -147,6 +147,44 @@ function EstimatePageContent() {
   const [replacingItem, setReplacingItem] = useState<any>(null);
   const [selectedReplacementItem, setSelectedReplacementItem] = useState('');
 
+  // Function to filter out duplicate line item sections
+  const filterDuplicateSections = (lineItems: any[]) => {
+    if (!lineItems || lineItems.length === 0) return lineItems;
+    
+    // Find all items with line_number "1" or line_number 1
+    const lineOneItems = lineItems.filter(item => 
+      String(item.line_number) === '1' || item.line_number === 1
+    );
+    
+    // If there's only one "LINE 1" item, return all items
+    if (lineOneItems.length <= 1) {
+      console.log('No duplicate sections detected, returning all items');
+      return lineItems;
+    }
+    
+    console.log(`Found ${lineOneItems.length} "LINE 1" items, detecting duplicate sections`);
+    
+    // Find the index of the second "LINE 1" item
+    const firstLineOneIndex = lineItems.findIndex(item => 
+      String(item.line_number) === '1' || item.line_number === 1
+    );
+    
+    const secondLineOneIndex = lineItems.findIndex((item, index) => 
+      index > firstLineOneIndex && (String(item.line_number) === '1' || item.line_number === 1)
+    );
+    
+    if (secondLineOneIndex === -1) {
+      console.log('No second "LINE 1" found, returning all items');
+      return lineItems;
+    }
+    
+    // Return items starting from the second "LINE 1"
+    const filteredItems = lineItems.slice(secondLineOneIndex);
+    console.log(`Filtered out first ${secondLineOneIndex} items, keeping ${filteredItems.length} items starting from second "LINE 1"`);
+    
+    return filteredItems;
+  };
+
   // Add New Line Item state
   const [showAddLineItemModal, setShowAddLineItemModal] = useState(false);
   const [newLineItem, setNewLineItem] = useState({
@@ -334,7 +372,12 @@ function EstimatePageContent() {
           }
           
           console.log('Extracted line items array:', lineItemsArray);
-          setExtractedLineItems(lineItemsArray);
+          
+          // Filter out duplicate sections - if there are multiple "LINE 1" entries, skip the first section
+          const filteredLineItems = filterDuplicateSections(lineItemsArray);
+          console.log('Filtered line items (removed duplicate sections):', filteredLineItems);
+          
+          setExtractedLineItems(filteredLineItems);
           
           // Update debug info
           setDebugInfo((prev: any) => ({
