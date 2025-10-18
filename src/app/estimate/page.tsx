@@ -35,205 +35,6 @@ interface Category {
   };
 }
 
-// SPC Estimate View Component
-function SPCEstimateView({ rawAgentData, parseSPCLineItems }: { 
-  rawAgentData: any; 
-  parseSPCLineItems: (response: string) => LineItem[] 
-}) {
-  const [spcLineItems, setSpcLineItems] = useState<LineItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (rawAgentData?.claimAgentResponse?.response) {
-      console.log('🔍 Loading SPC Estimate from agent response...');
-      const parsedItems = parseSPCLineItems(rawAgentData.claimAgentResponse.response);
-      setSpcLineItems(parsedItems);
-      setLoading(false);
-      
-      if (parsedItems.length === 0) {
-        setError('No line items found in agent response');
-      }
-    } else {
-      setError('No agent response data available');
-      setLoading(false);
-    }
-  }, [rawAgentData, parseSPCLineItems]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const groupItemsByCategory = (items: LineItem[]): Category[] => {
-    const categoryMap = new Map<string, LineItem[]>();
-    
-    items.forEach(item => {
-      const category = item.category || 'Uncategorized';
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, []);
-      }
-      categoryMap.get(category)!.push(item);
-    });
-
-    return Array.from(categoryMap.entries()).map(([name, items]) => ({
-      name,
-      items,
-      totals: {
-        rcv: items.reduce((sum, item) => sum + (item.RCV || 0), 0),
-        depreciation: items.reduce((sum, item) => sum + (item.depreciation_amount || 0), 0),
-        acv: items.reduce((sum, item) => sum + (item.ACV || 0), 0),
-      }
-    }));
-  };
-
-  const categories = groupItemsByCategory(spcLineItems);
-  const grandTotal = {
-    rcv: spcLineItems.reduce((sum, item) => sum + (item.RCV || 0), 0),
-    depreciation: spcLineItems.reduce((sum, item) => sum + (item.depreciation_amount || 0), 0),
-    acv: spcLineItems.reduce((sum, item) => sum + (item.ACV || 0), 0),
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading SPC Estimate...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <div className="flex items-center">
-          <FileText className="w-6 h-6 text-red-600 mr-3" />
-          <div>
-            <h3 className="text-lg font-semibold text-red-900">Error Loading SPC Estimate</h3>
-            <p className="text-red-700 mt-1">{error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">SPC Estimate</h2>
-            <p className="text-gray-600 mt-1">
-              Parsed from Insurance Claim Line Items Agent (ID: 68e559ebdc57add4679b89dd)
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              {spcLineItems.length} line items • Generated on {new Date().toLocaleDateString()}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-500">Total RCV</div>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotal.rcv)}</div>
-            <div className="text-sm text-gray-500">Total ACV</div>
-            <div className="text-xl font-semibold text-blue-600">{formatCurrency(grandTotal.acv)}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="space-y-4">
-        {categories.map((category, index) => (
-          <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {/* Category Header */}
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
-                <div className="flex space-x-6 text-sm">
-                  <div>
-                    <span className="text-gray-500">RCV: </span>
-                    <span className="font-semibold text-green-600">{formatCurrency(category.totals.rcv)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Depreciation: </span>
-                    <span className="font-semibold text-orange-600">{formatCurrency(category.totals.depreciation)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">ACV: </span>
-                    <span className="font-semibold text-blue-600">{formatCurrency(category.totals.acv)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Line Items */}
-            <div className="divide-y divide-gray-200">
-              {category.items.map((item, itemIndex) => (
-                <div key={itemIndex} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          Line {item.line_number}
-                        </span>
-                        <span className="text-sm text-gray-500">{item.page_number && `Page ${item.page_number}`}</span>
-                      </div>
-                      <h4 className="text-sm font-medium text-gray-900 mt-2">{item.description}</h4>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                        <span>Qty: {item.quantity} {item.unit}</span>
-                        <span>Unit Price: {formatCurrency(item.unit_price)}</span>
-                        {item.age_life && <span>Age: {item.age_life}</span>}
-                        {item.condition && <span>Condition: {item.condition}</span>}
-                      </div>
-                    </div>
-                    <div className="text-right ml-4">
-                      <div className="text-sm font-semibold text-green-600">{formatCurrency(item.RCV)}</div>
-                      <div className="text-xs text-gray-500">RCV</div>
-                      {item.depreciation_amount > 0 && (
-                        <>
-                          <div className="text-sm font-semibold text-orange-600">{formatCurrency(item.depreciation_amount)}</div>
-                          <div className="text-xs text-gray-500">Depreciation</div>
-                        </>
-                      )}
-                      <div className="text-sm font-semibold text-blue-600">{formatCurrency(item.ACV)}</div>
-                      <div className="text-xs text-gray-500">ACV</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Grand Total Summary */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900">Grand Total</h3>
-          <div className="flex space-x-8">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotal.rcv)}</div>
-              <div className="text-sm text-gray-500">Total RCV</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-semibold text-orange-600">{formatCurrency(grandTotal.depreciation)}</div>
-              <div className="text-sm text-gray-500">Total Depreciation</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{formatCurrency(grandTotal.acv)}</div>
-              <div className="text-sm text-gray-500">Total ACV</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function EstimatePageContent() {
   const searchParams = useSearchParams();
@@ -470,9 +271,6 @@ function EstimatePageContent() {
 
   // Valley Metal Check state
   const [valleyType, setValleyType] = useState<string | null>(null);
-
-  // View mode state - toggle between current view and SPC Estimate view
-  const [viewMode, setViewMode] = useState<'current' | 'spc'>('current');
 
   // Parse CSV line items from agent response
   const parseCSVLineItems = (csvResponse: string): LineItem[] => {
@@ -4332,34 +4130,8 @@ function EstimatePageContent() {
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-lg font-medium text-gray-900">
-                  {viewMode === 'current' ? 'Adjusted Insurance Estimate' : 'SPC Estimate'}
-                </h1>
+                <h1 className="text-lg font-medium text-gray-900">Adjusted Insurance Estimate</h1>
                 <p className="text-xs text-gray-500">SPC Claims Processing System</p>
-              </div>
-              
-              {/* View Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('current')}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
-                    viewMode === 'current'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Current View
-                </button>
-                <button
-                  onClick={() => setViewMode('spc')}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
-                    viewMode === 'spc'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  SPC Estimate
-                </button>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -4389,7 +4161,7 @@ function EstimatePageContent() {
                     : 'bg-blue-700 text-white hover:bg-blue-800 border border-blue-600'
                 }`}
               >
-                {isRunningJSRules ? 'Processing...' : 'JavaScript Rules Engine'}
+                {isRunningJSRules ? 'Processing...' : 'SPC Adjustment Engine'}
               </button>
               <button 
                 onClick={() => router.push('/')}
@@ -4404,16 +4176,8 @@ function EstimatePageContent() {
 
       <main className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* SPC Estimate View */}
-          {viewMode === 'spc' ? (
-            <SPCEstimateView 
-              rawAgentData={rawAgentData}
-              parseSPCLineItems={parseCSVLineItems}
-            />
-          ) : (
-            <>
-              {/* Roof Master Macro Upload Status */}
-              {rmmUploadStatus && (
+          {/* Roof Master Macro Upload Status */}
+          {rmmUploadStatus && (
             <div className={`mb-6 p-4 rounded-lg ${
               rmmUploadStatus.success 
                 ? 'bg-green-50 border border-green-200' 
@@ -5852,7 +5616,13 @@ function EstimatePageContent() {
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-600 text-white mr-3 mt-1">💰📏 PRICE + QTY</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-500 text-white mr-3 mt-1 shadow-sm">
+                      <span className="flex items-center space-x-1">
+                        <span className="bg-green-500 text-white px-1.5 py-0.5 rounded text-xs font-bold">PRICE</span>
+                        <span className="text-yellow-200">+</span>
+                        <span className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-xs font-bold">QTY</span>
+                      </span>
+                    </span>
                     <div>
                       <div className="text-gray-900 font-bold">Yellow Highlighted Rows</div>
                       <div className="text-gray-600">Both price and quantity adjustments</div>
@@ -8933,7 +8703,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Continue to Next Step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -9139,7 +8909,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Next step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -9353,7 +9123,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Next step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -9579,7 +9349,7 @@ function EstimatePageContent() {
                   >
                     {chimneyPresent === false ? 'Continue' : 
                      chimneyPresent === true && (chimneySize === 'small' || parseFloat(chimneyLength) < 30) ? 'Continue (No Cricket)' :
-                     'Add Cricket & Continue'}
+                     'Add Cricket'}
                   </button>
                 </div>
               </div>
@@ -9657,7 +9427,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Next step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -9894,7 +9664,7 @@ function EstimatePageContent() {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {additionalLayersPresent === false ? 'Continue' : 'Add Layer & Continue'}
+                    {additionalLayersPresent === false ? 'Continue' : 'Add Layer'}
                   </button>
                 </div>
               </div>
@@ -9972,7 +9742,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Next step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -10108,7 +9878,7 @@ function EstimatePageContent() {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {permitMissing === false ? 'Continue' : 'Add Permit & Continue'}
+                    {permitMissing === false ? 'Continue' : 'Add Permit'}
                   </button>
                 </div>
               </div>
@@ -10186,7 +9956,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Next step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -10297,7 +10067,7 @@ function EstimatePageContent() {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    Add Hidden Damages & Complete
+                    Add Hidden Damages
                   </button>
                 </div>
               </div>
@@ -10519,7 +10289,7 @@ function EstimatePageContent() {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {roofAccessIssues === false ? 'Continue' : 'Process & Complete'}
+                    {roofAccessIssues === false ? 'Continue' : 'Add Roof Access Issues'}
                   </button>
                 </div>
               </div>
@@ -10616,7 +10386,7 @@ function EstimatePageContent() {
                     onClick={handleAddOP}
                     className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
                   >
-                    Add O&P (20%) & Complete
+                    Add O&P (20%)
                   </button>
                 </div>
               </div>
@@ -10694,7 +10464,7 @@ function EstimatePageContent() {
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
-                    Next step
+                    Continue
                   </button>
                 </div>
               </div>
@@ -10765,8 +10535,6 @@ function EstimatePageContent() {
                 </div>
               </div>
             </div>
-          )}
-            </>
           )}
         </div>
       </main>
