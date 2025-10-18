@@ -6503,9 +6503,9 @@ function EstimatePageContent() {
           {/* Unified Workflow Modal */}
           {showUnifiedWorkflow && workflowData && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="bg-purple-800 px-6 py-4 rounded-t-2xl">
+                <div className="bg-purple-800 px-6 py-4 rounded-t-2xl flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-semibold text-white mb-1">Unified Workflow</h2>
@@ -6513,7 +6513,22 @@ function EstimatePageContent() {
                     </div>
                     <button
                       onClick={() => {
+                        // Cancel workflow completely - reset all state
                         setShowUnifiedWorkflow(false);
+                        setCurrentWorkflowStep(0);
+                        setWorkflowData(null);
+                        setSelectedShingleRemoval('');
+                        setShingleRemovalQuantity('');
+                        setSelectedInstallationShingle('');
+                        setInstallationShingleQuantity('');
+                        setSelectedRidgeVent('');
+                        setRidgeVentQuantity('');
+                        setGuttersPresent(null);
+                        setKickoutQuantity('');
+                        setContestShingleDepreciation(null);
+                        setShingleAge('');
+                        setValleyType('');
+                        console.log('❌ Workflow cancelled by user');
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
@@ -6523,7 +6538,7 @@ function EstimatePageContent() {
                 </div>
 
                 {/* Progress Indicator */}
-                <div className="px-6 py-4 bg-white border-b border-gray-200">
+                <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">
                       Question {currentWorkflowStep + 1} of {workflowData.totalSteps}
@@ -6541,8 +6556,8 @@ function EstimatePageContent() {
                   </div>
                 </div>
 
-                {/* Content */}
-                <div className="p-6">
+                {/* Content - Fixed height with scroll */}
+                <div className="p-6 overflow-y-auto flex-1" style={{ minHeight: '400px', maxHeight: '500px' }}>
                   {currentWorkflowStep === 0 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -6590,20 +6605,37 @@ function EstimatePageContent() {
                               </select>
                             </div>
 
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Quantity (SQ) *
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={shingleRemovalQuantity}
-                                onChange={(e) => setShingleRemovalQuantity(e.target.value)}
-                                placeholder="Enter quantity"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
-                              />
-                            </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Quantity (SQ) *
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={shingleRemovalQuantity}
+                              onChange={(e) => setShingleRemovalQuantity(e.target.value)}
+                              placeholder="Enter quantity"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
+                                if (totalRoofArea?.value) {
+                                  setShingleRemovalQuantity(totalRoofArea.value.toString());
+                                } else {
+                                  alert('Total Roof Area not available');
+                                }
+                              }}
+                              className="px-3 py-2 bg-orange-100 text-orange-700 border border-orange-300 rounded-lg hover:bg-orange-200 text-sm font-medium transition-colors"
+                              title="Apply Total Roof Area from roof measurements"
+                            >
+                              Apply Total Roof Area
+                            </button>
+                          </div>
+                        </div>
 
                             {selectedShingleRemoval && shingleRemovalQuantity && roofMasterMacro.get(selectedShingleRemoval) && (
                               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -7461,15 +7493,45 @@ function EstimatePageContent() {
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
-                  <button
-                    onClick={() => {
-                      setShowUnifiedWorkflow(false);
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center flex-shrink-0">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        // Cancel workflow completely - reset all state
+                        setShowUnifiedWorkflow(false);
+                        setCurrentWorkflowStep(0);
+                        setWorkflowData(null);
+                        setSelectedShingleRemoval('');
+                        setShingleRemovalQuantity('');
+                        setSelectedInstallationShingle('');
+                        setInstallationShingleQuantity('');
+                        setSelectedRidgeVent('');
+                        setRidgeVentQuantity('');
+                        setGuttersPresent(null);
+                        setKickoutQuantity('');
+                        setContestShingleDepreciation(null);
+                        setShingleAge('');
+                        setValleyType('');
+                        console.log('❌ Workflow cancelled by user');
+                      }}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    
+                    {/* Back Button - Available for all steps except the first one */}
+                    {currentWorkflowStep > 0 && (
+                      <button
+                        onClick={() => {
+                          console.log(`⬅️ Going back from step ${currentWorkflowStep + 1} to step ${currentWorkflowStep}`);
+                          setCurrentWorkflowStep(currentWorkflowStep - 1);
+                        }}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                      >
+                        ← Back
+                      </button>
+                    )}
+                  </div>
                   
                   <div className="flex gap-3">
                     {/* Skip Button - Available for all steps except the last one */}
@@ -7482,15 +7544,6 @@ function EstimatePageContent() {
                         className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium transition-colors"
                       >
                         Skip Step
-                      </button>
-                    )}
-                    
-                    {currentWorkflowStep > 0 && (
-                      <button
-                        onClick={() => setCurrentWorkflowStep(currentWorkflowStep - 1)}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
-                      >
-                        ← Previous
                       </button>
                     )}
                     
@@ -8568,15 +8621,32 @@ function EstimatePageContent() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Quantity (SQ)
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={spcShingleRemovalQuantity}
-                          onChange={(e) => setSPCShingleRemovalQuantity(e.target.value)}
-                          placeholder="Enter quantity in squares"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={spcShingleRemovalQuantity}
+                            onChange={(e) => setSPCShingleRemovalQuantity(e.target.value)}
+                            placeholder="Enter quantity in squares"
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
+                              if (totalRoofArea?.value) {
+                                setSPCShingleRemovalQuantity(totalRoofArea.value.toString());
+                              } else {
+                                alert('Total Roof Area not available');
+                              }
+                            }}
+                            className="px-3 py-2 bg-purple-100 text-purple-700 border border-purple-300 rounded-lg hover:bg-purple-200 text-sm font-medium transition-colors"
+                            title="Apply Total Roof Area from roof measurements"
+                          >
+                            Apply Total Roof Area
+                          </button>
+                        </div>
                       </div>
 
                       {/* Price Preview */}
