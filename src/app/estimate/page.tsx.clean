@@ -1,0 +1,704 @@
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2, Upload } from 'lucide-react';
+import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
+interface LineItem {
+  line_number: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  RCV: number;
+  age_life: string;
+  condition: string;
+  dep_percent: number | null;
+  depreciation_amount: number;
+  ACV: number;
+  location_room: string | null;
+  category: string;
+  page_number: number;
+  narrative?: string;
+}
+
+interface Category {
+  name: string;
+  items: LineItem[];
+  totals: {
+    rcv: number;
+    depreciation: number;
+    acv: number;
+  };
+}
+
+function EstimatePageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [extractedLineItems, setExtractedLineItems] = useState<LineItem[]>([]);
+  const [rawAgentData, setRawAgentData] = useState<any>(null);
+  
+  // Debug mode state
+  const [jsonFile, setJsonFile] = useState<File | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
+  
+  // Claim waste percentage state
+  const [claimWasteResult, setClaimWasteResult] = useState<any>(null);
+  const [isCalculatingClaimWaste, setIsCalculatingClaimWaste] = useState(false);
+
+  // Roof Master Macro state
+  const [isUploadingRMM, setIsUploadingRMM] = useState(false);
+  const [rmmUploadStatus, setRmmUploadStatus] = useState<{ success: boolean; message: string; itemCount?: number } | null>(null);
+
+  // Combined workflow state
+  const [isRunningCombined, setIsRunningCombined] = useState(false);
+  const [combinedWorkflowResult, setCombinedWorkflowResult] = useState<any>(null);
+
+  // Python rules state
+  const [isRunningRules, setIsRunningRules] = useState(false);
+  const [rulesResult, setRulesResult] = useState<any>(null);
+
+  // Roof measurements state
+  const [roofMeasurements, setRoofMeasurements] = useState<any>(null);
+
+  // Error state
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Function to handle JSON file upload for debugging
+  const handleJsonFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/json') {
+      setJsonFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const jsonData = JSON.parse(e.target?.result as string);
+          console.log('🔍 DEBUG JSON FILE LOADED:');
+          console.log('JSON structure:', jsonData);
+          console.log('claimAgentResponse:', jsonData.claimAgentResponse);
+          
+          if (jsonData.claimAgentResponse?.response) {
+            console.log('✅ Found response field in JSON file');
+            console.log('Response type:', typeof jsonData.claimAgentResponse.response);
+            console.log('Response length:', jsonData.claimAgentResponse.response.length);
+            console.log('Response preview:', jsonData.claimAgentResponse.response.substring(0, 200));
+            
+            // Parse the line items directly
+            try {
+              console.log('🔍 Parsing JSON file response field...');
+              console.log('Response preview:', jsonData.claimAgentResponse.response.substring(0, 200));
+              const lineItemsArray = JSON.parse(jsonData.claimAgentResponse.response);
+              console.log(`✅ Successfully parsed ${lineItemsArray.length} line items from JSON file`);
+              console.log('Line numbers:', lineItemsArray.map((item: any) => item.line_number).join(', '));
+              
+              setExtractedLineItems(lineItemsArray);
+              setDebugMode(true);
+              setLoading(false);
+              
+              // Update debug info to show success
+              setDebugInfo((prev: any) => ({
+                ...prev,
+                hasClaimAgentResponse: true,
+                extractedLineItemsCount: lineItemsArray.length,
+                claimAgentError: null,
+                debugMode: true
+              }));
+            } catch (parseError) {
+              console.error('❌ Failed to parse response field:', parseError);
+              console.log('Response that failed:', jsonData.claimAgentResponse.response.substring(0, 500));
+            }
+          } else {
+            console.error('❌ No response field found in JSON file');
+          }
+        } catch (error) {
+          console.error('Failed to parse JSON file:', error);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  useEffect(() => {
+    const storedData = localStorage.getItem('claimAgentResponse');
+    console.log('🔍 LOADING FROM LOCALSTORAGE...');
+    console.log('Stored data exists:', !!storedData);
+    
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        console.log('🔍 PARSED LOCALSTORAGE DATA:');
+        console.log('Keys:', Object.keys(parsedData));
+        console.log('claimAgentResponse exists:', !!parsedData.claimAgentResponse);
+        
+        // DEBUG: Let's see the ACTUAL structure
+        if (storedData) {
+          try {
+            const parsed = JSON.parse(storedData);
+            console.log('🔍 ACTUAL LOCALSTORAGE STRUCTURE:');
+            console.log('Keys:', Object.keys(parsed));
+            console.log('claimAgentResponse exists:', !!parsed.claimAgentResponse);
+            if (parsed.claimAgentResponse) {
+              console.log('claimAgentResponse keys:', Object.keys(parsed.claimAgentResponse));
+              console.log('response field exists:', !!parsed.claimAgentResponse.response);
+              console.log('response type:', typeof parsed.claimAgentResponse.response);
+              console.log('response preview:', parsed.claimAgentResponse.response?.substring(0, 200));
+            }
+          } catch (e) {
+            console.error('Failed to parse localStorage:', e);
+          }
+        }
+        
+        setRawAgentData(parsedData);
+        
+        console.log('🔍 CHECKING CLAIM AGENT RESPONSE:');
+        console.log('parsedData.claimAgentResponse exists:', !!parsedData.claimAgentResponse);
+        console.log('parsedData.claimAgentResponse:', parsedData.claimAgentResponse);
+        
+        if (parsedData.claimAgentResponse?.response) {
+          console.log('✅ Response field exists!');
+          console.log('Response type:', typeof parsedData.claimAgentResponse.response);
+          console.log('Response length:', parsedData.claimAgentResponse.response.length);
+          console.log('Response preview (first 200 chars):', parsedData.claimAgentResponse.response.substring(0, 200));
+          
+          const responseStr = parsedData.claimAgentResponse.response;
+          // NEW SIMPLE PARSING LOGIC
+          console.log('🔍 NEW SIMPLE PARSING: Directly parsing the response field...');
+          let lineItemsArray = [];
+          
+          try {
+            // Parse the response field which contains the JSON array as a string
+            console.log('🔍 Parsing response field as JSON array...');
+            console.log('Response string preview:', responseStr.substring(0, 200));
+            lineItemsArray = JSON.parse(responseStr);
+            console.log(`✅ Successfully parsed ${lineItemsArray.length} line items`);
+            console.log('Line numbers found:', lineItemsArray.map((item: any) => item.line_number).join(', '));
+            
+            // Set the line items directly - no adjustment agent needed!
+            setExtractedLineItems(lineItemsArray);
+            console.log(`✅ Set ${lineItemsArray.length} line items directly to state`);
+          } catch (e) {
+            console.error('❌ Parsing failed:', e);
+            console.log('Error message:', e instanceof Error ? e.message : 'Unknown');
+            console.log('Response string that failed:', responseStr.substring(0, 500));
+          }
+          
+          // Line items are already set directly above - no need for filtering or duplicate setting
+          
+        } else {
+          console.log('❌ NO RESPONSE FIELD FOUND');
+          console.log('claimAgentResponse exists:', !!parsedData.claimAgentResponse);
+          if (parsedData.claimAgentResponse) {
+            console.log('claimAgentResponse structure:', parsedData.claimAgentResponse);
+            console.log('claimAgentResponse keys:', Object.keys(parsedData.claimAgentResponse));
+            setErrorDetails(`Claim agent response exists but missing 'response' field. Response structure: ${JSON.stringify(parsedData.claimAgentResponse, null, 2)}`);
+            setDebugInfo((prev: any) => ({
+              ...prev,
+              hasClaimAgentResponse: true,
+              claimAgentError: 'Missing response field in claimAgentResponse'
+            }));
+          } else {
+            console.log('❌ NO CLAIM AGENT RESPONSE AT ALL');
+            setErrorDetails('No claim agent response found in stored data');
+            setDebugInfo((prev: any) => ({
+              ...prev,
+              hasClaimAgentResponse: false,
+              claimAgentError: 'Missing claimAgentResponse entirely'
+            }));
+          }
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error parsing stored data:', error);
+        setErrorDetails(`Error parsing stored data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setLoading(false);
+      }
+    } else {
+      console.log('❌ NO STORED DATA FOUND');
+      setErrorDetails('No stored claim agent response found. Please upload and process documents first.');
+      setLoading(false);
+    }
+  }, []);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  // Roof Master Macro Upload function
+  const handleRmmUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingRMM(true);
+    setRmmUploadStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-roof-master', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setRmmUploadStatus({
+          success: true,
+          message: result.message,
+          itemCount: result.itemCount
+        });
+        
+        // Store upload info in localStorage
+        localStorage.setItem('rmmUploadInfo', JSON.stringify({
+          uploadedAt: new Date().toISOString(),
+          fileName: file.name,
+          itemCount: result.itemCount
+        }));
+
+        console.log('✅ Roof Master Macro uploaded successfully:', result);
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading Roof Master Macro:', error);
+      setRmmUploadStatus({
+        success: false,
+        message: error instanceof Error ? error.message : 'Upload failed'
+      });
+    } finally {
+      setIsUploadingRMM(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Combined Workflow function
+  const runCombinedWorkflow = async () => {
+    console.log('=== RUNNING COMBINED WORKFLOW (RMM + PYTHON) ===');
+    setIsRunningCombined(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningCombined(false);
+        return;
+      }
+
+      // Step 1: Run RMM Unit Cost Comparator
+      console.log('Step 1: Running RMM Unit Cost Comparator...');
+      
+      // Prepare RMM payload (same as individual RMM function)
+      const lineItemsJson = JSON.stringify(extractedLineItems, null, 2);
+      const agentPayload = {
+        user_id: 'gdnaaccount@lyzr.ai',
+        agent_id: '68d9e3fc3a28be54e2c15bc3', // RMM Unit Cost Comparator
+        session_id: `combined-rmm-${Date.now()}`,
+        message: lineItemsJson
+      };
+
+      console.log('Sending to RMM agent:', agentPayload);
+
+      const rmmResponse = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+        },
+        body: JSON.stringify(agentPayload)
+      });
+
+      if (!rmmResponse.ok) {
+        throw new Error(`RMM Agent failed: ${rmmResponse.status} ${rmmResponse.statusText}`);
+      }
+
+      const rmmResult = await rmmResponse.json();
+      console.log('✅ RMM Agent completed successfully');
+      console.log('RMM Result:', rmmResult);
+
+      // Step 2: Run Python Rules
+      console.log('Step 2: Running Python Rules...');
+
+      try {
+        const pythonInputData = {
+          line_items: extractedLineItems.map(item => ({
+            line_number: item.line_number,
+            description: item.description,
+            quantity: item.quantity || 0,
+            unit: item.unit || 'EA',
+            unit_price: item.unit_price || 0,
+            total_price: item.total_price || 0,
+            RCV: item.RCV || 0,
+            depreciation: item.depreciation || 0,
+            ACV: item.ACV || 0,
+            location_room: item.location_room || 'Unknown',
+            category: item.category || 'Unknown',
+            page_number: item.page_number || 1
+          })),
+          roof_measurements: roofMeasurements
+        };
+
+        const pythonResponse = await fetch('/api/run-python-rules', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(pythonInputData)
+        });
+
+        if (!pythonResponse.ok) {
+          const errorData = await pythonResponse.json();
+          throw new Error(`SPC Adjustment Engine failed: ${errorData.error || pythonResponse.statusText}`);
+        }
+
+        const pythonResult = await pythonResponse.json();
+        console.log('✅ Python Rules completed successfully');
+        console.log('Python Result:', pythonResult);
+
+        setCombinedWorkflowResult({
+          rmmResult,
+          pythonResult,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log('✅ Combined workflow completed successfully');
+
+      } catch (pythonError) {
+        console.error('Python Rules error:', pythonError);
+        throw pythonError;
+      }
+
+    } catch (error) {
+      console.error('Combined workflow error:', error);
+      alert(`Combined workflow failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningCombined(false);
+    }
+  };
+
+  // SPC Adjustment Engine function
+  const runRuleEngine = async () => {
+    console.log('=== RUNNING PYTHON RULE ENGINE ===');
+    setIsRunningRules(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsRunningRules(false);
+        return;
+      }
+
+      const pythonInputData = {
+        line_items: extractedLineItems.map(item => ({
+          line_number: item.line_number,
+          description: item.description,
+          quantity: item.quantity || 0,
+          unit: item.unit || 'EA',
+          unit_price: item.unit_price || 0,
+          total_price: item.total_price || 0,
+          RCV: item.RCV || 0,
+          depreciation: item.depreciation || 0,
+          ACV: item.ACV || 0,
+          location_room: item.location_room || 'Unknown',
+          category: item.category || 'Unknown',
+          page_number: item.page_number || 1
+        })),
+        roof_measurements: roofMeasurements
+      };
+
+      const response = await fetch('/api/run-python-rules', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pythonInputData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`SPC Adjustment Engine failed: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Python Rules completed successfully');
+      console.log('Python Result:', result);
+
+      setRulesResult(result);
+
+    } catch (error) {
+      console.error('Python Rules error:', error);
+      alert(`Python Rules failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningRules(false);
+    }
+  };
+
+  // Calculate claim waste percentage
+  const calculateClaimWaste = async () => {
+    console.log('=== CALCULATING CLAIM WASTE PERCENTAGE ===');
+    setIsCalculatingClaimWaste(true);
+    
+    try {
+      if (extractedLineItems.length === 0) {
+        alert('No line items available. Please upload and process documents first.');
+        setIsCalculatingClaimWaste(false);
+        return;
+      }
+
+      const lineItemsJson = JSON.stringify(extractedLineItems, null, 2);
+      const agentPayload = {
+        user_id: 'gdnaaccount@lyzr.ai',
+        agent_id: '68e559ebdc57add4679b89dd', // Claim Waste Calculator
+        session_id: `claim-waste-${Date.now()}`,
+        message: lineItemsJson
+      };
+
+      console.log('Sending to Claim Waste Calculator:', agentPayload);
+
+      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-Lpq8P8pB0PGzf8BBaXTJArdMcYa0Fr6K'
+        },
+        body: JSON.stringify(agentPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Claim Waste Calculator failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Claim Waste Calculator completed successfully');
+      console.log('Claim Waste Result:', result);
+
+      setClaimWasteResult(result);
+
+    } catch (error) {
+      console.error('Claim Waste Calculator error:', error);
+      alert(`Claim Waste Calculator failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCalculatingClaimWaste(false);
+    }
+  };
+
+  // Group line items by category
+  const groupByCategory = (items: LineItem[]): Category[] => {
+    const categories: { [key: string]: LineItem[] } = {};
+    
+    items.forEach(item => {
+      if (!categories[item.category]) {
+        categories[item.category] = [];
+      }
+      categories[item.category].push(item);
+    });
+
+    return Object.entries(categories).map(([name, items]) => {
+      const totals = items.reduce(
+        (acc, item) => ({
+          rcv: acc.rcv + item.RCV,
+          depreciation: acc.depreciation + item.depreciation_amount,
+          acv: acc.acv + item.ACV,
+        }),
+        { rcv: 0, depreciation: 0, acv: 0 }
+      );
+
+      return { name, items, totals };
+    });
+  };
+
+  const categories = groupByCategory(extractedLineItems);
+  const totalRCV = categories.reduce((sum, cat) => sum + cat.totals.rcv, 0);
+  const totalDepreciation = categories.reduce((sum, cat) => sum + cat.totals.depreciation, 0);
+  const totalACV = categories.reduce((sum, cat) => sum + cat.totals.acv, 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading estimate data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Insurance Claim Estimate</h1>
+          <p className="mt-2 text-gray-600">AI-powered line item extraction and analysis</p>
+        </div>
+
+        {/* Debug Mode Panel */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">🔧 Debug Mode</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Agent Response JSON File for Debugging:
+            </label>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleJsonFileUpload}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {jsonFile && (
+              <p className="text-sm text-green-600 mt-2">
+                ✅ Loaded: {jsonFile.name}
+              </p>
+            )}
+          </div>
+          <div className="text-sm text-gray-600">
+            <p>This will help debug the JSON parsing issue by loading the actual agent response file.</p>
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {errorDetails && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-semibold text-red-800 mb-2">Error</h3>
+            <p className="text-red-700">{errorDetails}</p>
+          </div>
+        )}
+
+        {/* Debug Info */}
+        {debugInfo && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">Debug Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Has Claim Agent Response:</span>
+                <span className={debugInfo.hasClaimAgentResponse ? 'text-green-600' : 'text-red-600'}>
+                  {debugInfo.hasClaimAgentResponse ? 'Yes' : 'No'}
+                </span>
+              </div>
+              <div>
+                <span className="font-medium">Extracted Line Items Count:</span>
+                <span className="text-blue-600">{debugInfo.extractedLineItemsCount || 0}</span>
+              </div>
+              <div>
+                <span className="font-medium">Claim Agent Error:</span>
+                <span className={debugInfo.claimAgentError ? 'text-red-600' : 'text-green-600'}>
+                  {debugInfo.claimAgentError || 'None'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Debug Mode:</span>
+                <span className={debugInfo?.debugMode ? 'text-green-600' : 'text-gray-600'}>
+                  {debugInfo?.debugMode ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={runCombinedWorkflow}
+              disabled={isRunningCombined || extractedLineItems.length === 0}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRunningCombined ? 'Running...' : 'Run Combined Workflow'}
+            </button>
+            
+            <button
+              onClick={runRuleEngine}
+              disabled={isRunningRules || extractedLineItems.length === 0}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRunningRules ? 'Running...' : 'Run Python Rules'}
+            </button>
+            
+            <button
+              onClick={calculateClaimWaste}
+              disabled={isCalculatingClaimWaste || extractedLineItems.length === 0}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCalculatingClaimWaste ? 'Calculating...' : 'Calculate Claim Waste'}
+            </button>
+          </div>
+        </div>
+
+        {/* Original Line Items */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Original Line Items ({extractedLineItems.length})</h2>
+          {extractedLineItems.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line #</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RCV</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depreciation</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACV</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {extractedLineItems.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.line_number}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{item.description}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.unit}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.unit_price)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.RCV)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.depreciation_amount)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.ACV)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500">No line items available</p>
+          )}
+        </div>
+
+        {/* Summary */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Summary</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Total RCV</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRCV)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Total Depreciation</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalDepreciation)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Total ACV</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalACV)}</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function EstimatePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EstimatePageContent />
+    </Suspense>
+  );
+}
