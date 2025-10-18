@@ -57,7 +57,6 @@ function EstimatePageContent() {
   const [isRunningJSRules, setIsRunningJSRules] = useState(false);
   const [showRuleResults, setShowRuleResults] = useState(false);
   const [showPythonDebugOutput, setShowPythonDebugOutput] = useState(false);
-  const [showPythonExecutionDebug, setShowPythonExecutionDebug] = useState(false);
   const [extractedRoofMeasurements, setExtractedRoofMeasurements] = useState<any>({});
 
   // SPC Shingle Removal Check state
@@ -475,7 +474,7 @@ function EstimatePageContent() {
         const lines = csvText.trim().split('\n');
         const macroMap = new Map();
         
-        // Skip (Optional) header line
+        // Skip header line
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
@@ -5687,96 +5686,6 @@ function EstimatePageContent() {
             </div>
           )}
 
-          {/* Python Execution Debug Window */}
-          {ruleResults && (
-            <div className="px-8 pb-8">
-              <button
-                onClick={() => setShowPythonExecutionDebug(!showPythonExecutionDebug)}
-                className="flex items-center justify-between w-full text-left mb-4 p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors border border-red-200"
-              >
-                <h3 className="text-xl font-bold text-red-900">🐍 Python Execution Debug Information</h3>
-                <span className={`transform transition-transform duration-200 ${showPythonExecutionDebug ? 'rotate-180' : 'rotate-0'}`}>
-                  ▼
-                </span>
-              </button>
-              
-              {showPythonExecutionDebug && (
-                <div className="bg-gray-900 text-green-400 p-6 rounded-lg font-mono text-sm overflow-x-auto">
-                  <div className="mb-4">
-                    <span className="text-yellow-400">🔍 Debug Information:</span>
-                    <div className="mt-2 space-y-2">
-                      <div>
-                        <span className="text-blue-400">Python Command Detection:</span>
-                        <div className="ml-4 text-gray-300">
-                          • Checking for 'python3' command availability<br/>
-                          • Falling back to 'python' if python3 not found<br/>
-                          • Using detected command for script execution
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-blue-400">Common Issues:</span>
-                        <div className="ml-4 text-gray-300">
-                          • ENOENT error: Python not found in PATH<br/>
-                          • Permission denied: Script file not executable<br/>
-                          • Timeout: Script taking longer than 30 seconds<br/>
-                          • File not found: Script or input/output files missing
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-blue-400">Amplify Environment:</span>
-                        <div className="ml-4 text-gray-300">
-                          • Python installed via pyenv in preBuild phase<br/>
-                          • PATH exported: $HOME/.pyenv/versions/3.9.6/bin<br/>
-                          • Both 'python' and 'python3' should be available<br/>
-                          • Check Amplify build logs for Python installation
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <span className="text-yellow-400">📋 Mock Response Details:</span>
-                    <div className="mt-2 text-gray-300">
-                      When Python execution fails, the system falls back to a mock response that:
-                      <div className="ml-4 mt-2">
-                        • Returns original line items unchanged<br/>
-                        • Adds test narratives for debugging<br/>
-                        • Creates audit log entries for testing<br/>
-                        • Maintains data structure consistency
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <span className="text-yellow-400">🔧 Troubleshooting Steps:</span>
-                    <div className="mt-2 text-gray-300">
-                      <div className="ml-4 space-y-1">
-                        <div>1. Check Amplify build logs for Python installation</div>
-                        <div>2. Verify Python PATH is correctly set</div>
-                        <div>3. Ensure roof_adjustment_engine.py exists in project root</div>
-                        <div>4. Check file permissions for Python script</div>
-                        <div>5. Verify input/output file creation permissions</div>
-                        <div>6. Review API route console logs for specific errors</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <span className="text-yellow-400">📊 Current Status:</span>
-                    <div className="mt-2">
-                      <div className="text-red-400">
-                        ❌ Python execution is failing - using mock response
-                      </div>
-                      <div className="text-gray-300 mt-2">
-                        This indicates that the Python script cannot be executed in the current environment.
-                        Check the Amplify build logs and console output for specific error details.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Combined Workflow Results */}
           {showCombinedResults && combinedResults && (
@@ -6938,7 +6847,7 @@ function EstimatePageContent() {
                               }}
                               className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors shadow-md"
                             >
-                              No, Skip (Optional)
+                              No, Skip
                             </button>
                           </div>
                         ) : contestShingleDepreciation ? (
@@ -7443,16 +7352,16 @@ function EstimatePageContent() {
                   </button>
                   
                   <div className="flex gap-3">
-                    {/* Skip (Optional) Button - Available for all steps except the last one */}
+                    {/* Skip Button - Available for all steps except the last one */}
                     {currentWorkflowStep < workflowData.totalSteps - 1 && (
                       <button
                         onClick={() => {
-                          console.log(`⏭️ Skip (Optional)ping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep].title}`);
+                          console.log(`⏭️ Skipping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep].title}`);
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium transition-colors"
                       >
-                        Skip (Optional) Step
+                        Skip Step
                       </button>
                     )}
                     
@@ -8063,12 +7972,12 @@ function EstimatePageContent() {
                           onClick={() => {
                             setShowShingleRemovalModal(false);
                             setShingleRemovalSkipped(true);
-                            console.log('⏭️ Skip (Optional)ping shingle removal - continuing workflow');
+                            console.log('⏭️ Skipping shingle removal - continuing workflow');
                             console.log('Workflow would continue here - User Prompt Workflow removed');
                           }}
                           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                         >
-                          Skip (Optional) & Continue
+                          Skip & Continue
                         </button>
                         <button
                           onClick={handleAddShingleRemoval}
@@ -8232,12 +8141,12 @@ function EstimatePageContent() {
                           onClick={() => {
                             setShowInstallationShinglesModal(false);
                             setInstallationShinglesSkipped(true);
-                            console.log('⏭️ Skip (Optional)ping installation shingles - continuing workflow');
+                            console.log('⏭️ Skipping installation shingles - continuing workflow');
                             console.log('Workflow would continue here - User Prompt Workflow removed');
                           }}
                           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                         >
-                          Skip (Optional) & Continue
+                          Skip & Continue
                         </button>
                         <button
                           onClick={handleAddInstallationShingle}
@@ -8310,12 +8219,12 @@ function EstimatePageContent() {
                     onClick={() => {
                       setShowOPModal(false);
                       setOPSkipped(true);
-                      console.log('⏭️ Skip (Optional)ping O&P - continuing workflow');
+                      console.log('⏭️ Skipping O&P - continuing workflow');
                       console.log('Workflow would continue here - User Prompt Workflow removed');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional) & Continue
+                    Skip & Continue
                   </button>
                   <button
                     onClick={() => handleAddOP()}
@@ -8456,12 +8365,12 @@ function EstimatePageContent() {
                       onClick={() => {
                         setShowRidgeVentModal(false);
                         setRidgeVentSkipped(true);
-                        console.log('⏭️ Skip (Optional)ping ridge vent - continuing workflow');
+                        console.log('⏭️ Skipping ridge vent - continuing workflow');
                         console.log('Workflow would continue here - User Prompt Workflow removed');
                       }}
                       className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
                     >
-                      Skip (Optional) (Optional)
+                      Skip (Optional)
                     </button>
                     <button
                       onClick={() => handleAddRidgeVent(extractedLineItems)}
@@ -9005,7 +8914,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddSPCRidgeVent}
@@ -9299,7 +9208,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddChimneyCricket}
@@ -9624,7 +9533,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddAdditionalLayers}
@@ -9838,7 +9747,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddPermit}
@@ -10027,7 +9936,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddHiddenDamages}
@@ -10249,7 +10158,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddRoofAccessLabor}
@@ -10351,7 +10260,7 @@ function EstimatePageContent() {
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Skip (Optional)
+                    Skip
                   </button>
                   <button
                     onClick={handleAddOP}
