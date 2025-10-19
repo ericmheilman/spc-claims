@@ -3537,11 +3537,6 @@ function EstimatePageContent() {
       description: 'Checking for installation shingle line items'
     },
     {
-      id: 'ridge-vents',
-      title: 'Ridge Vent Check',
-      description: 'Checking for ridge vent line items'
-    },
-    {
       id: 'step-flashing',
       title: 'Step Flashing Check',
       description: 'Checking for step flashing and kick-out diverter requirements'
@@ -6521,8 +6516,6 @@ function EstimatePageContent() {
                         setShingleRemovalQuantity('');
                         setSelectedInstallationShingle('');
                         setInstallationShingleQuantity('');
-                        setSelectedRidgeVent('');
-                        setRidgeVentQuantity('');
                         setGuttersPresent(null);
                         setKickoutQuantity('');
                         setContestShingleDepreciation(null);
@@ -6760,103 +6753,6 @@ function EstimatePageContent() {
                   {currentWorkflowStep === 2 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        {workflowData.hasRidgeVent ? '✅ Ridge Vent Found' : '⚠️ Missing Ridge Vent'}
-                      </h3>
-                      
-                      {workflowData.hasRidgeVent ? (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                          <p className="text-gray-700 mb-3">
-                            <strong>Great! Ridge vent items found in estimate.</strong>
-                          </p>
-                          <p className="text-gray-600 text-sm mt-3">
-                            This step is not needed. Click "Next" to continue with the workflow.
-                          </p>
-                        </div>
-                      ) : workflowData.ridgeLength > 0 ? (
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                          <p className="text-gray-700 mb-4">
-                            Neither "Continuous ridge vent shingle-over style" nor "Continuous ridge vent aluminum" is present, but ridges were detected ({workflowData.ridgeLength} ft). Please select a ridge vent type:
-                          </p>
-                          
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Select Ridge Vent Type *
-                              </label>
-                              <select
-                                value={selectedRidgeVent}
-                                onChange={(e) => setSelectedRidgeVent(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                              >
-                                <option value="">-- Select a type --</option>
-                                {ridgeVentOptions.map((option) => (
-                                  <option key={option.macroName} value={option.displayName}>
-                                    {option.displayName}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Quantity (LF) *
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={ridgeVentQuantity}
-                                onChange={(e) => setRidgeVentQuantity(e.target.value)}
-                                placeholder="Enter quantity"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                              />
-                            </div>
-
-                            {selectedRidgeVent && ridgeVentQuantity && (() => {
-                              const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedRidgeVent);
-                              const macroData = selectedOption ? roofMasterMacro.get(selectedOption.macroName) : null;
-                              return macroData ? (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                  <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
-                                  <div className="grid grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <div className="text-gray-600">Unit Price:</div>
-                                      <div className="font-semibold">
-                                        ${macroData.unit_price.toFixed(2)}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="text-gray-600">Quantity:</div>
-                                      <div className="font-semibold">{ridgeVentQuantity} LF</div>
-                                    </div>
-                                    <div>
-                                      <div className="text-gray-600">Total RCV:</div>
-                                      <div className="font-semibold text-blue-700">
-                                        ${(macroData.unit_price * parseFloat(ridgeVentQuantity)).toFixed(2)}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                          <p className="text-gray-700">
-                            No ridge length detected. Ridge vent is not needed for this estimate.
-                          </p>
-                          <p className="text-gray-600 text-sm mt-3">
-                            Click "Next" to continue with the workflow.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {currentWorkflowStep === 3 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Step Flashing Check
                       </h3>
                       
@@ -6973,7 +6869,7 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {currentWorkflowStep === 4 && (
+                  {currentWorkflowStep === 3 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Shingle Depreciation Contest
@@ -7062,7 +6958,7 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {currentWorkflowStep === 5 && (
+                  {currentWorkflowStep === 4 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Valley Metal Check
@@ -7184,7 +7080,7 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {currentWorkflowStep === 6 && (
+                  {currentWorkflowStep === 5 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         {workflowData.hasOP ? '✅ O&P Found' : '⚠️ Missing O&P'}
@@ -7235,8 +7131,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 7: Chimney Analysis */}
-                  {currentWorkflowStep === 7 && (
+                  {/* Step 6: Chimney Analysis */}
+                  {currentWorkflowStep === 6 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Chimney Analysis Required</h3>
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -7258,8 +7154,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 8: Additional Shingle Layers */}
-                  {currentWorkflowStep === 8 && (
+                  {/* Step 7: Additional Shingle Layers */}
+                  {currentWorkflowStep === 7 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Shingle Layers</h3>
                       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
@@ -7278,8 +7174,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 9: Building Stories Analysis */}
-                  {currentWorkflowStep === 9 && (
+                  {/* Step 8: Building Stories Analysis */}
+                  {currentWorkflowStep === 8 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Building Stories</h3>
                       <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
@@ -7301,8 +7197,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 10: Permit Analysis */}
-                  {currentWorkflowStep === 10 && (
+                  {/* Step 9: Permit Analysis */}
+                  {currentWorkflowStep === 9 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Permit Requirements</h3>
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
@@ -7321,47 +7217,7 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 11: Depreciation Contest */}
-                  {currentWorkflowStep === 11 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Depreciation Contest</h3>
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                        <p className="text-gray-700 mb-4">
-                          Do you want to contest the depreciation?
-                        </p>
-                        <div className="flex gap-3">
-                          <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
-                            Yes
-                          </button>
-                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
-                            No
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 12: Hidden Damages */}
-                  {currentWorkflowStep === 12 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Hidden Damages</h3>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                        <p className="text-gray-700 mb-4">
-                          Are there any hidden damages that need to be accounted for?
-                        </p>
-                        <div className="flex gap-3">
-                          <button className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors">
-                            Yes
-                          </button>
-                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
-                            No
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 11: Spaced Decking */}
+                  {/* Step 10: Spaced Decking */}
                   {currentWorkflowStep === 10 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Spaced Decking</h3>
@@ -7381,7 +7237,7 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 12: Roof Access Issues */}
+                  {/* Step 11: Roof Access Issues */}
                   {currentWorkflowStep === 11 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Roof Access Issues</h3>
@@ -7401,7 +7257,7 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 13: Skylights/Roof Windows */}
+                  {/* Step 12: Skylights/Roof Windows */}
                   {currentWorkflowStep === 12 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Skylights/Roof Windows</h3>
@@ -7421,8 +7277,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 16: Valley Metal Analysis */}
-                  {currentWorkflowStep === 16 && (
+                  {/* Step 13: Valley Metal Analysis */}
+                  {currentWorkflowStep === 13 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Valley Metal Analysis</h3>
                       <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
@@ -7444,8 +7300,8 @@ function EstimatePageContent() {
                     </div>
                   )}
 
-                  {/* Step 17: Labor Calculation */}
-                  {currentWorkflowStep === 17 && (
+                  {/* Step 14: Labor Calculation */}
+                  {currentWorkflowStep === 14 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Labor Calculation</h3>
                       <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -7505,8 +7361,6 @@ function EstimatePageContent() {
                         setShingleRemovalQuantity('');
                         setSelectedInstallationShingle('');
                         setInstallationShingleQuantity('');
-                        setSelectedRidgeVent('');
-                        setRidgeVentQuantity('');
                         setGuttersPresent(null);
                         setKickoutQuantity('');
                         setContestShingleDepreciation(null);
@@ -7559,12 +7413,8 @@ function EstimatePageContent() {
                             handleAddInstallationShingle();
                             return;
                           }
-                          if (currentWorkflowStep === 2 && !workflowData.hasRidgeVent && workflowData.ridgeLength > 0 && selectedRidgeVent && ridgeVentQuantity) {
-                            handleAddRidgeVent(workflowData.lineItems);
-                            return;
-                          }
-                          // Step 3: Step Flashing check - just advance if no step flashing or if user said no gutters
-                          if (currentWorkflowStep === 3) {
+                          // Step 2: Step Flashing check - just advance if no step flashing or if user said no gutters
+                          if (currentWorkflowStep === 2) {
                             const hasStepFlashing = checkStepFlashingPresent(workflowData.lineItems);
                             if (hasStepFlashing && guttersPresent === null) {
                               // User hasn't answered gutters question yet
@@ -7577,8 +7427,8 @@ function EstimatePageContent() {
                               return;
                             }
                           }
-                          // Step 4: Shingle Depreciation - validate if user selected yes
-                          if (currentWorkflowStep === 4) {
+                          // Step 3: Shingle Depreciation - validate if user selected yes
+                          if (currentWorkflowStep === 3) {
                             if (contestShingleDepreciation === null) {
                               alert('Please answer whether you want to contest shingle depreciation');
                               return;
@@ -7593,8 +7443,8 @@ function EstimatePageContent() {
                               return;
                             }
                           }
-                          // Step 5: Valley Metal - validate if user selected valley type when needed
-                          if (currentWorkflowStep === 5) {
+                          // Step 4: Valley Metal - validate if user selected valley type when needed
+                          if (currentWorkflowStep === 4) {
                             const hasValleyMetal = checkValleyMetalPresent(workflowData.lineItems);
                             const totalValleysLength = extractedRoofMeasurements["Total Valleys Length"];
                             const valleyLengthValue = totalValleysLength?.value || (typeof totalValleysLength === 'number' ? totalValleysLength : 0);
@@ -7610,11 +7460,11 @@ function EstimatePageContent() {
                               return;
                             }
                           }
-                          if (currentWorkflowStep === 6 && !workflowData.hasOP) {
+                          if (currentWorkflowStep === 5 && !workflowData.hasOP) {
                             handleAddOP();
                             return;
                           }
-                          // For steps 7-17, just advance to next step
+                          // For steps 6-16, just advance to next step
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-medium transition-colors"
@@ -8565,7 +8415,7 @@ function EstimatePageContent() {
                 <div className="px-6 py-4 rounded-t-2xl bg-purple-600">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ SPC Shingle Removal Required</h2>
+                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Shingle Removal Required</h2>
                       <p className="text-purple-100 text-sm">
                         No shingle removal items found after SPC Adjustment Engine processing
                       </p>
@@ -8636,7 +8486,7 @@ function EstimatePageContent() {
                             onClick={() => {
                               const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
                               if (totalRoofArea?.value) {
-                                setSPCShingleRemovalQuantity(totalRoofArea.value.toString());
+                                setSPCShingleRemovalQuantity((totalRoofArea.value / 100).toString());
                               } else {
                                 alert('Total Roof Area not available');
                               }
@@ -8647,6 +8497,35 @@ function EstimatePageContent() {
                             Apply Total Roof Area
                           </button>
                         </div>
+                      </div>
+
+                      {/* Quick Action Button */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-gray-700 mb-3 font-medium">
+                          Quick Action:
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
+                            if (totalRoofArea?.value) {
+                              // Set default shingle removal type if none selected
+                              if (!selectedSPCShingleRemoval) {
+                                setSelectedSPCShingleRemoval("Remove Laminated comp. shingle rfg. - w/out felt");
+                              }
+                              // Apply total roof area as quantity
+                              setSPCShingleRemovalQuantity((totalRoofArea.value / 100).toString());
+                            } else {
+                              alert('Total Roof Area not available in roof measurements');
+                            }
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
+                        >
+                          Total Roof Area
+                        </button>
+                        <p className="text-gray-600 text-sm mt-2">
+                          Automatically selects default removal type and applies total roof area quantity
+                        </p>
                       </div>
 
                       {/* Price Preview */}
