@@ -2306,14 +2306,14 @@ function EstimatePageContent() {
     let updatedItems = [...currentItems];
     let adjustmentsMade = false;
     
-    // Check Ice & water barrier (exact match from roof master macro)
-    const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & water barrier');
+    // Check Ice & Water Barrier (exact match from specification)
+    const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & Water Barrier');
     const requiredIceWaterQuantity = valleysLength * 3;
     
     if (iceWaterItem) {
       const threshold = requiredIceWaterQuantity * 0.25; // 25% threshold
       
-      console.log('🔍 Ice & water barrier found:', iceWaterItem.quantity);
+      console.log('🔍 Ice & Water Barrier found:', iceWaterItem.quantity);
       console.log('🔍 Required quantity:', requiredIceWaterQuantity);
       console.log('🔍 Within 25% threshold?', Math.abs(iceWaterItem.quantity - requiredIceWaterQuantity) <= threshold);
       
@@ -2328,14 +2328,14 @@ function EstimatePageContent() {
             ACV: newQuantity * iceWaterItem.unit_price - (iceWaterItem.depreciation_amount || 0)
           };
           adjustmentsMade = true;
-          console.log('✅ Adjusted Ice & water barrier quantity to:', newQuantity);
+          console.log('✅ Adjusted Ice & Water Barrier quantity to:', newQuantity);
         }
       }
     } else {
-      // Ice & water barrier not present - add it
-      console.log('⚠️ Ice & water barrier not found - adding new line item');
+      // Ice & Water Barrier not present - add it
+      console.log('⚠️ Ice & Water Barrier not found - adding new line item');
       
-      const macroData = roofMasterMacro.get('Ice & water barrier');
+      const macroData = roofMasterMacro.get('Ice & Water Barrier');
       if (macroData) {
         // Get max line number
         const maxLineNumber = Math.max(
@@ -2345,7 +2345,7 @@ function EstimatePageContent() {
         
         const newItem = {
           line_number: (maxLineNumber + 1).toString(),
-          description: 'Ice & water barrier',
+          description: 'Ice & Water Barrier',
           quantity: requiredIceWaterQuantity,
           unit: macroData.unit,
           unit_price: macroData.unit_price,
@@ -2360,9 +2360,9 @@ function EstimatePageContent() {
         
         updatedItems.push(newItem);
         adjustmentsMade = true;
-        console.log('✅ Added Ice & water barrier with quantity:', requiredIceWaterQuantity);
+        console.log('✅ Added Ice & Water Barrier with quantity:', requiredIceWaterQuantity);
       } else {
-        console.log('❌ Ice & water barrier not found in Roof Master Macro');
+        console.log('❌ Ice & Water Barrier not found in Roof Master Macro');
       }
     }
     
@@ -2372,7 +2372,7 @@ function EstimatePageContent() {
       
       const requiredRollQuantity = 0.03 * valleysLength;
       
-      // Check Roll roofing
+      // Check Roll roofing - only adjust if present, don't add
       const rollRoofingItem = updatedItems.find((item: any) => item.description === 'Roll roofing');
       if (rollRoofingItem) {
         const newQuantity = Math.max(rollRoofingItem.quantity, requiredRollQuantity);
@@ -2389,62 +2389,156 @@ function EstimatePageContent() {
         }
       }
       
-      // Check all modified bitumen variants - adjust if present, add if not
-      const modifiedBitumenVariants = [
-        'Modified bitumen roof',
-        'Modified bitumen roof - self-adhering',
-        'Modified bitumen roof - hot mopped'
-      ];
+      // Check "Modified bitumen roof" - adjust if present, add if not
+      const modifiedBitumenItem = updatedItems.find((item: any) => item.description === 'Modified bitumen roof');
       
-      for (const variant of modifiedBitumenVariants) {
-        const item = updatedItems.find((i: any) => i.description === variant);
+      if (modifiedBitumenItem) {
+        // Item exists - adjust quantity using max()
+        const newQuantity = Math.max(modifiedBitumenItem.quantity, requiredRollQuantity);
+        if (newQuantity > modifiedBitumenItem.quantity) {
+          const index = updatedItems.findIndex((item: any) => item === modifiedBitumenItem);
+          updatedItems[index] = {
+            ...modifiedBitumenItem,
+            quantity: newQuantity,
+            RCV: newQuantity * modifiedBitumenItem.unit_price,
+            ACV: newQuantity * modifiedBitumenItem.unit_price - (modifiedBitumenItem.depreciation_amount || 0)
+          };
+          adjustmentsMade = true;
+          console.log('✅ Adjusted Modified bitumen roof quantity to:', newQuantity);
+        }
+      } else {
+        // Item does not exist - add it
+        console.log('⚠️ Modified bitumen roof not found - adding new line item');
         
-        if (item) {
-          // Item exists - adjust quantity using max()
-          const newQuantity = Math.max(item.quantity, requiredRollQuantity);
-          if (newQuantity > item.quantity) {
-            const index = updatedItems.findIndex((i: any) => i === item);
-            updatedItems[index] = {
-              ...item,
-              quantity: newQuantity,
-              RCV: newQuantity * item.unit_price,
-              ACV: newQuantity * item.unit_price - (item.depreciation_amount || 0)
-            };
-            adjustmentsMade = true;
-            console.log(`✅ Adjusted ${variant} quantity to:`, newQuantity);
-          }
-        } else {
-          // Item does not exist - add it
-          console.log(`⚠️ ${variant} not found - adding new line item`);
+        const macroData = roofMasterMacro.get('Modified bitumen roof');
+        if (macroData) {
+          const maxLineNumber = Math.max(
+            ...updatedItems.map((item: any) => parseInt(item.line_number) || 0),
+            0
+          );
           
-          const macroData = roofMasterMacro.get(variant);
-          if (macroData) {
-            const maxLineNumber = Math.max(
-              ...updatedItems.map((item: any) => parseInt(item.line_number) || 0),
-              0
-            );
-            
-            const newItem = {
-              line_number: (maxLineNumber + 1).toString(),
-              description: variant,
-              quantity: requiredRollQuantity,
-              unit: macroData.unit,
-              unit_price: macroData.unit_price,
-              RCV: requiredRollQuantity * macroData.unit_price,
-              age_life: '',
-              condition: '',
-              dep_percent: null,
-              depreciation_amount: 0,
-              ACV: requiredRollQuantity * macroData.unit_price,
-              page_number: null
-            };
-            
-            updatedItems.push(newItem);
-            adjustmentsMade = true;
-            console.log(`✅ Added ${variant} with quantity:`, requiredRollQuantity);
-          } else {
-            console.log(`❌ ${variant} not found in Roof Master Macro`);
-          }
+          const newItem = {
+            line_number: (maxLineNumber + 1).toString(),
+            description: 'Modified bitumen roof',
+            quantity: requiredRollQuantity,
+            unit: macroData.unit,
+            unit_price: macroData.unit_price,
+            RCV: requiredRollQuantity * macroData.unit_price,
+            age_life: '',
+            condition: '',
+            dep_percent: null,
+            depreciation_amount: 0,
+            ACV: requiredRollQuantity * macroData.unit_price,
+            page_number: null
+          };
+          
+          updatedItems.push(newItem);
+          adjustmentsMade = true;
+          console.log('✅ Added Modified bitumen roof with quantity:', requiredRollQuantity);
+        } else {
+          console.log('❌ Modified bitumen roof not found in Roof Master Macro');
+        }
+      }
+      
+      // Check "Modified bitumen roof - self-adhering" - adjust if present, add if not
+      const modifiedBitumenSelfAdheringItem = updatedItems.find((item: any) => item.description === 'Modified bitumen roof - self-adhering');
+      
+      if (modifiedBitumenSelfAdheringItem) {
+        // Item exists - adjust quantity using max()
+        const newQuantity = Math.max(modifiedBitumenSelfAdheringItem.quantity, requiredRollQuantity);
+        if (newQuantity > modifiedBitumenSelfAdheringItem.quantity) {
+          const index = updatedItems.findIndex((item: any) => item === modifiedBitumenSelfAdheringItem);
+          updatedItems[index] = {
+            ...modifiedBitumenSelfAdheringItem,
+            quantity: newQuantity,
+            RCV: newQuantity * modifiedBitumenSelfAdheringItem.unit_price,
+            ACV: newQuantity * modifiedBitumenSelfAdheringItem.unit_price - (modifiedBitumenSelfAdheringItem.depreciation_amount || 0)
+          };
+          adjustmentsMade = true;
+          console.log('✅ Adjusted Modified bitumen roof - self-adhering quantity to:', newQuantity);
+        }
+      } else {
+        // Item does not exist - add it
+        console.log('⚠️ Modified bitumen roof - self-adhering not found - adding new line item');
+        
+        const macroData = roofMasterMacro.get('Modified bitumen roof - self-adhering');
+        if (macroData) {
+          const maxLineNumber = Math.max(
+            ...updatedItems.map((item: any) => parseInt(item.line_number) || 0),
+            0
+          );
+          
+          const newItem = {
+            line_number: (maxLineNumber + 1).toString(),
+            description: 'Modified bitumen roof - self-adhering',
+            quantity: requiredRollQuantity,
+            unit: macroData.unit,
+            unit_price: macroData.unit_price,
+            RCV: requiredRollQuantity * macroData.unit_price,
+            age_life: '',
+            condition: '',
+            dep_percent: null,
+            depreciation_amount: 0,
+            ACV: requiredRollQuantity * macroData.unit_price,
+            page_number: null
+          };
+          
+          updatedItems.push(newItem);
+          adjustmentsMade = true;
+          console.log('✅ Added Modified bitumen roof - self-adhering with quantity:', requiredRollQuantity);
+        } else {
+          console.log('❌ Modified bitumen roof - self-adhering not found in Roof Master Macro');
+        }
+      }
+      
+      // Check "Modified bitumen roof - hot mopped" - adjust if present, add if not
+      const modifiedBitumenHotMoppedItem = updatedItems.find((item: any) => item.description === 'Modified bitumen roof - hot mopped');
+      
+      if (modifiedBitumenHotMoppedItem) {
+        // Item exists - adjust quantity using max()
+        const newQuantity = Math.max(modifiedBitumenHotMoppedItem.quantity, requiredRollQuantity);
+        if (newQuantity > modifiedBitumenHotMoppedItem.quantity) {
+          const index = updatedItems.findIndex((item: any) => item === modifiedBitumenHotMoppedItem);
+          updatedItems[index] = {
+            ...modifiedBitumenHotMoppedItem,
+            quantity: newQuantity,
+            RCV: newQuantity * modifiedBitumenHotMoppedItem.unit_price,
+            ACV: newQuantity * modifiedBitumenHotMoppedItem.unit_price - (modifiedBitumenHotMoppedItem.depreciation_amount || 0)
+          };
+          adjustmentsMade = true;
+          console.log('✅ Adjusted Modified bitumen roof - hot mopped quantity to:', newQuantity);
+        }
+      } else {
+        // Item does not exist - add it
+        console.log('⚠️ Modified bitumen roof - hot mopped not found - adding new line item');
+        
+        const macroData = roofMasterMacro.get('Modified bitumen roof - hot mopped');
+        if (macroData) {
+          const maxLineNumber = Math.max(
+            ...updatedItems.map((item: any) => parseInt(item.line_number) || 0),
+            0
+          );
+          
+          const newItem = {
+            line_number: (maxLineNumber + 1).toString(),
+            description: 'Modified bitumen roof - hot mopped',
+            quantity: requiredRollQuantity,
+            unit: macroData.unit,
+            unit_price: macroData.unit_price,
+            RCV: requiredRollQuantity * macroData.unit_price,
+            age_life: '',
+            condition: '',
+            dep_percent: null,
+            depreciation_amount: 0,
+            ACV: requiredRollQuantity * macroData.unit_price,
+            page_number: null
+          };
+          
+          updatedItems.push(newItem);
+          adjustmentsMade = true;
+          console.log('✅ Added Modified bitumen roof - hot mopped with quantity:', requiredRollQuantity);
+        } else {
+          console.log('❌ Modified bitumen roof - hot mopped not found in Roof Master Macro');
         }
       }
     }
@@ -8472,34 +8566,6 @@ function EstimatePageContent() {
                         </div>
                       </div>
 
-                      {/* Quick Action Button */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <p className="text-gray-700 mb-3 font-medium">
-                          Quick Action:
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const totalRoofArea = extractedRoofMeasurements["Total Roof Area"];
-                            if (totalRoofArea?.value) {
-                              // Set default shingle removal type if none selected
-                              if (!selectedSPCShingleRemoval) {
-                                setSelectedSPCShingleRemoval("Remove Laminated comp. shingle rfg. - w/out felt");
-                              }
-                              // Apply total roof area as quantity
-                              setSPCShingleRemovalQuantity((totalRoofArea.value / 100).toString());
-                            } else {
-                              alert('Total Roof Area not available in roof measurements');
-                            }
-                          }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
-                        >
-                          Total Roof Area
-                        </button>
-                        <p className="text-gray-600 text-sm mt-2">
-                          Automatically selects default removal type and applies total roof area quantity
-                        </p>
-                      </div>
 
                       {/* Price Preview */}
                       {selectedSPCShingleRemoval && spcShingleRemovalQuantity && roofMasterMacro.get(selectedSPCShingleRemoval) && (
@@ -10092,12 +10158,12 @@ function EstimatePageContent() {
                       <p className="text-gray-700 text-sm">
                         <strong>ℹ️ Note:</strong> If you select "Closed Valleys," the system will:
                       </p>
-                      <ul className="list-disc list-inside space-y-1 text-gray-600 text-sm ml-4 mt-2">
-                        <li>Add "Ice & water barrier" if not present (quantity = Total Line Lengths (Valleys) × 3)</li>
-                        <li>Adjust "Ice & water barrier" if present and within 25% of required quantity</li>
-                        <li>Adjust "Roll roofing" if present and Area for Pitch 0/12 = 0</li>
-                        <li>Add/adjust "Modified bitumen roof" variants if Area for Pitch 0/12 = 0</li>
-                      </ul>
+                        <ul className="list-disc list-inside space-y-1 text-gray-600 text-sm ml-4 mt-2">
+                          <li>Add "Ice & Water Barrier" if not present (quantity = Total Line Lengths (Valleys) × 3)</li>
+                          <li>Adjust "Ice & Water Barrier" if present and within 25% of required quantity</li>
+                          <li>Adjust "Roll roofing" if present and Area for Pitch 0/12 = 0</li>
+                          <li>Add/adjust "Modified bitumen roof" variants if Area for Pitch 0/12 = 0</li>
+                        </ul>
                     </div>
                   </div>
                 </div>
