@@ -79,11 +79,6 @@ function EstimatePageContent() {
   const [showSPCFinalStepModal, setShowSPCFinalStepModal] = useState(false);
   const [foundSPCAddedItems, setFoundSPCAddedItems] = useState<any[]>([]);
 
-  // SPC Ridge Vent Check state
-  const [showSPCRidgeVentModal, setShowSPCRidgeVentModal] = useState(false);
-  const [selectedSPCRidgeVent, setSelectedSPCRidgeVent] = useState('');
-  const [showSPCRidgeVentFoundModal, setShowSPCRidgeVentFoundModal] = useState(false);
-  const [foundRidgeVentItems, setFoundRidgeVentItems] = useState<any[]>([]);
 
   // SPC Chimney/Cricket Check state
   const [showSPCChimneyModal, setShowSPCChimneyModal] = useState(false);
@@ -236,6 +231,17 @@ function EstimatePageContent() {
   const [isUploadingRMM, setIsUploadingRMM] = useState(false);
   const [rmmUploadStatus, setRmmUploadStatus] = useState<{ success: boolean; message: string; itemCount?: number } | null>(null);
 
+  // Roof Master Macro CRUD state
+  const [showRMMModal, setShowRMMModal] = useState(false);
+  const [rmmItems, setRmmItems] = useState<Array<{description: string, unit: string, unit_price: number}>>([]);
+  const [editingRMMItem, setEditingRMMItem] = useState<{description: string, unit: string, unit_price: number} | null>(null);
+  const [newRMMItem, setNewRMMItem] = useState({description: '', unit: '', unit_price: 0});
+
+  // Valley Check state
+  const [showValleyCheckModal, setShowValleyCheckModal] = useState(false);
+  const [valleysClosedConfirmed, setValleysClosedConfirmed] = useState<boolean | null>(null);
+  const [valleyAdjustmentsApplied, setValleyAdjustmentsApplied] = useState(false);
+
   // Shingle Removal Check state
   const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
   const [selectedShingleRemoval, setSelectedShingleRemoval] = useState('');
@@ -254,11 +260,6 @@ function EstimatePageContent() {
   const [showOPModal, setShowOPModal] = useState(false);
   const [opSkipped, setOPSkipped] = useState(false);
 
-  // Ridge Vent Check state
-  const [showRidgeVentModal, setShowRidgeVentModal] = useState(false);
-  const [selectedRidgeVent, setSelectedRidgeVent] = useState('');
-  const [ridgeVentQuantity, setRidgeVentQuantity] = useState('');
-  const [ridgeVentSkipped, setRidgeVentSkipped] = useState(false);
 
   // Step Flashing Check state
   const [stepFlashingPresent, setStepFlashingPresent] = useState<boolean | null>(null);
@@ -634,6 +635,14 @@ function EstimatePageContent() {
         console.log('Sample items:', Array.from(macroMap.keys()).slice(0, 10));
         console.log('Ridge vent items found:', Array.from(macroMap.keys()).filter(key => key.includes('ridge vent')));
         setRoofMasterMacro(macroMap);
+        
+        // Also populate RMM items for CRUD operations
+        const itemsArray = Array.from(macroMap.entries()).map(([description, data]) => ({
+          description,
+          unit: data.unit,
+          unit_price: data.unit_price
+        }));
+        setRmmItems(itemsArray);
       } catch (error) {
         console.error('Error loading Roof Master Macro:', error);
       }
@@ -1268,6 +1277,77 @@ function EstimatePageContent() {
       // Reset file input
       event.target.value = '';
     }
+  };
+
+  // Roof Master Macro CRUD functions
+  const handleAddRMMItem = () => {
+    if (!newRMMItem.description.trim() || !newRMMItem.unit.trim() || newRMMItem.unit_price <= 0) {
+      alert('Please fill in all fields with valid values');
+      return;
+    }
+    
+    const updatedItems = [...rmmItems, { ...newRMMItem }];
+    setRmmItems(updatedItems);
+    
+    // Update the roofMasterMacro Map
+    const updatedMacro = new Map(roofMasterMacro);
+    updatedMacro.set(newRMMItem.description, {
+      unit: newRMMItem.unit,
+      unit_price: newRMMItem.unit_price
+    });
+    setRoofMasterMacro(updatedMacro);
+    
+    // Reset form
+    setNewRMMItem({description: '', unit: '', unit_price: 0});
+    
+    console.log('✅ Added RMM item:', newRMMItem.description);
+  };
+
+  const handleEditRMMItem = (index: number) => {
+    setEditingRMMItem({ ...rmmItems[index] });
+  };
+
+  const handleUpdateRMMItem = () => {
+    if (!editingRMMItem || !editingRMMItem.description.trim() || !editingRMMItem.unit.trim() || editingRMMItem.unit_price <= 0) {
+      alert('Please fill in all fields with valid values');
+      return;
+    }
+    
+    const index = rmmItems.findIndex(item => item.description === editingRMMItem.description);
+    if (index === -1) return;
+    
+    const updatedItems = [...rmmItems];
+    updatedItems[index] = { ...editingRMMItem };
+    setRmmItems(updatedItems);
+    
+    // Update the roofMasterMacro Map
+    const updatedMacro = new Map(roofMasterMacro);
+    updatedMacro.set(editingRMMItem.description, {
+      unit: editingRMMItem.unit,
+      unit_price: editingRMMItem.unit_price
+    });
+    setRoofMasterMacro(updatedMacro);
+    
+    setEditingRMMItem(null);
+    
+    console.log('✅ Updated RMM item:', editingRMMItem.description);
+  };
+
+  const handleDeleteRMMItem = (index: number) => {
+    const itemToDelete = rmmItems[index];
+    if (!confirm(`Are you sure you want to delete "${itemToDelete.description}"?`)) {
+      return;
+    }
+    
+    const updatedItems = rmmItems.filter((_, i) => i !== index);
+    setRmmItems(updatedItems);
+    
+    // Update the roofMasterMacro Map
+    const updatedMacro = new Map(roofMasterMacro);
+    updatedMacro.delete(itemToDelete.description);
+    setRoofMasterMacro(updatedMacro);
+    
+    console.log('✅ Deleted RMM item:', itemToDelete.description);
   };
 
   // Combined Workflow function
@@ -2010,75 +2090,29 @@ function EstimatePageContent() {
     
     if (foundSPCItems.length > 0) {
       console.log('✅ SPC-added items found, storing for final summary');
-      setFoundSPCAddedItems(foundSPCItems);
+      
+      // Deduplicate items by description to prevent multiple entries of the same item
+      const uniqueSPCItems = foundSPCItems.reduce((acc: any[], current: any) => {
+        const existingItem = acc.find(item => item.description === current.description);
+        if (!existingItem) {
+          acc.push(current);
+        } else {
+          // If duplicate found, log it and skip
+          console.log('⚠️ Duplicate SPC item found, skipping:', current.description);
+        }
+        return acc;
+      }, []);
+      
+      console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
+      setFoundSPCAddedItems(uniqueSPCItems);
     }
     
-    // Always proceed to ridge vent check after SPC items check
+    // Skip ridge vent check and proceed directly to chimney check
     setTimeout(() => {
-      checkRidgeVentItems(updatedLineItems);
+      checkChimneyFlashingItems(updatedLineItems);
     }, 100);
   };
 
-  // Check for ridge vent items
-  const checkRidgeVentItems = (updatedLineItems: any[]) => {
-    console.log('🔍 Checking for ridge vent items in:', updatedLineItems.length, 'line items');
-    
-    // Ridge vent options - MUST match Roof Master Macro exactly
-    const ridgeVentItemOptions = [
-      'Continuous ridge vent - shingle-over style',
-      'Continuous ridge vent - aluminum'
-    ];
-    
-    console.log('🔍 Looking for ridge vent items:', ridgeVentItemOptions);
-    
-    const foundRidgeVentItems = updatedLineItems.filter((item: any) => {
-      if (!item.description) return false;
-      
-      console.log('🔍 Checking ridge vent item:', item.description);
-      
-      return ridgeVentItemOptions.some(requiredItem => {
-        // Try exact match first
-        if (item.description === requiredItem) {
-          console.log('✅ Found exact ridge vent match:', item.description);
-          return true;
-        }
-        
-        // Try case-insensitive match
-        if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
-          console.log('✅ Found case-insensitive ridge vent match:', item.description, '===', requiredItem);
-          return true;
-        }
-        
-        return false;
-      });
-    });
-    
-    console.log('🔍 Found ridge vent items:', foundRidgeVentItems.map((item: any) => item.description));
-    
-    // Get Total Line Lengths (Ridges) from extractedRoofMeasurements
-    const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
-    const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
-    
-    console.log('🔍 Total Line Lengths (Ridges):', ridgesValue);
-    
-    if (foundRidgeVentItems.length > 0) {
-      console.log('✅ Ridge vent items found, proceeding to chimney check');
-      setFoundRidgeVentItems(foundRidgeVentItems);
-      setShowSPCRidgeVentFoundModal(true);
-    } else if (ridgesValue > 0) {
-      console.log('⚠️ No ridge vent items found but ridges exist, showing ridge vent modal');
-      // Calculate quantity based on Total Line Lengths (Ridges) / 100
-      const calculatedQuantity = ridgesValue / 100;
-      console.log('🔍 Calculated ridge vent quantity:', calculatedQuantity);
-      setShowSPCRidgeVentModal(true);
-    } else {
-      console.log('ℹ️ No ridge vent items needed (no ridges found), proceeding to chimney check');
-      // If no ridges found, proceed to chimney check
-      setTimeout(() => {
-        checkChimneyFlashingItems(updatedLineItems);
-      }, 100);
-    }
-  };
 
   // Chimney flashing options - MUST match Roof Master Macro exactly
   const chimneyFlashingOptions = [
@@ -2217,6 +2251,224 @@ function EstimatePageContent() {
     
     // Always show the roof access issues modal to prompt for details
     setShowSPCRoofAccessModal(true);
+  };
+
+  // Check for valley items and prompt user
+  const checkValleyItems = (updatedLineItems: any[]) => {
+    console.log('🔍 Checking for valley items in:', updatedLineItems.length, 'line items');
+    
+    // Check if valley metal line items exist
+    const hasValleyMetal = updatedLineItems.some((item: any) => 
+      item.description === 'Valley metal' || item.description === 'Valley metal - (W) profile'
+    );
+    
+    // Get Total Line Lengths (Valleys) from roof measurements
+    const valleysLength = extractedRoofMeasurements["Total Line Lengths (Valleys)"]?.value || 0;
+    
+    console.log('🔍 Has valley metal items:', hasValleyMetal);
+    console.log('🔍 Total Line Lengths (Valleys):', valleysLength);
+    
+    // Case B: If no valley metal items AND valleys exist, prompt user
+    if (!hasValleyMetal && valleysLength > 0) {
+      console.log('⚠️ No valley metal items found but valleys detected - showing valley check modal');
+      setShowValleyCheckModal(true);
+    } else {
+      console.log('✅ Valley check not needed, proceeding to O&P check');
+      checkOPItems(ruleResults?.line_items || updatedLineItems);
+    }
+  };
+
+  // Handle valley closed confirmation and apply adjustments
+  const handleValleyClosedConfirmation = async (isClosed: boolean) => {
+    console.log('🔍 User confirmed valleys are closed:', isClosed);
+    setValleysClosedConfirmed(isClosed);
+    
+    if (!isClosed) {
+      // User said valleys are open, skip adjustments
+      console.log('✅ Valleys are open, no adjustments needed');
+      setShowValleyCheckModal(false);
+      setValleyAdjustmentsApplied(true);
+      
+      // Proceed to O&P check
+      setTimeout(() => {
+        checkOPItems(ruleResults?.line_items || extractedLineItems);
+      }, 100);
+      return;
+    }
+    
+    // Valleys are closed, apply adjustments
+    console.log('🔧 Applying closed valley adjustments...');
+    
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    const valleysLength = extractedRoofMeasurements["Total Line Lengths (Valleys)"]?.value || 0;
+    const pitch0 = extractedRoofMeasurements["Area for Pitch 0/12 (sq ft)"]?.value || 0;
+    
+    let updatedItems = [...currentItems];
+    let adjustmentsMade = false;
+    
+    // Check Ice & water barrier (exact match from roof master macro)
+    const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & water barrier');
+    const requiredIceWaterQuantity = valleysLength * 3;
+    
+    if (iceWaterItem) {
+      const threshold = requiredIceWaterQuantity * 0.25; // 25% threshold
+      
+      console.log('🔍 Ice & water barrier found:', iceWaterItem.quantity);
+      console.log('🔍 Required quantity:', requiredIceWaterQuantity);
+      console.log('🔍 Within 25% threshold?', Math.abs(iceWaterItem.quantity - requiredIceWaterQuantity) <= threshold);
+      
+      if (Math.abs(iceWaterItem.quantity - requiredIceWaterQuantity) <= threshold) {
+        const newQuantity = Math.max(iceWaterItem.quantity, requiredIceWaterQuantity);
+        if (newQuantity > iceWaterItem.quantity) {
+          const index = updatedItems.findIndex((item: any) => item === iceWaterItem);
+          updatedItems[index] = {
+            ...iceWaterItem,
+            quantity: newQuantity,
+            RCV: newQuantity * iceWaterItem.unit_price,
+            ACV: newQuantity * iceWaterItem.unit_price - (iceWaterItem.depreciation_amount || 0)
+          };
+          adjustmentsMade = true;
+          console.log('✅ Adjusted Ice & water barrier quantity to:', newQuantity);
+        }
+      }
+    } else {
+      // Ice & water barrier not present - add it
+      console.log('⚠️ Ice & water barrier not found - adding new line item');
+      
+      const macroData = roofMasterMacro.get('Ice & water barrier');
+      if (macroData) {
+        // Get max line number
+        const maxLineNumber = Math.max(
+          ...updatedItems.map((item: any) => parseInt(item.line_number) || 0),
+          0
+        );
+        
+        const newItem = {
+          line_number: (maxLineNumber + 1).toString(),
+          description: 'Ice & water barrier',
+          quantity: requiredIceWaterQuantity,
+          unit: macroData.unit,
+          unit_price: macroData.unit_price,
+          RCV: requiredIceWaterQuantity * macroData.unit_price,
+          age_life: '',
+          condition: '',
+          dep_percent: null,
+          depreciation_amount: 0,
+          ACV: requiredIceWaterQuantity * macroData.unit_price,
+          page_number: null
+        };
+        
+        updatedItems.push(newItem);
+        adjustmentsMade = true;
+        console.log('✅ Added Ice & water barrier with quantity:', requiredIceWaterQuantity);
+      } else {
+        console.log('❌ Ice & water barrier not found in Roof Master Macro');
+      }
+    }
+    
+    // Only check roll roofing and modified bitumen if Area for Pitch 0/12 = 0
+    if (pitch0 === 0) {
+      console.log('🔍 Area for Pitch 0/12 = 0, checking roll roofing and modified bitumen items');
+      
+      const requiredRollQuantity = 0.03 * valleysLength;
+      
+      // Check Roll roofing
+      const rollRoofingItem = updatedItems.find((item: any) => item.description === 'Roll roofing');
+      if (rollRoofingItem) {
+        const newQuantity = Math.max(rollRoofingItem.quantity, requiredRollQuantity);
+        if (newQuantity > rollRoofingItem.quantity) {
+          const index = updatedItems.findIndex((item: any) => item === rollRoofingItem);
+          updatedItems[index] = {
+            ...rollRoofingItem,
+            quantity: newQuantity,
+            RCV: newQuantity * rollRoofingItem.unit_price,
+            ACV: newQuantity * rollRoofingItem.unit_price - (rollRoofingItem.depreciation_amount || 0)
+          };
+          adjustmentsMade = true;
+          console.log('✅ Adjusted Roll roofing quantity to:', newQuantity);
+        }
+      }
+      
+      // Check all modified bitumen variants - adjust if present, add if not
+      const modifiedBitumenVariants = [
+        'Modified bitumen roof',
+        'Modified bitumen roof - self-adhering',
+        'Modified bitumen roof - hot mopped'
+      ];
+      
+      for (const variant of modifiedBitumenVariants) {
+        const item = updatedItems.find((i: any) => i.description === variant);
+        
+        if (item) {
+          // Item exists - adjust quantity using max()
+          const newQuantity = Math.max(item.quantity, requiredRollQuantity);
+          if (newQuantity > item.quantity) {
+            const index = updatedItems.findIndex((i: any) => i === item);
+            updatedItems[index] = {
+              ...item,
+              quantity: newQuantity,
+              RCV: newQuantity * item.unit_price,
+              ACV: newQuantity * item.unit_price - (item.depreciation_amount || 0)
+            };
+            adjustmentsMade = true;
+            console.log(`✅ Adjusted ${variant} quantity to:`, newQuantity);
+          }
+        } else {
+          // Item does not exist - add it
+          console.log(`⚠️ ${variant} not found - adding new line item`);
+          
+          const macroData = roofMasterMacro.get(variant);
+          if (macroData) {
+            const maxLineNumber = Math.max(
+              ...updatedItems.map((item: any) => parseInt(item.line_number) || 0),
+              0
+            );
+            
+            const newItem = {
+              line_number: (maxLineNumber + 1).toString(),
+              description: variant,
+              quantity: requiredRollQuantity,
+              unit: macroData.unit,
+              unit_price: macroData.unit_price,
+              RCV: requiredRollQuantity * macroData.unit_price,
+              age_life: '',
+              condition: '',
+              dep_percent: null,
+              depreciation_amount: 0,
+              ACV: requiredRollQuantity * macroData.unit_price,
+              page_number: null
+            };
+            
+            updatedItems.push(newItem);
+            adjustmentsMade = true;
+            console.log(`✅ Added ${variant} with quantity:`, requiredRollQuantity);
+          } else {
+            console.log(`❌ ${variant} not found in Roof Master Macro`);
+          }
+        }
+      }
+    }
+    
+    if (adjustmentsMade) {
+      console.log('✅ Valley adjustments applied, updating line items');
+      setExtractedLineItems(updatedItems);
+      
+      // If we have rule results, update those too
+      if (ruleResults) {
+        setRuleResults({
+          ...ruleResults,
+          line_items: updatedItems
+        });
+      }
+    }
+    
+    setShowValleyCheckModal(false);
+    setValleyAdjustmentsApplied(true);
+    
+    // Proceed to O&P check
+    setTimeout(() => {
+      checkOPItems(updatedItems);
+    }, 100);
   };
 
   // Check for O&P items
@@ -2551,86 +2803,6 @@ function EstimatePageContent() {
     }, 100);
   };
 
-  // Add SPC ridge vent item after installation check
-  const handleAddSPCRidgeVent = async () => {
-    if (!selectedSPCRidgeVent) {
-      alert('Please select a ridge vent type');
-      return;
-    }
-
-    // Get Total Line Lengths (Ridges) from extractedRoofMeasurements
-    const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
-    const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
-    const calculatedQuantity = ridgesValue / 100;
-
-    if (calculatedQuantity <= 0) {
-      alert('No ridges found - ridge vent not needed');
-      return;
-    }
-
-    // Get data from Roof Master Macro using the macroName
-    const selectedRidgeVentOption = ridgeVentOptions.find(option => option.displayName === selectedSPCRidgeVent);
-    if (!selectedRidgeVentOption) {
-      alert(`Selected ridge vent type not found`);
-      return;
-    }
-
-    const macroData = roofMasterMacro.get(selectedRidgeVentOption.macroName);
-    if (!macroData) {
-      alert(`Ridge vent "${selectedRidgeVentOption.macroName}" not found in Roof Master Macro`);
-      return;
-    }
-
-    // Get the current line items (including any from previous workflow steps)
-    const currentItems = ruleResults?.line_items || extractedLineItems;
-    
-    // Get max line number
-    const maxLineNumber = Math.max(
-      ...currentItems.map((item: any) => parseInt(item.line_number) || 0),
-      0
-    );
-
-    // Create new line item with user prompt workflow marker
-    const newItem = {
-      line_number: String(maxLineNumber + 1),
-      description: selectedRidgeVentOption.macroName,
-      quantity: calculatedQuantity,
-      unit: macroData.unit || 'LF',
-      unit_price: macroData.unit_price,
-      RCV: calculatedQuantity * macroData.unit_price,
-      age_life: '0/NA',
-      condition: 'Avg.',
-      dep_percent: 0,
-      depreciation_amount: 0,
-      ACV: calculatedQuantity * macroData.unit_price,
-      location_room: 'Roof',
-      category: 'Roof',
-      page_number: Math.max(...currentItems.map((item: any) => item.page_number || 0), 1),
-      user_prompt_workflow: true, // Mark as user prompt workflow addition
-      user_prompt_step: 'ridge_vent' // Track which step added this item
-    };
-
-    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
-    if (ruleResults) {
-      const updatedRuleResults = {
-        ...ruleResults,
-        line_items: [...(ruleResults.line_items || []), newItem]
-      };
-      setRuleResults(updatedRuleResults);
-    }
-
-    // Close modal and reset
-    setShowSPCRidgeVentModal(false);
-    setSelectedSPCRidgeVent('');
-    
-    console.log('✅ Added SPC ridge vent item:', newItem);
-    
-    // After adding ridge vent item, proceed to chimney check
-    setTimeout(() => {
-      const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkChimneyFlashingItems(updatedItems);
-    }, 100);
-  };
 
   // Add chimney cricket item based on size/length calculations
   const handleAddChimneyCricket = async () => {
@@ -2989,10 +3161,10 @@ function EstimatePageContent() {
   // Add roof access labor cost based on calculations
   const handleAddRoofAccessLabor = async () => {
     if (!roofAccessIssues) {
-      // No roof access issues, just close modal and proceed to O&P check
+      // No roof access issues, just close modal and proceed to valley check
       setShowSPCRoofAccessModal(false);
       setTimeout(() => {
-        checkOPItems(ruleResults?.line_items || []);
+        checkValleyItems(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -3019,10 +3191,10 @@ function EstimatePageContent() {
 
     // Only add labor if both roof access issues and delivery prevention are true
     if (!roofstockingDelivery) {
-      // No delivery prevention, just close modal and proceed to O&P check
+      // No delivery prevention, just close modal and proceed to valley check
       setShowSPCRoofAccessModal(false);
       setTimeout(() => {
-        checkOPItems(ruleResults?.line_items || []);
+        checkValleyItems(ruleResults?.line_items || []);
       }, 100);
       return;
     }
@@ -3110,10 +3282,10 @@ function EstimatePageContent() {
     console.log('✅ Added roof access labor item:', newItem);
     console.log(`Calculations: bundles=${bundles}, laborTime=${laborTime}hrs, laborCost=$${laborCost.toFixed(2)}`);
     
-    // After adding roof access labor item, proceed to O&P check
+    // After adding roof access labor item, proceed to valley check
     setTimeout(() => {
       const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkOPItems(updatedItems);
+      checkValleyItems(updatedItems);
     }, 100);
   };
 
@@ -3273,68 +3445,6 @@ function EstimatePageContent() {
       item.description === 'Valley metal' || 
       item.description === 'Valley metal - (W) profile'
     );
-  };
-
-
-  // Add ridge vent line item
-  const handleAddRidgeVent = (items: LineItem[]) => {
-    if (!selectedRidgeVent || !ridgeVentQuantity) {
-      alert('Please select a ridge vent type and enter quantity');
-      return;
-    }
-
-    // Find the macro name for the selected ridge vent
-    const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedRidgeVent);
-    if (!selectedOption) {
-      alert(`Ridge vent option "${selectedRidgeVent}" not found`);
-      return;
-    }
-
-    const macroData = roofMasterMacro.get(selectedOption.macroName);
-    if (!macroData) {
-      alert(`Item "${selectedOption.macroName}" not found in Roof Master Macro`);
-      return;
-    }
-
-    const quantity = parseFloat(ridgeVentQuantity);
-    
-    // Get max line number
-    const maxLineNumber = Math.max(
-      ...items.map(item => parseInt(item.line_number) || 0),
-      0
-    );
-
-    const newRidgeVentItem: LineItem = {
-      line_number: String(maxLineNumber + 1),
-      description: selectedRidgeVent,
-      quantity: quantity,
-      unit_price: macroData.unit_price,
-      unit: macroData.unit,
-      RCV: macroData.unit_price * quantity,
-      ACV: macroData.unit_price * quantity,
-      age_life: '0/NA',
-      condition: 'Avg.',
-      dep_percent: 0,
-      depreciation_amount: 0,
-      location_room: 'Roof',
-      category: 'Ventilation',
-      page_number: Math.max(...items.map(item => item.page_number || 0), 1)
-    };
-
-    const updatedItems = [...items, newRidgeVentItem];
-    setExtractedLineItems(updatedItems);
-
-    console.log('✅ Added Ridge Vent:', newRidgeVentItem);
-    
-    // Reset form and close modal
-    setSelectedRidgeVent('');
-    setRidgeVentQuantity('');
-    setShowRidgeVentModal(false);
-    
-    // Continue workflow
-    if (showUnifiedWorkflow) {
-      setCurrentWorkflowStep(3); // Move to Step Flashing check
-    }
   };
 
   // Add kick-out diverter line item
@@ -4146,6 +4256,15 @@ function EstimatePageContent() {
                 <Upload className="inline-block w-4 h-4 mr-2" />
                 {isUploadingRMM ? 'Uploading...' : 'Upload Roof Master Macro'}
               </label>
+              
+              {/* Manage Roof Master Macro Button */}
+              <button
+                onClick={() => setShowRMMModal(true)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-green-600 text-white hover:bg-green-700 border border-green-500"
+              >
+                <Settings className="inline-block w-4 h-4 mr-2" />
+                Manage Roof Master Macro
+              </button>
               
               <button
                 onClick={runJavaScriptRuleEngine}
@@ -8260,152 +8379,6 @@ function EstimatePageContent() {
             </div>
           )}
 
-          {/* Ridge Vent Modal */}
-          {showRidgeVentModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
-                {/* Header */}
-                <div className="bg-green-600 px-6 py-4 rounded-t-2xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">🏠 Ridge Vent (Optional)</h2>
-                      <p className="text-green-100 text-sm">No ridge vent found but ridge length detected - adding one is optional</p>
-                    </div>
-                    <button
-                      onClick={() => setShowRidgeVentModal(false)}
-                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="p-6">
-                  <div className="mb-6">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                      <p className="text-gray-700">
-                        The estimate should include a ridge vent since ridge length is detected. 
-                        Please select a ridge vent type and enter the quantity:
-                      </p>
-                    </div>
-
-                    {/* Ridge Length Info */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                      <h4 className="font-semibold text-gray-900 mb-2">Ridge Length Information</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="text-gray-600">Total Ridge Length:</div>
-                          <div className="font-semibold">
-                            {extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0} LF
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600">Calculated Quantity:</div>
-                          <div className="font-semibold text-green-700">
-                            {((extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || 0) / 100).toFixed(2)} LF
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Ridge Vent Type Selection */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Ridge Vent Type *
-                      </label>
-                      <select
-                        value={selectedRidgeVent}
-                        onChange={(e) => setSelectedRidgeVent(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                      >
-                        <option value="">-- Select a type --</option>
-                        {ridgeVentOptions.map((option) => (
-                          <option key={option.macroName} value={option.displayName}>
-                            {option.displayName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Quantity Input */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Quantity (LF) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={ridgeVentQuantity}
-                        onChange={(e) => setRidgeVentQuantity(e.target.value)}
-                        placeholder="Enter quantity"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                      />
-                    </div>
-
-                    {/* Price Preview */}
-                    {selectedRidgeVent && ridgeVentQuantity && (() => {
-                      const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedRidgeVent);
-                      const macroData = selectedOption ? roofMasterMacro.get(selectedOption.macroName) : null;
-                      return macroData ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <div className="text-gray-600">Unit Price:</div>
-                              <div className="font-semibold">
-                                ${macroData.unit_price.toFixed(2)}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-gray-600">Quantity:</div>
-                              <div className="font-semibold">{ridgeVentQuantity} LF</div>
-                            </div>
-                            <div>
-                              <div className="text-gray-600">Total RCV:</div>
-                              <div className="font-semibold text-green-700">
-                                ${(macroData.unit_price * parseFloat(ridgeVentQuantity)).toFixed(2)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
-                  <button
-                    onClick={() => setShowRidgeVentModal(false)}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setShowRidgeVentModal(false);
-                        setRidgeVentSkipped(true);
-                        console.log('⏭️ Skipping ridge vent - continuing workflow');
-                        console.log('Workflow would continue here - User Prompt Workflow removed');
-                      }}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
-                    >
-                      Skip (Optional)
-                    </button>
-                    <button
-                      onClick={() => handleAddRidgeVent(extractedLineItems)}
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
-                    >
-                      Add to Estimate
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* SPC Shingle Removal Modal */}
           {showSPCShingleRemovalModal && (
@@ -8854,220 +8827,6 @@ function EstimatePageContent() {
                       // Proceed to final step check
                       setTimeout(() => {
                         checkSPCAddedItems(currentSPCLineItems);
-                      }, 100);
-                    }}
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SPC Ridge Vent Modal */}
-          {showSPCRidgeVentModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
-                {/* Header */}
-                <div className="px-6 py-4 rounded-t-2xl bg-orange-600">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">⚠️ Ridge Vent (Optional)</h2>
-                      <p className="text-orange-100 text-sm">
-                        No ridge vent items found but ridges detected in measurements - adding one is optional
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowSPCRidgeVentModal(false);
-                        // Proceed to final step even if closed via X button
-                        setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
-                        }, 100);
-                      }}
-                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="p-6">
-                  <div className="mb-6">
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                      <p className="text-gray-700 mb-3">
-                        <strong>Please select a ridge vent type:</strong>
-                      </p>
-                      <p className="text-gray-600 text-sm mb-4">
-                        Choose one of the following ridge vent types to add to the estimate:
-                      </p>
-                      
-                      <div className="space-y-3">
-                        {ridgeVentOptions.map((option, index) => (
-                          <label key={index} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="ridgeVentSelection"
-                              value={option.displayName}
-                              checked={selectedSPCRidgeVent === option.displayName}
-                              onChange={(e) => setSelectedSPCRidgeVent(e.target.value)}
-                              className="text-orange-600 focus:ring-orange-500"
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{option.displayName}</div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-
-                      {/* Show calculated quantity */}
-                      {(() => {
-                        const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
-                        const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
-                        const calculatedQuantity = ridgesValue / 100;
-                        
-                        return calculatedQuantity > 0 && (
-                          <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
-                            <div className="text-sm text-gray-700">
-                              <strong>Calculated Quantity:</strong> {calculatedQuantity.toFixed(3)} LF
-                              <br />
-                              <span className="text-gray-600">
-                                (Based on Total Line Lengths (Ridges): {ridgesValue} LF ÷ 100)
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Price preview */}
-                      {selectedSPCRidgeVent && (() => {
-                        const selectedOption = ridgeVentOptions.find(option => option.displayName === selectedSPCRidgeVent);
-                        const macroData = selectedOption ? roofMasterMacro.get(selectedOption.macroName) : null;
-                        const totalRidges = extractedRoofMeasurements["Total Line Lengths (Ridges)"];
-                        const ridgesValue = totalRidges?.value || (typeof totalRidges === 'number' ? totalRidges : 0);
-                        const calculatedQuantity = ridgesValue / 100;
-                        
-                        return macroData && calculatedQuantity > 0 && (
-                          <div className="mt-4 p-3 bg-white border border-gray-200 rounded-lg">
-                            <div className="text-sm text-gray-600 mb-2">Price Preview:</div>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <div className="text-gray-600">Unit Price:</div>
-                                <div className="font-semibold text-gray-900">${macroData.unit_price.toFixed(2)}/{macroData.unit}</div>
-                              </div>
-                              <div>
-                                <div className="text-gray-600">Total RCV:</div>
-                                <div className="font-semibold text-orange-700">
-                                  ${(macroData.unit_price * calculatedQuantity).toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center">
-                  <button
-                    onClick={() => {
-                      setShowSPCRidgeVentModal(false);
-                      // Proceed to chimney check even if canceled
-                      setTimeout(() => {
-                        checkChimneyFlashingItems(ruleResults?.line_items || []);
-                      }, 100);
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                  >
-                    Skip
-                  </button>
-                  <button
-                    onClick={handleAddSPCRidgeVent}
-                    disabled={!selectedSPCRidgeVent}
-                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                      selectedSPCRidgeVent
-                        ? 'bg-orange-600 text-white hover:bg-orange-700'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Add Ridge Vent
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SPC Ridge Vent Found Modal */}
-          {showSPCRidgeVentFoundModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
-                {/* Header */}
-                <div className="px-6 py-4 rounded-t-2xl bg-green-600">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white mb-1">✅ Ridge Vent Items Found</h2>
-                      <p className="text-green-100 text-sm">
-                        Ridge vent items detected in the estimate
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowSPCRidgeVentFoundModal(false);
-                        // Proceed to chimney check
-                        setTimeout(() => {
-                          checkChimneyFlashingItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
-                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="p-6">
-                  <div className="mb-6">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                      <p className="text-gray-700 mb-3">
-                        <strong>Great! The following ridge vent items were found in your estimate:</strong>
-                      </p>
-                      <ul className="list-disc list-inside space-y-2">
-                        {foundRidgeVentItems.map((item, index) => (
-                          <li key={index} className="text-gray-700 font-medium">
-                            <span className="text-green-700">•</span> {item.description}
-                            {item.quantity && (
-                              <span className="text-gray-600 ml-2">
-                                (Qty: {item.quantity} {item.unit || 'LF'})
-                              </span>
-                            )}
-                            {item.RCV && (
-                              <span className="text-green-600 ml-2 font-semibold">
-                                - RCV: ${item.RCV.toFixed(2)}
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="text-gray-600 text-sm mt-4">
-                        The SPC Adjustment Engine workflow is now complete.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowSPCRidgeVentFoundModal(false);
-                      // Proceed to chimney check
-                      setTimeout(() => {
-                        checkChimneyFlashingItems(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
@@ -9774,7 +9533,7 @@ function EstimatePageContent() {
                         <div className="mt-6 space-y-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Permit Cost (float):
+                              Permit Cost:
                             </label>
                             <input
                               type="number"
@@ -10039,9 +9798,9 @@ function EstimatePageContent() {
                     <button
                       onClick={() => {
                         setShowSPCRoofAccessModal(false);
-                        // Proceed to O&P check if canceled
+                        // Proceed to valley check if canceled
                         setTimeout(() => {
-                          checkOPItems(ruleResults?.line_items || []);
+                          checkValleyItems(ruleResults?.line_items || []);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -10077,7 +9836,7 @@ function EstimatePageContent() {
                                 setRoofAccessIssues(false);
                                 setShowSPCRoofAccessModal(false);
                                 setTimeout(() => {
-                                  checkOPItems(ruleResults?.line_items || []);
+                                  checkValleyItems(ruleResults?.line_items || []);
                                 }, 100);
                               }}
                               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -10220,9 +9979,9 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCRoofAccessModal(false);
-                      // Proceed to O&P check if canceled
+                      // Proceed to valley check if canceled
                       setTimeout(() => {
-                        checkOPItems(ruleResults?.line_items || []);
+                        checkValleyItems(ruleResults?.line_items || []);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
@@ -10239,6 +9998,123 @@ function EstimatePageContent() {
                     }`}
                   >
                     {roofAccessIssues === false ? 'Continue' : 'Add Roof Access Issues'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Valley Check Modal */}
+          {showValleyCheckModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-indigo-600 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">🏔️ Valley Type Confirmation</h2>
+                      <p className="text-indigo-100 text-sm">
+                        Determine valley type for accurate material adjustments
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowValleyCheckModal(false);
+                        // Proceed to O&P check if canceled
+                        setTimeout(() => {
+                          checkOPItems(ruleResults?.line_items || []);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>No valley metal line items were found in the estimate, but valleys were detected in the roof measurements.</strong>
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <p className="text-gray-700">
+                          <strong>Valley Types:</strong>
+                        </p>
+                        <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
+                          <li>
+                            <strong>Open Valleys:</strong> Use metal flashing with shingles trimmed back from the valley center. Metal is visible.
+                          </li>
+                          <li>
+                            <strong>Closed Valleys:</strong> Shingles from both roof planes overlap in the valley. No metal is visible. Uses ice & water barrier, roll roofing, or modified bitumen.
+                          </li>
+                        </ul>
+                        
+                        <div className="bg-white border border-indigo-200 rounded-lg p-4 mt-4">
+                          <p className="text-gray-700 font-medium mb-2">
+                            📏 Roof Measurements:
+                          </p>
+                          <p className="text-gray-600">
+                            Total Line Lengths (Valleys): <strong>{extractedRoofMeasurements["Total Line Lengths (Valleys)"]?.value || 0} LF</strong>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Question */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-900 font-semibold mb-3">
+                        Are the valleys on this roof open or closed?
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleValleyClosedConfirmation(false)}
+                          className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                        >
+                          Open Valleys
+                          <p className="text-xs text-blue-100 mt-1">Metal is visible</p>
+                        </button>
+                        <button
+                          onClick={() => handleValleyClosedConfirmation(true)}
+                          className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+                        >
+                          Closed Valleys
+                          <p className="text-xs text-indigo-100 mt-1">Shingles overlap, no metal visible</p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Explanation for closed valleys */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-gray-700 text-sm">
+                        <strong>ℹ️ Note:</strong> If you select "Closed Valleys," the system will:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 text-gray-600 text-sm ml-4 mt-2">
+                        <li>Add "Ice & water barrier" if not present (quantity = Total Line Lengths (Valleys) × 3)</li>
+                        <li>Adjust "Ice & water barrier" if present and within 25% of required quantity</li>
+                        <li>Adjust "Roll roofing" if present and Area for Pitch 0/12 = 0</li>
+                        <li>Add/adjust "Modified bitumen roof" variants if Area for Pitch 0/12 = 0</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowValleyCheckModal(false);
+                      // Proceed to O&P check if canceled
+                      setTimeout(() => {
+                        checkOPItems(ruleResults?.line_items || []);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
                   </button>
                 </div>
               </div>
@@ -10449,7 +10325,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>SPC Adjustment Engine automatically added the following items to your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundSPCAddedItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-purple-700">•</span> {item.description}
@@ -10480,6 +10356,177 @@ function EstimatePageContent() {
                     className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
                   >
                     Finish Workflow
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Roof Master Macro Management Modal */}
+          {showRMMModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+                {/* Header */}
+                <div className="bg-green-600 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">Manage Roof Master Macro</h2>
+                      <p className="text-green-100 text-sm">Add, edit, or delete line items from the roof master macro</p>
+                    </div>
+                    <button
+                      onClick={() => setShowRMMModal(false)}
+                      className="text-white hover:text-green-200 transition-colors"
+                    >
+                      <Settings className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 overflow-y-auto flex-1">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Add New Item Form */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Item</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                          <input
+                            type="text"
+                            value={newRMMItem.description}
+                            onChange={(e) => setNewRMMItem({...newRMMItem, description: e.target.value})}
+                            placeholder="Enter item description"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                          <select
+                            value={newRMMItem.unit}
+                            onChange={(e) => setNewRMMItem({...newRMMItem, unit: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                          >
+                            <option value="">Select unit</option>
+                            <option value="SQ">SQ (Square)</option>
+                            <option value="LF">LF (Linear Feet)</option>
+                            <option value="EA">EA (Each)</option>
+                            <option value="SF">SF (Square Feet)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={newRMMItem.unit_price}
+                            onChange={(e) => setNewRMMItem({...newRMMItem, unit_price: parseFloat(e.target.value) || 0})}
+                            placeholder="Enter unit price"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                          />
+                        </div>
+                        <button
+                          onClick={handleAddRMMItem}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                        >
+                          Add Item
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Items List */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Items ({rmmItems.length})</h3>
+                      <div className="max-h-96 overflow-y-auto">
+                        {rmmItems.length === 0 ? (
+                          <p className="text-gray-500 text-center py-8">No items found</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {rmmItems.map((item, index) => (
+                              <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                {editingRMMItem && editingRMMItem.description === item.description ? (
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={editingRMMItem.description}
+                                      onChange={(e) => setEditingRMMItem({...editingRMMItem, description: e.target.value})}
+                                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                                    />
+                                    <div className="flex gap-2">
+                                      <select
+                                        value={editingRMMItem.unit}
+                                        onChange={(e) => setEditingRMMItem({...editingRMMItem, unit: e.target.value})}
+                                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                                      >
+                                        <option value="SQ">SQ</option>
+                                        <option value="LF">LF</option>
+                                        <option value="EA">EA</option>
+                                        <option value="SF">SF</option>
+                                      </select>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={editingRMMItem.unit_price}
+                                        onChange={(e) => setEditingRMMItem({...editingRMMItem, unit_price: parseFloat(e.target.value) || 0})}
+                                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={handleUpdateRMMItem}
+                                        className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingRMMItem(null)}
+                                        className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <p className="font-medium text-gray-900 text-sm">{item.description}</p>
+                                        <p className="text-gray-600 text-xs">Unit: {item.unit} | Price: ${item.unit_price.toFixed(2)}</p>
+                                      </div>
+                                      <div className="flex gap-1 ml-2">
+                                        <button
+                                          onClick={() => handleEditRMMItem(index)}
+                                          className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteRMMItem(index)}
+                                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => setShowRMMModal(false)}
+                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors"
+                  >
+                    Close
                   </button>
                 </div>
               </div>

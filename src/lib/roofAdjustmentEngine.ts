@@ -120,6 +120,11 @@ export class RoofAdjustmentEngine {
     ALUMINUM_FLASHING: "Aluminum sidewall/endwall flashing - mill finish",
     VALLEY_METAL: "Valley metal",
     VALLEY_METAL_W: "Valley metal - (W) profile",
+    
+    // Felt underlayment
+    FELT_15LB_DOUBLE_COVERAGE: "Roofing felt - 15 lb. - double coverage/low slope",
+    FELT_15LB: "Roofing felt - 15 lb.",
+    FELT_30LB: "Roofing felt - 30 lb.",
   };
 
   // Exact variable names from RMR measurements
@@ -129,10 +134,17 @@ export class RoofAdjustmentEngine {
     TOTAL_RAKES_LENGTH: "Total Rakes Length",
     TOTAL_RIDGES_HIPS_LENGTH: "Total Ridges/Hips Length",
     TOTAL_VALLEYS_LENGTH: "Total Valleys Length",
+    TOTAL_LINE_LENGTHS_VALLEYS: "Total Line Lengths (Valleys)",
     TOTAL_STEP_FLASHING_LENGTH: "Total Step Flashing Length",
     TOTAL_FLASHING_LENGTH: "Total Flashing Length",
     TOTAL_LINE_LENGTHS_RIDGES: "Total Line Lengths (Ridges)",
     TOTAL_LINE_LENGTHS_HIPS: "Total Line Lengths (Hips)",
+    AREA_PITCH_1_12: "Area for Pitch 1/12 (sq ft)",
+    AREA_PITCH_2_12: "Area for Pitch 2/12 (sq ft)",
+    AREA_PITCH_3_12: "Area for Pitch 3/12 (sq ft)",
+    AREA_PITCH_4_12: "Area for Pitch 4/12 (sq ft)",
+    AREA_PITCH_5_12: "Area for Pitch 5/12 (sq ft)",
+    AREA_PITCH_6_12: "Area for Pitch 6/12 (sq ft)",
     AREA_PITCH_7_12: "Area for Pitch 7/12 (sq ft)",
     AREA_PITCH_8_12: "Area for Pitch 8/12 (sq ft)",
     AREA_PITCH_9_12: "Area for Pitch 9/12 (sq ft)",
@@ -320,10 +332,11 @@ export class RoofAdjustmentEngine {
     const ruleLog = roofAdjustmentLogger.startRuleExecution('Shingle Quantity Adjustments', 'Category A');
     
     const totalRoofArea = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_ROOF_AREA);
+    // Shingles are quoted in SQ, so divide by 100
     const requiredQuantity = totalRoofArea / 100;
     
     roofAdjustmentLogger.logRuleDecision(ruleLog, 'Calculated required quantity', 
-      `Total Roof Area (${totalRoofArea}) / 100 = ${requiredQuantity} SQ`);
+      `Total Roof Area (${totalRoofArea} sq ft) / 100 = ${requiredQuantity} SQ`);
     
     const shingleDescriptions = [
       this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT,
@@ -425,10 +438,11 @@ export class RoofAdjustmentEngine {
     
     const eavesLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_EAVES_LENGTH);
     const rakesLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_RAKES_LENGTH);
-    const requiredQuantity = (eavesLength + rakesLength) / 100;
+    // Starter courses are quoted in LF, so do NOT divide by 100
+    const requiredQuantity = eavesLength + rakesLength;
     
     roofAdjustmentLogger.logRuleDecision(ruleLog, 'Calculated required quantity', 
-      `(Eaves ${eavesLength} + Rakes ${rakesLength}) / 100 = ${requiredQuantity} LF`);
+      `Eaves ${eavesLength} + Rakes ${rakesLength} = ${requiredQuantity} LF`);
     
     const starterDescriptions = [
       this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL,
@@ -445,7 +459,7 @@ export class RoofAdjustmentEngine {
       
       // Add universal starter course
       const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL);
-      if (masterItem) {
+          if (masterItem) {
         const newLineNumber = `${items.length + 1}`;
         const newItem = this.addLineItem(
           this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL,
@@ -696,7 +710,7 @@ export class RoofAdjustmentEngine {
       
       this.adjustmentCounts.steep_roof_adjustments++;
     }
-    
+
     return adjustedItems;
   }
 
@@ -705,8 +719,9 @@ export class RoofAdjustmentEngine {
     
     const ridgesHipsLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_RIDGES_HIPS_LENGTH);
     const ridgesLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_LINE_LENGTHS_RIDGES);
-    const requiredQuantityRidgesHips = ridgesHipsLength / 100;
-    const requiredQuantityRidges = ridgesLength / 100;
+    // Ridge vents and caps are quoted in LF, so do NOT divide by 100
+    const requiredQuantityRidgesHips = ridgesHipsLength;
+    const requiredQuantityRidges = ridgesLength;
     
     let adjustedItems = [...items];
     
@@ -782,7 +797,8 @@ export class RoofAdjustmentEngine {
     
     const eavesLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_EAVES_LENGTH);
     const rakesLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_RAKES_LENGTH);
-    const requiredQuantity = (eavesLength + rakesLength) / 100;
+    // Drip edge is quoted in LF, so do NOT divide by 100
+    const requiredQuantity = eavesLength + rakesLength;
     
     const dripEdgeItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.DRIP_EDGE);
     
@@ -792,7 +808,7 @@ export class RoofAdjustmentEngine {
         items[index] = this.adjustQuantity(
           dripEdgeItem,
           requiredQuantity,
-          `Drip edge quantity adjusted to (Eaves + Rakes) / 100: ${requiredQuantity}`,
+          `Drip edge quantity adjusted to Eaves + Rakes: ${requiredQuantity} LF`,
           'Category A: Drip Edge Quantity Adjustment'
         );
         this.adjustmentCounts.drip_edge_adjustments++;
@@ -822,36 +838,64 @@ export class RoofAdjustmentEngine {
     const ruleLog = roofAdjustmentLogger.startRuleExecution('Step Flashing Adjustments', 'Category A');
     
     const stepFlashingLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_STEP_FLASHING_LENGTH);
-    const requiredQuantity = stepFlashingLength / 100;
     
-    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Calculated required quantity', 
-      `Total Step Flashing Length (${stepFlashingLength}) / 100 = ${requiredQuantity}`);
+    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Step flashing length found', 
+      `Total Step Flashing Length: ${stepFlashingLength} LF`);
     
-    const stepFlashingItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.STEP_FLASHING);
-    
-    if (stepFlashingItem) {
-      roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING, 
-        `Checking if quantity (${stepFlashingItem.quantity}) needs adjustment to ${requiredQuantity}`);
+    // Only proceed if step flashing length > 0
+    if (stepFlashingLength > 0) {
+      const stepFlashingItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.STEP_FLASHING);
       
-      // CRITICAL: Only increase quantity using max()
-      const newQuantity = Math.max(stepFlashingItem.quantity, requiredQuantity);
-      
-      if (newQuantity > stepFlashingItem.quantity) {
-        roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING, 'quantity', 
-          stepFlashingItem.quantity, newQuantity, `Quantity increased to max(current, required)`);
+      if (stepFlashingItem) {
+        roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING, 
+          `Found existing step flashing with quantity ${stepFlashingItem.quantity}, checking against required ${stepFlashingLength}`);
         
-        const index = items.findIndex(item => item === stepFlashingItem);
-        items[index] = this.adjustQuantity(
-          stepFlashingItem,
-          newQuantity,
-          `Step flashing quantity adjusted to max(${stepFlashingItem.quantity}, ${requiredQuantity}) = ${newQuantity}`,
-          'Category A: Step Flashing Quantity Adjustment'
-        );
-        this.adjustmentCounts.step_flashing_adjustments++;
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(stepFlashingItem.quantity, stepFlashingLength);
+        
+        if (newQuantity > stepFlashingItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING, 'quantity', 
+            stepFlashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Step Flashing Length)`);
+          
+          const index = items.findIndex(item => item === stepFlashingItem);
+          items[index] = this.adjustQuantity(
+            stepFlashingItem,
+            newQuantity,
+            `Step flashing quantity adjusted to max(${stepFlashingItem.quantity}, ${stepFlashingLength}) = ${newQuantity}`,
+            'Category A: Step Flashing Quantity Adjustment'
+          );
+          this.adjustmentCounts.step_flashing_adjustments++;
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${stepFlashingItem.quantity}) is already >= required (${stepFlashingLength})`);
+        }
       } else {
-        roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
-          `Current quantity (${stepFlashingItem.quantity}) is already >= required (${requiredQuantity})`);
+        // Add step flashing if missing
+        roofAdjustmentLogger.logRuleDecision(ruleLog, 'Step flashing not found', 
+          'Adding step flashing with quantity = Total Step Flashing Length');
+        
+        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STEP_FLASHING);
+        if (masterItem) {
+          const newItem = this.addLineItem(
+            this.EXACT_DESCRIPTIONS.STEP_FLASHING,
+            stepFlashingLength,
+            masterItem.unit,
+            masterItem.unit_price,
+            `${items.length + 1}`,
+            `Missing step flashing - added based on Total Step Flashing Length`,
+            'Category A: Step Flashing Addition'
+          );
+          items.push(newItem);
+          this.adjustmentCounts.step_flashing_adjustments++;
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING, 
+            stepFlashingLength, 'Added missing step flashing');
+        } else {
+          roofAdjustmentLogger.logWarning(ruleLog, `Step flashing not found in roof master macro: ${this.EXACT_DESCRIPTIONS.STEP_FLASHING}`);
+        }
       }
+    } else {
+      roofAdjustmentLogger.logRuleDecision(ruleLog, 'No step flashing needed', 
+        'Total Step Flashing Length is 0, skipping step flashing adjustments');
     }
     
     roofAdjustmentLogger.endRuleExecution(ruleLog);
@@ -859,47 +903,318 @@ export class RoofAdjustmentEngine {
   }
 
   private applyValleyMetalAdjustments(items: LineItem[], roofMeasurements: RoofMeasurements): LineItem[] {
-    console.log('🔧 Applying Category A: Valley Metal Adjustments');
+    const ruleLog = roofAdjustmentLogger.startRuleExecution('Valley Metal Adjustments', 'Category A');
     
-    const valleysLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_VALLEYS_LENGTH);
-    const requiredQuantity = valleysLength / 100;
+    const valleysLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_LINE_LENGTHS_VALLEYS);
     
-    return items.map(item => {
-      if (item.description === this.EXACT_DESCRIPTIONS.VALLEY_METAL ||
-          item.description === this.EXACT_DESCRIPTIONS.VALLEY_METAL_W) {
-        if (item.quantity < requiredQuantity) {
-          this.adjustmentCounts.valley_metal_adjustments++;
-          return this.adjustQuantity(
-            item,
-            requiredQuantity,
-            `Valley metal quantity adjusted to Total Valleys Length / 100: ${requiredQuantity}`,
+    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Valley metal length found', 
+      `Total Line Lengths (Valleys): ${valleysLength} LF`);
+    
+    // Only proceed if valleys length > 0
+    if (valleysLength > 0) {
+      const valleyMetalItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.VALLEY_METAL);
+      const valleyMetalWItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.VALLEY_METAL_W);
+      
+      // Check for "Valley metal"
+      if (valleyMetalItem) {
+        roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.VALLEY_METAL, 
+          `Found existing valley metal with quantity ${valleyMetalItem.quantity}, checking against required ${valleysLength}`);
+        
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(valleyMetalItem.quantity, valleysLength);
+        
+        if (newQuantity > valleyMetalItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.VALLEY_METAL, 'quantity', 
+            valleyMetalItem.quantity, newQuantity, `Quantity increased to max(current, Total Line Lengths (Valleys))`);
+          
+          const index = items.findIndex(item => item === valleyMetalItem);
+          items[index] = this.adjustQuantity(
+            valleyMetalItem,
+            newQuantity,
+            `Valley metal quantity adjusted to max(${valleyMetalItem.quantity}, ${valleysLength}) = ${newQuantity}`,
             'Category A: Valley Metal Quantity Adjustment'
           );
+          this.adjustmentCounts.valley_metal_adjustments++;
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${valleyMetalItem.quantity}) is already >= required (${valleysLength})`);
         }
       }
-      return item;
-    });
+      
+      // Check for "Valley metal - (W) profile"
+      if (valleyMetalWItem) {
+        roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.VALLEY_METAL_W, 
+          `Found existing valley metal W profile with quantity ${valleyMetalWItem.quantity}, checking against required ${valleysLength}`);
+        
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(valleyMetalWItem.quantity, valleysLength);
+        
+        if (newQuantity > valleyMetalWItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.VALLEY_METAL_W, 'quantity', 
+            valleyMetalWItem.quantity, newQuantity, `Quantity increased to max(current, Total Line Lengths (Valleys))`);
+          
+          const index = items.findIndex(item => item === valleyMetalWItem);
+          items[index] = this.adjustQuantity(
+            valleyMetalWItem,
+            newQuantity,
+            `Valley metal W profile quantity adjusted to max(${valleyMetalWItem.quantity}, ${valleysLength}) = ${newQuantity}`,
+            'Category A: Valley Metal W Profile Quantity Adjustment'
+          );
+          this.adjustmentCounts.valley_metal_adjustments++;
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${valleyMetalWItem.quantity}) is already >= required (${valleysLength})`);
+        }
+      }
+      
+      if (!valleyMetalItem && !valleyMetalWItem) {
+        roofAdjustmentLogger.logRuleDecision(ruleLog, 'No valley metal items found', 
+          'No valley metal items to adjust');
+      }
+    } else {
+      roofAdjustmentLogger.logRuleDecision(ruleLog, 'No valley metal needed', 
+        'Total Line Lengths (Valleys) is 0, skipping valley metal adjustments');
+    }
+    
+    roofAdjustmentLogger.endRuleExecution(ruleLog);
+    return items;
   }
 
   private applyAluminumFlashingAdjustments(items: LineItem[], roofMeasurements: RoofMeasurements): LineItem[] {
-    console.log('🔧 Applying Category A: Aluminum Flashing Adjustments');
+    const ruleLog = roofAdjustmentLogger.startRuleExecution('Aluminum/Endwall Flashing Adjustments', 'Category A');
     
     const flashingLength = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_FLASHING_LENGTH);
-    const requiredQuantity = flashingLength / 100;
     
-    return items.map(item => {
-      if (item.description === this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING) {
-        if (item.quantity < requiredQuantity) {
-          return this.adjustQuantity(
-            item,
-            requiredQuantity,
-            `Aluminum flashing quantity adjusted to Total Flashing Length / 100: ${requiredQuantity}`,
-            'Category A: Aluminum Flashing Quantity Adjustment'
+    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Endwall flashing length found', 
+      `Total Flashing Length: ${flashingLength} LF`);
+    
+    // Only proceed if flashing length > 0
+    if (flashingLength > 0) {
+      const flashingItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
+      
+      if (flashingItem) {
+        roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
+          `Found existing endwall flashing with quantity ${flashingItem.quantity}, checking against required ${flashingLength}`);
+        
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(flashingItem.quantity, flashingLength);
+        
+        if (newQuantity > flashingItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'quantity', 
+            flashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
+          
+          const index = items.findIndex(item => item === flashingItem);
+          items[index] = this.adjustQuantity(
+            flashingItem,
+            newQuantity,
+            `Endwall flashing quantity adjusted to max(${flashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
+            'Category A: Endwall Flashing Quantity Adjustment'
           );
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${flashingItem.quantity}) is already >= required (${flashingLength})`);
+        }
+      } else {
+        // Add endwall flashing if missing
+        roofAdjustmentLogger.logRuleDecision(ruleLog, 'Endwall flashing not found', 
+          'Adding endwall flashing with quantity = Total Flashing Length');
+        
+        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
+        if (masterItem) {
+          const newItem = this.addLineItem(
+            this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING,
+            flashingLength,
+            masterItem.unit,
+            masterItem.unit_price,
+            `${items.length + 1}`,
+            `Missing endwall flashing - added based on Total Flashing Length`,
+            'Category A: Endwall Flashing Addition'
+          );
+          items.push(newItem);
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
+            flashingLength, 'Added missing endwall flashing');
+        } else {
+          roofAdjustmentLogger.logWarning(ruleLog, `Endwall flashing not found in roof master macro: ${this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING}`);
         }
       }
-      return item;
-    });
+    } else {
+      roofAdjustmentLogger.logRuleDecision(ruleLog, 'No endwall flashing needed', 
+        'Total Flashing Length is 0, skipping endwall flashing adjustments');
+    }
+    
+    roofAdjustmentLogger.endRuleExecution(ruleLog);
+    return items;
+  }
+
+  private applyFeltAdjustments(items: LineItem[], roofMeasurements: RoofMeasurements): LineItem[] {
+    const ruleLog = roofAdjustmentLogger.startRuleExecution('Felt Adjustments', 'Category A');
+    
+    // Get all pitch areas
+    const area1_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_1_12);
+    const area2_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_2_12);
+    const area3_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_3_12);
+    const area4_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_4_12);
+    const area5_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_5_12);
+    const area6_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_6_12);
+    const area7_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_7_12);
+    const area8_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_8_12);
+    const area9_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_9_12);
+    const area10_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_10_12);
+    const area11_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_11_12);
+    const area12_12 = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_12_12);
+    const area12_plus = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.AREA_PITCH_12_PLUS);
+    
+    let adjustedItems = [...items];
+    
+    // Rule 1: Low slope felt (1/12 to 4/12)
+    const lowSlopeArea = area1_12 + area2_12 + area3_12 + area4_12;
+    if (lowSlopeArea > 0) {
+      const requiredQuantity = lowSlopeArea / 100;
+      
+      roofAdjustmentLogger.logRuleDecision(ruleLog, 'Low slope felt calculation', 
+        `Pitches 1/12-4/12 total: ${lowSlopeArea} sq ft, required quantity: ${requiredQuantity}`);
+      
+      const feltItem = this.findLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE);
+      
+      if (feltItem) {
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(feltItem.quantity, requiredQuantity);
+        
+        if (newQuantity > feltItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE, 'quantity', 
+            feltItem.quantity, newQuantity, `Quantity increased to max(current, low slope area / 100)`);
+          
+          const index = adjustedItems.findIndex(item => item === feltItem);
+          adjustedItems[index] = this.adjustQuantity(
+            feltItem,
+            newQuantity,
+            `Low slope felt quantity adjusted to max(${feltItem.quantity}, ${requiredQuantity}) = ${newQuantity}`,
+            'Category A: Low Slope Felt Adjustment (1/12-4/12)'
+          );
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${feltItem.quantity}) is already >= required (${requiredQuantity})`);
+        }
+      } else {
+        // Add low slope felt if missing
+        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE);
+        if (masterItem) {
+          const newItem = this.addLineItem(
+            this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE,
+            requiredQuantity,
+            masterItem.unit,
+            masterItem.unit_price,
+            `${adjustedItems.length + 1}`,
+            `Low slope felt added for pitches 1/12-4/12`,
+            'Category A: Low Slope Felt Addition (1/12-4/12)'
+          );
+          adjustedItems.push(newItem);
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE, 
+            requiredQuantity, 'Added missing low slope felt');
+        }
+      }
+    }
+    
+    // Rule 2: Standard felt (5/12 to 8/12)
+    const standardArea = area5_12 + area6_12 + area7_12 + area8_12;
+    if (standardArea > 0) {
+      const requiredQuantity = standardArea / 100;
+      
+      roofAdjustmentLogger.logRuleDecision(ruleLog, 'Standard felt calculation', 
+        `Pitches 5/12-8/12 total: ${standardArea} sq ft, required quantity: ${requiredQuantity}`);
+      
+      const feltItem = this.findLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.FELT_15LB);
+      
+      if (feltItem) {
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(feltItem.quantity, requiredQuantity);
+        
+        if (newQuantity > feltItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB, 'quantity', 
+            feltItem.quantity, newQuantity, `Quantity increased to max(current, standard area / 100)`);
+          
+          const index = adjustedItems.findIndex(item => item === feltItem);
+          adjustedItems[index] = this.adjustQuantity(
+            feltItem,
+            newQuantity,
+            `Standard felt quantity adjusted to max(${feltItem.quantity}, ${requiredQuantity}) = ${newQuantity}`,
+            'Category A: Standard Felt Adjustment (5/12-8/12)'
+          );
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${feltItem.quantity}) is already >= required (${requiredQuantity})`);
+        }
+      } else {
+        // Add standard felt if missing
+        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.FELT_15LB);
+        if (masterItem) {
+          const newItem = this.addLineItem(
+            this.EXACT_DESCRIPTIONS.FELT_15LB,
+            requiredQuantity,
+            masterItem.unit,
+            masterItem.unit_price,
+            `${adjustedItems.length + 1}`,
+            `Standard felt added for pitches 5/12-8/12`,
+            'Category A: Standard Felt Addition (5/12-8/12)'
+          );
+          adjustedItems.push(newItem);
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB, 
+            requiredQuantity, 'Added missing standard felt');
+        }
+      }
+    }
+    
+    // Rule 3: Heavy felt (9/12 to 12/12+)
+    const heavyArea = area9_12 + area10_12 + area11_12 + area12_12 + area12_plus;
+    if (heavyArea > 0) {
+      const requiredQuantity = heavyArea / 100;
+      
+      roofAdjustmentLogger.logRuleDecision(ruleLog, 'Heavy felt calculation', 
+        `Pitches 9/12-12/12+ total: ${heavyArea} sq ft, required quantity: ${requiredQuantity}`);
+      
+      const feltItem = this.findLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.FELT_30LB);
+      
+      if (feltItem) {
+        // CRITICAL: Only increase quantity using max()
+        const newQuantity = Math.max(feltItem.quantity, requiredQuantity);
+        
+        if (newQuantity > feltItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.FELT_30LB, 'quantity', 
+            feltItem.quantity, newQuantity, `Quantity increased to max(current, heavy area / 100)`);
+          
+          const index = adjustedItems.findIndex(item => item === feltItem);
+          adjustedItems[index] = this.adjustQuantity(
+            feltItem,
+            newQuantity,
+            `Heavy felt quantity adjusted to max(${feltItem.quantity}, ${requiredQuantity}) = ${newQuantity}`,
+            'Category A: Heavy Felt Adjustment (9/12-12/12+)'
+          );
+        } else {
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+            `Current quantity (${feltItem.quantity}) is already >= required (${requiredQuantity})`);
+        }
+      } else {
+        // Add heavy felt if missing
+        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.FELT_30LB);
+        if (masterItem) {
+          const newItem = this.addLineItem(
+            this.EXACT_DESCRIPTIONS.FELT_30LB,
+            requiredQuantity,
+            masterItem.unit,
+            masterItem.unit_price,
+            `${adjustedItems.length + 1}`,
+            `Heavy felt added for pitches 9/12-12/12+`,
+            'Category A: Heavy Felt Addition (9/12-12/12+)'
+          );
+          adjustedItems.push(newItem);
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_30LB, 
+            requiredQuantity, 'Added missing heavy felt');
+        }
+      }
+    }
+    
+    roofAdjustmentLogger.endRuleExecution(ruleLog);
+    return adjustedItems;
   }
 
   public processAdjustments(
@@ -943,6 +1258,7 @@ export class RoofAdjustmentEngine {
     adjustedItems = this.applyStepFlashingAdjustments(adjustedItems, roofMeasurements);
     adjustedItems = this.applyValleyMetalAdjustments(adjustedItems, roofMeasurements);
     adjustedItems = this.applyAluminumFlashingAdjustments(adjustedItems, roofMeasurements);
+    adjustedItems = this.applyFeltAdjustments(adjustedItems, roofMeasurements);
 
     const totalAdjustments = Object.values(this.adjustmentCounts).reduce((sum, count) => sum + count, 0);
 
