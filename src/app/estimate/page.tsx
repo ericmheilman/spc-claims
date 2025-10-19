@@ -8660,7 +8660,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>Great! The following shingle removal items were found in your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundRemovalItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-green-700">•</span> {item.description}
