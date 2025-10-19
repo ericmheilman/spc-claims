@@ -8866,7 +8866,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>Great! The following installation shingle items were found in your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundInstallationItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-green-700">•</span> {item.description}
@@ -9165,7 +9165,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>Great! The following chimney flashing items were found in your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundChimneyItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-green-700">•</span> {item.description}
@@ -9480,7 +9480,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>Great! The following additional layers items were found in your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundAdditionalLayersItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-green-700">•</span> {item.description}
@@ -9694,7 +9694,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>Great! The following permit items were found in your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundPermitItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-green-700">•</span> {item.description}
@@ -10319,7 +10319,7 @@ function EstimatePageContent() {
                       <p className="text-gray-700 mb-3">
                         <strong>Great! The following O&P items were found in your estimate:</strong>
                       </p>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-none space-y-2">
                         {foundOPItems.map((item, index) => (
                           <li key={index} className="text-gray-700 font-medium">
                             <span className="text-green-700">•</span> {item.description}
