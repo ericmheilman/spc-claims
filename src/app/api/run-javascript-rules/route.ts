@@ -9,7 +9,8 @@ export async function POST(request: NextRequest) {
     
     console.log('Received request to run JavaScript rule engine with data:', {
       lineItemsCount: inputData.line_items?.length || 0,
-      hasRoofMeasurements: !!inputData.roof_measurements
+      hasRoofMeasurements: !!inputData.roof_measurements,
+      wastePercentage: inputData.waste_percentage
     });
 
     // Load roof master macro CSV
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
     // Process adjustments
     const results = engine.processAdjustments(
       inputData.line_items,
-      inputData.roof_measurements
+      inputData.roof_measurements,
+      inputData.waste_percentage
     );
 
     console.log('✅ JavaScript rule engine executed successfully');

@@ -380,15 +380,15 @@ export class RoofAdjustmentEngine {
   }
 
   // Category A: Fully Automatable Calculations
-  private applyShingleQuantityAdjustments(items: LineItem[], roofMeasurements: RoofMeasurements): LineItem[] {
+  private applyShingleQuantityAdjustments(items: LineItem[], roofMeasurements: RoofMeasurements, wastePercentage: number): LineItem[] {
     const ruleLog = roofAdjustmentLogger.startRuleExecution('Shingle Quantity Adjustments', 'Category A');
     
     const totalRoofArea = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_ROOF_AREA);
     const baseQuantity = totalRoofArea / 100; // Shingles are quoted in SQ, so divide by 100
-    const suggestedWaste = 0.10; // 10% waste percentage
+    const suggestedWaste = wastePercentage / 100; // Convert percentage to decimal
     
     roofAdjustmentLogger.logRuleDecision(ruleLog, 'Calculated base quantities', 
-      `Total Roof Area (${totalRoofArea} sq ft) / 100 = ${baseQuantity} SQ, Waste: ${suggestedWaste * 100}%`);
+      `Total Roof Area (${totalRoofArea} sq ft) / 100 = ${baseQuantity} SQ, Waste: ${wastePercentage}%`);
     
     let adjustedItems = [...items];
     
@@ -1488,11 +1488,13 @@ export class RoofAdjustmentEngine {
 
   public processAdjustments(
     lineItems: LineItem[],
-    roofMeasurements: RoofMeasurements
+    roofMeasurements: RoofMeasurements,
+    wastePercentage?: number | null
   ): AdjustmentResults {
     console.log('🏗️ Starting Comprehensive Roof Adjustment Engine...');
     console.log(`📊 Processing ${lineItems.length} line items`);
     console.log(`📐 Available roof measurements: ${Object.keys(roofMeasurements).length}`);
+    console.log(`📊 Waste percentage provided: ${wastePercentage !== null && wastePercentage !== undefined ? `${wastePercentage}%` : 'Not provided'}`);
 
     // Reset audit log and counts
     this.auditLog = [];
@@ -1518,7 +1520,12 @@ export class RoofAdjustmentEngine {
     adjustedItems = this.applyUnitCostAdjustments(adjustedItems);
     
     // Category A: Fully Automatable Calculations
-    adjustedItems = this.applyShingleQuantityAdjustments(adjustedItems, roofMeasurements);
+    // Shingle Quantity Adjustments (only if waste percentage is provided)
+    if (wastePercentage !== null && wastePercentage !== undefined) {
+      adjustedItems = this.applyShingleQuantityAdjustments(adjustedItems, roofMeasurements, wastePercentage);
+    } else {
+      console.log('⏭️ Skipping shingle quantity adjustments - waste percentage not provided');
+    }
     adjustedItems = this.applyRoundingAdjustments(adjustedItems);
     adjustedItems = this.applyStarterCourseAdjustments(adjustedItems, roofMeasurements);
     adjustedItems = this.applySteepRoofAdjustments(adjustedItems, roofMeasurements);

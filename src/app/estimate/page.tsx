@@ -1861,7 +1861,8 @@ function EstimatePageContent() {
           category: item.category || 'Unknown',
           page_number: item.page_number || 1
         })),
-        roof_measurements: roofMeasurements
+        roof_measurements: roofMeasurements,
+        waste_percentage: wastePercentageStepCompleted ? wastePercentage : null
       };
 
       console.log('Sending data to JavaScript script:', jsInputData);
