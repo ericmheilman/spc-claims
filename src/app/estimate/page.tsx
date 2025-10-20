@@ -278,8 +278,10 @@ function EstimatePageContent() {
     lineNumber: string;
     currentDescription: string;
     currentQuantity: number;
+    currentUnitPrice?: number;
     suggestedDescription?: string;
     suggestedQuantity?: number;
+    suggestedUnitPrice?: number;
     changeType: 'quantity_only' | 'description_and_quantity' | 'add_item';
     reason: string;
     approved: boolean | null;
@@ -2847,8 +2849,10 @@ function EstimatePageContent() {
       lineNumber: string;
       currentDescription: string;
       currentQuantity: number;
+      currentUnitPrice?: number;
       suggestedDescription?: string;
       suggestedQuantity?: number;
+      suggestedUnitPrice?: number;
       changeType: 'quantity_only' | 'description_and_quantity' | 'add_item';
       reason: string;
       approved: boolean | null;
@@ -2898,12 +2902,25 @@ function EstimatePageContent() {
         const needsUpdate = requiredQuantity > item.quantity || rule.replace;
         
         if (needsUpdate) {
+          // Get unit price from roof master macro for suggested description
+          let suggestedUnitPrice = item.unit_price;
+          if (rule.replace) {
+            const macroItem = Array.from(roofMasterMacro.values()).find((macroItem: any) => 
+              macroItem.description === rule.replace
+            );
+            if (macroItem) {
+              suggestedUnitPrice = macroItem.unit_price;
+            }
+          }
+          
           suggestions.push({
             lineNumber: item.line_number || 'N/A',
             currentDescription: item.description,
             currentQuantity: item.quantity,
+            currentUnitPrice: item.unit_price,
             suggestedDescription: rule.replace || undefined,
             suggestedQuantity: Math.max(item.quantity, requiredQuantity),
+            suggestedUnitPrice: suggestedUnitPrice,
             changeType: rule.replace ? 'description_and_quantity' : 'quantity_only',
             reason: rule.replace 
               ? `Replace "${item.description}" with "${rule.replace}" and adjust quantity for ${wastePercentage}% waste`
@@ -2922,12 +2939,25 @@ function EstimatePageContent() {
         const needsUpdate = requiredQuantity > item.quantity || rule.replace;
         
         if (needsUpdate) {
+          // Get unit price from roof master macro for suggested description
+          let suggestedUnitPrice = item.unit_price;
+          if (rule.replace) {
+            const macroItem = Array.from(roofMasterMacro.values()).find((macroItem: any) => 
+              macroItem.description === rule.replace
+            );
+            if (macroItem) {
+              suggestedUnitPrice = macroItem.unit_price;
+            }
+          }
+          
           suggestions.push({
             lineNumber: item.line_number || 'N/A',
             currentDescription: item.description,
             currentQuantity: item.quantity,
+            currentUnitPrice: item.unit_price,
             suggestedDescription: rule.replace || undefined,
             suggestedQuantity: Math.max(item.quantity, requiredQuantity),
+            suggestedUnitPrice: suggestedUnitPrice,
             changeType: rule.replace ? 'description_and_quantity' : 'quantity_only',
             reason: rule.replace
               ? `Replace "${item.description}" with "${rule.replace}" and adjust quantity (no waste for removal)`
@@ -2948,12 +2978,19 @@ function EstimatePageContent() {
     );
 
     if (hasTearOffNoHaul && !hasDumpster) {
+      // Get unit price from roof master macro for dumpster
+      const dumpsterMacroItem = Array.from(roofMasterMacro.values()).find((macroItem: any) => 
+        macroItem.description === "Dumpster load - Approx. 12 yards, 1-3 tons of debris"
+      );
+      
       suggestions.push({
         lineNumber: 'NEW',
         currentDescription: '',
         currentQuantity: 0,
+        currentUnitPrice: 0,
         suggestedDescription: "Dumpster load - Approx. 12 yards, 1-3 tons of debris",
         suggestedQuantity: 1,
+        suggestedUnitPrice: dumpsterMacroItem?.unit_price || 0,
         changeType: 'add_item',
         reason: 'Dumpster required for tear-off without haul off',
         approved: null
@@ -3044,32 +3081,30 @@ function EstimatePageContent() {
         if (itemIndex !== -1) {
           const updatedItem = { ...currentItems[itemIndex] };
           
-          if (adjustment.suggestedDescription) {
-            // Get pricing from roof master macro for the new description
-            const macroItem = Array.from(roofMasterMacro.values()).find((item: any) => 
-              item.description === adjustment.suggestedDescription
-            );
-            
-            updatedItem.description = adjustment.suggestedDescription;
-            
-            if (macroItem) {
-              updatedItem.unit_price = macroItem.unit_price;
-              updatedItem.unit = macroItem.unit;
-              // Recalculate RCV with new unit price and quantity
-              const quantity = adjustment.suggestedQuantity !== undefined ? adjustment.suggestedQuantity : updatedItem.quantity;
-              updatedItem.RCV = macroItem.unit_price * quantity;
-              console.log(`✅ Updated description and pricing: ${adjustment.currentDescription} → ${adjustment.suggestedDescription} (Unit Price: $${macroItem.unit_price})`);
-            } else {
-              console.log(`⚠️ No roof master macro item found for: ${adjustment.suggestedDescription}`);
-            }
-          }
-          
-          if (adjustment.suggestedQuantity !== undefined) {
-            updatedItem.quantity = adjustment.suggestedQuantity;
-            // Recalculate RCV with new quantity
-            updatedItem.RCV = updatedItem.unit_price * adjustment.suggestedQuantity;
-            console.log(`✅ Updated quantity: ${adjustment.currentQuantity} → ${adjustment.suggestedQuantity}`);
-          }
+                 if (adjustment.suggestedDescription) {
+                   // Get pricing from roof master macro for the new description
+                   const macroItem = Array.from(roofMasterMacro.values()).find((item: any) => 
+                     item.description === adjustment.suggestedDescription
+                   );
+                   
+                   updatedItem.description = adjustment.suggestedDescription;
+                   
+                   if (macroItem) {
+                     updatedItem.unit_price = macroItem.unit_price;
+                     updatedItem.unit = macroItem.unit;
+                     console.log(`✅ Updated description and pricing: ${adjustment.currentDescription} → ${adjustment.suggestedDescription} (Unit Price: $${macroItem.unit_price})`);
+                   } else {
+                     console.log(`⚠️ No roof master macro item found for: ${adjustment.suggestedDescription}`);
+                   }
+                 }
+                 
+                 if (adjustment.suggestedQuantity !== undefined) {
+                   updatedItem.quantity = adjustment.suggestedQuantity;
+                   console.log(`✅ Updated quantity: ${adjustment.currentQuantity} → ${adjustment.suggestedQuantity}`);
+                 }
+                 
+                 // Always recalculate RCV after any changes
+                 updatedItem.RCV = updatedItem.unit_price * updatedItem.quantity;
           
           currentItems[itemIndex] = updatedItem;
         }
@@ -10796,9 +10831,16 @@ function EstimatePageContent() {
                                     <p className="text-sm text-gray-700">
                                       <span className="font-medium">{adjustment.currentDescription}</span>
                                     </p>
-                                    <p className="text-xs text-gray-600 mt-1">
-                                      Quantity: <strong>{adjustment.currentQuantity}</strong>
-                                    </p>
+                                    <div className="flex gap-4 mt-1">
+                                      <p className="text-xs text-gray-600">
+                                        Quantity: <strong>{adjustment.currentQuantity}</strong>
+                                      </p>
+                                      {adjustment.currentUnitPrice !== undefined && (
+                                        <p className="text-xs text-gray-600">
+                                          Unit Price: <strong>${adjustment.currentUnitPrice.toFixed(2)}</strong>
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
 
@@ -10813,9 +10855,16 @@ function EstimatePageContent() {
                                     </p>
                                   )}
                                   {adjustment.suggestedQuantity !== undefined && (
-                                    <p className="text-xs text-gray-700 mt-1">
-                                      Quantity: <strong>{adjustment.suggestedQuantity.toFixed(2)}</strong>
-                                    </p>
+                                    <div className="flex gap-4 mt-1">
+                                      <p className="text-xs text-gray-700">
+                                        Quantity: <strong>{adjustment.suggestedQuantity.toFixed(2)}</strong>
+                                      </p>
+                                      {adjustment.suggestedUnitPrice !== undefined && (
+                                        <p className="text-xs text-gray-700">
+                                          Unit Price: <strong>${adjustment.suggestedUnitPrice.toFixed(2)}</strong>
+                                        </p>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
 
