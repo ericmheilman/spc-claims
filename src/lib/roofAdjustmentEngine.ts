@@ -204,19 +204,27 @@ export class RoofAdjustmentEngine {
   }
 
   private getRoofMasterItem(description: string): RoofMasterItem | null {
+    console.log(`🔍 Looking up roof master item for: "${description}"`);
+    console.log(`📊 Roof master macro has ${this.roofMasterMacro.size} items`);
+    
     // Try exact match first
     if (this.roofMasterMacro.has(description)) {
-      return this.roofMasterMacro.get(description)!;
+      const item = this.roofMasterMacro.get(description)!;
+      console.log(`✅ Found exact match: ${item.description} - $${item.unit_price}`);
+      return item;
     }
 
     // Try case-insensitive match
     const lowerDesc = description.toLowerCase();
     for (const [key, value] of this.roofMasterMacro.entries()) {
       if (key.toLowerCase() === lowerDesc) {
+        console.log(`✅ Found case-insensitive match: ${key} - $${value.unit_price}`);
         return value;
       }
     }
 
+    console.log(`❌ No roof master macro item found for: "${description}"`);
+    console.log(`📋 Available items (first 5):`, Array.from(this.roofMasterMacro.keys()).slice(0, 5));
     return null;
   }
 
