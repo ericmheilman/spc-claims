@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Download, Share2, Upload } from 'lucide-react';
 import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
@@ -696,12 +696,22 @@ function EstimatePageContent() {
     loadRoofMasterMacro();
   }, []);
 
+  // Calculate waste percentage calculations
+  const calculateWasteCalculations = useCallback((percentage: number) => {
+    const totalRoofArea = extractedRoofMeasurements["Total Roof Area"]?.value || 0;
+    const areaSqft = totalRoofArea * (percentage / 100);
+    const squares = Math.round((areaSqft / 100) * 10) / 10; // Round to 1 decimal place
+    
+    setWasteCalculations({ areaSqft, squares });
+    console.log(`📊 Waste calculations: ${percentage}% of ${totalRoofArea} sqft = ${areaSqft} sqft = ${squares} squares`);
+  }, [extractedRoofMeasurements]);
+
   // Calculate waste calculations when percentage changes
   useEffect(() => {
     if (extractedRoofMeasurements["Total Roof Area"]?.value) {
       calculateWasteCalculations(wastePercentage);
     }
-  }, [wastePercentage, extractedRoofMeasurements]);
+  }, [wastePercentage, extractedRoofMeasurements, calculateWasteCalculations]);
 
   // Quick Switch Definitions
   const quickSwitchOptions: Record<string, string> = {
@@ -2378,16 +2388,6 @@ function EstimatePageContent() {
       default:
         console.log('❌ Unknown workflow step:', currentStep);
     }
-  };
-
-  // Calculate waste percentage calculations
-  const calculateWasteCalculations = (percentage: number) => {
-    const totalRoofArea = extractedRoofMeasurements["Total Roof Area"]?.value || 0;
-    const areaSqft = totalRoofArea * (percentage / 100);
-    const squares = Math.round((areaSqft / 100) * 10) / 10; // Round to 1 decimal place
-    
-    setWasteCalculations({ areaSqft, squares });
-    console.log(`📊 Waste calculations: ${percentage}% of ${totalRoofArea} sqft = ${areaSqft} sqft = ${squares} squares`);
   };
 
   // Apply shingle adjustment rules based on waste percentage
