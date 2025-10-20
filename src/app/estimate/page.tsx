@@ -1341,6 +1341,21 @@ function EstimatePageContent() {
     }
   };
 
+  // Roof Master Macro Export function
+  const handleRmmExport = () => {
+    try {
+      // Create a download link for the roof master macro CSV
+      const link = document.createElement('a');
+      link.href = '/roof_master_macro.csv';
+      link.download = 'roof_master_macro.csv';
+      link.click();
+      console.log('✅ Roof master macro CSV exported successfully');
+    } catch (error) {
+      console.error('❌ Error exporting roof master macro CSV:', error);
+      alert('Failed to export roof master macro CSV. Please try again.');
+    }
+  };
+
   // Roof Master Macro CRUD functions
   const handleAddRMMItem = () => {
     if (!newRMMItem.description.trim() || !newRMMItem.unit.trim() || newRMMItem.unit_price <= 0) {
@@ -4922,6 +4937,15 @@ function EstimatePageContent() {
                 <Upload className="inline-block w-4 h-4 mr-2" />
                 {isUploadingRMM ? 'Uploading...' : 'Upload Roof Master Macro'}
               </label>
+              
+              {/* Export Roof Master Macro Button */}
+              <button
+                onClick={handleRmmExport}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-purple-600 text-white hover:bg-purple-700 border border-purple-500"
+              >
+                <Download className="inline-block w-4 h-4 mr-2" />
+                Export Roof Master Macro
+              </button>
               
               {/* Manage Roof Master Macro Button */}
               <button
