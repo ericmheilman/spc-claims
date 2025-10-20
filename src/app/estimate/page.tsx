@@ -2812,7 +2812,7 @@ function EstimatePageContent() {
   };
 
   // Handle waste percentage confirmation
-  const handleWastePercentageConfirmation = () => {
+  const handleWastePercentageConfirmation = async () => {
     console.log('✅ Waste percentage confirmed:', wastePercentage);
     console.log('📊 Calculated Area (sqft):', wasteCalculations?.areaSqft);
     console.log('📊 Calculated Squares:', wasteCalculations?.squares);
@@ -2825,8 +2825,20 @@ function EstimatePageContent() {
     setShowWastePercentageModal(false);
     setWastePercentageStepCompleted(true);
     
-    // Proceed to next workflow step (shingle adjustments)
-    proceedToNextWorkflowStep('waste_percentage');
+    // If no suggestions, skip directly to JavaScript rules
+    if (suggestions.length === 0) {
+      console.log('🔄 No shingle adjustments needed, running JavaScript rules directly...');
+      try {
+        await runJavaScriptRules(extractedLineItems, extractedRoofMeasurements, wastePercentage);
+      } catch (error) {
+        console.error('❌ Error running JavaScript rules:', error);
+        // Continue with workflow even if JavaScript rules fail
+      }
+      proceedToNextWorkflowStep('shingle_adjustments');
+    } else {
+      // Proceed to next workflow step (shingle adjustments)
+      proceedToNextWorkflowStep('waste_percentage');
+    }
   };
 
   // Handle approval/rejection of individual shingle adjustment
@@ -2839,7 +2851,7 @@ function EstimatePageContent() {
   };
 
   // Apply all approved shingle adjustments
-  const applyApprovedShingleAdjustments = () => {
+  const applyApprovedShingleAdjustments = async () => {
     console.log('🔧 Applying approved shingle adjustments...');
     
     let currentItems = [...(ruleResults?.line_items || extractedLineItems)];
@@ -2928,7 +2940,12 @@ function EstimatePageContent() {
     
     // Run JavaScript rules after shingle adjustments are applied
     console.log('🔄 Running JavaScript rules after shingle adjustments...');
-    runJavaScriptRules(currentItems, extractedRoofMeasurements, wastePercentage);
+    try {
+      await runJavaScriptRules(currentItems, extractedRoofMeasurements, wastePercentage);
+    } catch (error) {
+      console.error('❌ Error running JavaScript rules:', error);
+      // Continue with workflow even if JavaScript rules fail
+    }
     
     proceedToNextWorkflowStep('shingle_adjustments');
   };
