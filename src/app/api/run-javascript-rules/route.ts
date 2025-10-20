@@ -99,6 +99,13 @@ Remove Additional charge for steep roof - 10/12 - 12/12 slope,SQ,25.83`;
     }
 
     console.log(`📊 Loaded ${Object.keys(roofMasterMacroData).length} items from roof master macro`);
+    
+    // Debug: Show first few items
+    const firstItems = Object.keys(roofMasterMacroData).slice(0, 3);
+    console.log(`🔍 First 3 roof master macro items:`, firstItems.map(key => ({
+      description: key,
+      unit_price: roofMasterMacroData[key].unit_price
+    })));
 
     // Initialize the adjustment engine
     const engine = new RoofAdjustmentEngine(roofMasterMacroData);
