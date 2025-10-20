@@ -1897,7 +1897,72 @@ function EstimatePageContent() {
     }
   };
 
-  // JavaScript Rules Engine function
+  // JavaScript Rules Engine function (internal version for workflow)
+  const runJavaScriptRules = async (lineItems: any[], roofMeasurements: any, wastePct: number) => {
+    console.log('🔄 Running JavaScript rules internally...');
+    
+    try {
+      // Prepare data for JavaScript script
+      const jsInputData = {
+        line_items: lineItems.map(item => ({
+          line_number: item.line_number || 'N/A',
+          description: item.description || 'Unknown',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'EA',
+          unit_price: item.unit_price || 0,
+          RCV: item.RCV || 0,
+          age_life: item.age_life || '',
+          condition: item.condition || '',
+          dep_percent: item.dep_percent || 0,
+          depreciation_amount: item.depreciation_amount || 0,
+          ACV: item.ACV || 0,
+          location_room: item.location_room || 'Unknown',
+          category: item.category || 'Unknown',
+          page_number: item.page_number || 1
+        })),
+        roof_measurements: roofMeasurements,
+        waste_percentage: wastePct
+      };
+
+      console.log('Sending data to JavaScript script:', jsInputData);
+
+      // Call the JavaScript rule engine API endpoint
+      const response = await fetch('/api/run-javascript-rules', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(jsInputData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`JavaScript rule engine failed: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ JavaScript rule engine completed:', result);
+
+      // Update state with results
+      if (result.line_items) {
+        setRuleResults({
+          line_items: result.line_items,
+          total_adjustments: result.totalAdjustments || 0,
+          total_additions: result.totalAdditions || 0,
+          audit_log: result.auditLog || []
+        });
+        setCurrentSPCLineItems(result.line_items);
+        setLastUpdateTime(Date.now());
+      }
+
+      return result;
+    } catch (error) {
+      console.error('❌ JavaScript rule engine error:', error);
+      throw error;
+    }
+  };
+
+  // JavaScript Rules Engine function (UI version)
   const runJavaScriptRuleEngine = async () => {
     console.log('=== RUNNING JAVASCRIPT RULE ENGINE ===');
     setIsRunningJSRules(true);
@@ -1942,45 +2007,9 @@ function EstimatePageContent() {
 
       console.log('📊 Using LIVE roof measurements:', roofMeasurements);
 
-      // Prepare data for JavaScript script
-      const jsInputData = {
-        line_items: extractedLineItems.map(item => ({
-          line_number: item.line_number || 'N/A',
-          description: item.description || 'Unknown',
-          quantity: item.quantity || 0,
-          unit: item.unit || 'EA',
-          unit_price: item.unit_price || 0,
-          RCV: item.RCV || 0,
-          age_life: item.age_life || '',
-          condition: item.condition || '',
-          dep_percent: item.dep_percent || 0,
-          depreciation_amount: item.depreciation_amount || 0,
-          ACV: item.ACV || 0,
-          location_room: item.location_room || 'Unknown',
-          category: item.category || 'Unknown',
-          page_number: item.page_number || 1
-        })),
-        roof_measurements: roofMeasurements,
-        waste_percentage: wastePercentageStepCompleted ? wastePercentage : null
-      };
-
-      console.log('Sending data to JavaScript script:', jsInputData);
-
-      // Call the JavaScript rule engine API endpoint
-      const response = await fetch('/api/run-javascript-rules', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(jsInputData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`JavaScript rule engine failed: ${errorData.error || response.statusText}`);
-      }
-
-      const ruleData = await response.json();
+      // Use the internal function to run JavaScript rules
+      const ruleData = await runJavaScriptRules(extractedLineItems, roofMeasurements, wastePercentageStepCompleted ? wastePercentage : 0);
+      
       console.log('JavaScript rule engine results:', ruleData);
       console.log('🔍 Debug: JavaScript audit log:', ruleData.data?.audit_log);
       console.log('🔍 Debug: JavaScript original items count:', ruleData.data?.original_line_items?.length);
@@ -2788,7 +2817,7 @@ function EstimatePageContent() {
     console.log('📊 Calculated Area (sqft):', wasteCalculations?.areaSqft);
     console.log('📊 Calculated Squares:', wasteCalculations?.squares);
     
-    // Calculate suggested adjustments
+    // Calculate suggested adjustments BEFORE running JavaScript rules
     const suggestions = calculateSuggestedShingleAdjustments();
     setSuggestedShingleAdjustments(suggestions);
     
@@ -2896,6 +2925,11 @@ function EstimatePageContent() {
     // Close modal and proceed
     setShowShingleAdjustmentsModal(false);
     setShingleAdjustmentsStepCompleted(true);
+    
+    // Run JavaScript rules after shingle adjustments are applied
+    console.log('🔄 Running JavaScript rules after shingle adjustments...');
+    runJavaScriptRules(currentItems, extractedRoofMeasurements, wastePercentage);
+    
     proceedToNextWorkflowStep('shingle_adjustments');
   };
 
