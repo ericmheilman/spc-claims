@@ -1556,16 +1556,17 @@ export class RoofAdjustmentEngine {
     // Apply all rule categories in order with detailed logging
     console.log('\n🔧 APPLYING COMPREHENSIVE RULE SET...');
     
-    // Category 1: Unit Cost Adjustments
-    adjustedItems = this.applyUnitCostAdjustments(adjustedItems);
-    
-    // Category A: Fully Automatable Calculations
-    // Shingle Quantity Adjustments (only if waste percentage is provided)
+    // Category A: Shingle Quantity Adjustments (must run FIRST to update descriptions)
     if (wastePercentage !== null && wastePercentage !== undefined) {
       adjustedItems = this.applyShingleQuantityAdjustments(adjustedItems, roofMeasurements, wastePercentage);
     } else {
       console.log('⏭️ Skipping shingle quantity adjustments - waste percentage not provided');
     }
+    
+    // Category 1: Unit Cost Adjustments (runs AFTER shingle adjustments to use updated descriptions)
+    adjustedItems = this.applyUnitCostAdjustments(adjustedItems);
+    
+    // Category A: Fully Automatable Calculations
     adjustedItems = this.applyRoundingAdjustments(adjustedItems);
     adjustedItems = this.applyStarterCourseAdjustments(adjustedItems, roofMeasurements);
     adjustedItems = this.applySteepRoofAdjustments(adjustedItems, roofMeasurements);
