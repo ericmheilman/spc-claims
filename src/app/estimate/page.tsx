@@ -1707,7 +1707,11 @@ function EstimatePageContent() {
       
       // Start workflow with waste percentage step
       console.log('🔍 Starting workflow with waste percentage step');
-      if (!wastePercentageStepCompleted) {
+      console.log('🔍 wastePercentageStepCompleted:', wastePercentageStepCompleted);
+      console.log('🔍 showWastePercentageModal:', showWastePercentageModal);
+      
+      if (true) { // Temporarily force show modal for debugging
+        console.log('🔍 Showing waste percentage modal (forced)');
         setShowWastePercentageModal(true);
         return;
       } else {
