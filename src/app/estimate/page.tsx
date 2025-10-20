@@ -3437,6 +3437,12 @@ function EstimatePageContent() {
           line_items: updatedItems
         });
       }
+      
+      // Update current SPC line items
+      setCurrentSPCLineItems(updatedItems);
+      setLastUpdateTime(Date.now());
+    } else {
+      console.log('ℹ️ No valley adjustments were needed');
     }
     
     setShowValleyCheckModal(false);
