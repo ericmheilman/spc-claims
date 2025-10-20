@@ -3147,18 +3147,34 @@ function EstimatePageContent() {
       item.description === 'Valley metal' || item.description === 'Valley metal - (W) profile'
     );
     
+    // Check if Ice & water barrier exists (for closed valleys)
+    const hasIceWaterBarrier = updatedLineItems.some((item: any) => 
+      item.description === 'Ice & water barrier'
+    );
+    
     // Get Total Line Lengths (Valleys) from roof measurements
     const valleysLength = extractedRoofMeasurements["Total Line Lengths (Valleys)"]?.value || 0;
     
     console.log('🔍 Has valley metal items:', hasValleyMetal);
+    console.log('🔍 Has Ice & water barrier:', hasIceWaterBarrier);
     console.log('🔍 Total Line Lengths (Valleys):', valleysLength);
     
     // Case B: If no valley metal items AND valleys exist, prompt user
     if (!hasValleyMetal && valleysLength > 0) {
       console.log('⚠️ No valley metal items found but valleys detected - showing valley check modal');
+      console.log('🔍 DEBUG - Will show valley check modal because:', {
+        hasValleyMetal,
+        hasIceWaterBarrier,
+        valleysLength
+      });
       setShowValleyCheckModal(true);
     } else {
       console.log('✅ Valley check not needed, proceeding to O&P check');
+      console.log('🔍 DEBUG - Skipping valley check because:', {
+        hasValleyMetal,
+        hasIceWaterBarrier,
+        valleysLength
+      });
       checkOPItems(ruleResults?.line_items || updatedLineItems);
     }
   };
@@ -3200,6 +3216,15 @@ function EstimatePageContent() {
     const requiredIceWaterQuantity = valleysLength * 3;
     
     console.log('🔍 DEBUG - Ice & water barrier found?', !!iceWaterItem);
+    if (iceWaterItem) {
+      console.log('🔍 DEBUG - Existing Ice & water barrier item:', {
+        line_number: iceWaterItem.line_number,
+        description: iceWaterItem.description,
+        quantity: iceWaterItem.quantity,
+        unit_price: iceWaterItem.unit_price,
+        RCV: iceWaterItem.RCV
+      });
+    }
     console.log('🔍 DEBUG - Required Ice & water barrier quantity:', requiredIceWaterQuantity);
     
     if (iceWaterItem) {
