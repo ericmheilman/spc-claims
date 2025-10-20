@@ -725,43 +725,21 @@ export class RoofAdjustmentEngine {
     
     let adjustedItems = [...items];
     
-    // Check for hip/ridge caps
-    const hasHipRidgeHigh = this.hasLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.HIP_RIDGE_HIGH);
-    const hasHipRidgeStandard = this.hasLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.HIP_RIDGE_STANDARD);
-    
-    if (!hasHipRidgeHigh && !hasHipRidgeStandard) {
-      // Add continuous ridge vent - detach & reset
-      const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.RIDGE_VENT_DETACH_RESET);
-      if (masterItem) {
-        const newItem = this.addLineItem(
-          this.EXACT_DESCRIPTIONS.RIDGE_VENT_DETACH_RESET,
-          requiredQuantityRidgesHips,
-          masterItem.unit,
-          masterItem.unit_price,
-          `${adjustedItems.length + 1}`,
-          `Missing hip/ridge cap - added continuous ridge vent`,
-          'Category A: Ridge Vent Addition'
-        );
-        adjustedItems.push(newItem);
+    // Adjust existing hip/ridge cap quantities
+    adjustedItems = adjustedItems.map(item => {
+      if ((item.description === this.EXACT_DESCRIPTIONS.HIP_RIDGE_HIGH ||
+           item.description === this.EXACT_DESCRIPTIONS.HIP_RIDGE_STANDARD) &&
+          item.quantity < requiredQuantityRidgesHips) {
         this.adjustmentCounts.ridge_vent_adjustments++;
+        return this.adjustQuantity(
+          item,
+          requiredQuantityRidgesHips,
+          `Hip/ridge cap quantity adjusted to Total Ridges/Hips Length / 100: ${requiredQuantityRidgesHips}`,
+          'Category A: Ridge Vent Quantity Adjustment'
+        );
       }
-    } else {
-      // Adjust existing hip/ridge cap quantities
-      adjustedItems = adjustedItems.map(item => {
-        if ((item.description === this.EXACT_DESCRIPTIONS.HIP_RIDGE_HIGH ||
-             item.description === this.EXACT_DESCRIPTIONS.HIP_RIDGE_STANDARD) &&
-            item.quantity < requiredQuantityRidgesHips) {
-          this.adjustmentCounts.ridge_vent_adjustments++;
-          return this.adjustQuantity(
-            item,
-            requiredQuantityRidgesHips,
-            `Hip/ridge cap quantity adjusted to Total Ridges/Hips Length / 100: ${requiredQuantityRidgesHips}`,
-            'Category A: Ridge Vent Quantity Adjustment'
-          );
-        }
-        return item;
-      });
-    }
+      return item;
+    });
     
     // Adjust continuous ridge vents
     adjustedItems = adjustedItems.map(item => {
