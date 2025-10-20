@@ -8715,7 +8715,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 2 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -8950,7 +8950,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 3 ? 'text-white font-semibold' : 'text-blue-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9103,7 +9103,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 3 ? 'text-white font-semibold' : 'text-green-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9196,7 +9196,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 6 ? 'text-white font-semibold' : 'text-blue-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9511,7 +9511,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 7 ? 'text-white font-semibold' : 'text-violet-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9837,7 +9837,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 8 ? 'text-white font-semibold' : 'text-slate-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10062,7 +10062,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 1 ? 'text-white font-semibold' : 'text-indigo-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10203,7 +10203,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 4 ? 'text-white font-semibold' : 'text-gray-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10334,7 +10334,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 5 ? 'text-white font-semibold' : 'text-orange-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10576,7 +10576,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 9 ? 'text-white font-semibold' : 'text-indigo-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10713,7 +10713,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 10 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10899,7 +10899,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 11 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
