@@ -101,7 +101,7 @@ export class RoofAdjustmentEngine {
     LAMINATED_WITH_FELT: "Laminated - comp. shingle rfg. - w/ felt",
     
     // Installation items - Material Only variations
-    MATERIAL_ONLY_LAMINATED_WITHOUT_FELT: "Material Only Laminated - comp. shingle rfg. - w/out felt",
+    MATERIAL_ONLY_LAMINATED_WITHOUT_FELT: "Material Only Laminated comp. shingle rfg. w/out felt",
     MATERIAL_ONLY_LAMINATED_WITH_FELT: "Material Only Laminated - comp. shingle rfg. - w/ felt",
     MATERIAL_ONLY_3TAB_WITHOUT_FELT: "Material Only 3 tab 25 yr. comp. shingle roofing - w/out felt",
     MATERIAL_ONLY_3TAB_WITH_FELT: "Material Only 3 tab 25 yr. composition shingle roofing - incl. felt",
