@@ -3469,6 +3469,12 @@ function EstimatePageContent() {
     
     console.log('🔍 DEBUG - Final adjustmentsMade value:', adjustmentsMade);
     console.log('🔍 DEBUG - Final updatedItems count:', updatedItems.length);
+    console.log('🔍 DEBUG - Final updatedItems:', updatedItems.map(item => ({
+      line_number: item.line_number,
+      description: item.description,
+      quantity: item.quantity,
+      RCV: item.RCV
+    })));
     
     if (adjustmentsMade) {
       console.log('✅ Valley adjustments applied, updating line items');
@@ -3478,10 +3484,15 @@ function EstimatePageContent() {
       // If we have rule results, update those too
       if (ruleResults) {
         console.log('🔍 DEBUG - Updating ruleResults');
+        console.log('🔍 DEBUG - Current ruleResults.line_items count:', ruleResults.line_items.length);
+        console.log('🔍 DEBUG - Updated items count:', updatedItems.length);
         setRuleResults({
           ...ruleResults,
           line_items: updatedItems
         });
+        console.log('🔍 DEBUG - ruleResults updated with', updatedItems.length, 'items');
+      } else {
+        console.log('🔍 DEBUG - No ruleResults to update');
       }
       
       // Update current SPC line items
