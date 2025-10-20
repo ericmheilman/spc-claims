@@ -195,6 +195,33 @@ export class RoofAdjustmentEngine {
   }
 
   private roundToNearest(quantity: number, increment: number): number {
+    // Check if the quantity already ends in the correct increment
+    // Use decimal analysis to determine if already at valid increment
+    
+    // For 0.33 increments, check if decimal part is close to 0, 0.33, or 0.67
+    // For 0.25 increments, check if decimal part is close to 0, 0.25, 0.5, or 0.75
+    const decimalPart = quantity % 1;
+    const tolerance = 0.001;
+    
+    let isValidIncrement = false;
+    if (increment === 0.33) {
+      // Check if decimal is close to 0, 0.33, or 0.67
+      isValidIncrement = Math.abs(decimalPart) < tolerance || 
+                        Math.abs(decimalPart - 0.33) < tolerance || 
+                        Math.abs(decimalPart - 0.67) < tolerance;
+    } else if (increment === 0.25) {
+      // Check if decimal is close to 0, 0.25, 0.5, or 0.75
+      isValidIncrement = Math.abs(decimalPart) < tolerance || 
+                        Math.abs(decimalPart - 0.25) < tolerance || 
+                        Math.abs(decimalPart - 0.5) < tolerance || 
+                        Math.abs(decimalPart - 0.75) < tolerance;
+    }
+    
+    if (isValidIncrement) {
+      return quantity;
+    }
+    
+    // Otherwise, round up to the nearest increment
     return Math.ceil(quantity / increment) * increment;
   }
 
@@ -766,7 +793,7 @@ export class RoofAdjustmentEngine {
       }
       return item;
     });
-    
+
     return adjustedItems;
   }
 
