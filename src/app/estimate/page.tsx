@@ -2247,93 +2247,93 @@ function EstimatePageContent() {
     // Installation shingle rules
     const installationRules = [
       {
-        find: "Laminated comp. shingle rfg. - w/out felt",
+        find: "Laminated - comp. shingle rfg. - w/out felt",
         replace: null,
         quantity: baseQuantity
       },
       {
-        find: "3 tab 25 yr. comp. shingle roofing - w/out felt", 
+        find: "3 tab - 25 yr. - comp. shingle roofing - w/out felt", 
         replace: null,
         quantity: baseQuantity
       },
       {
-        find: "Laminated comp. shingle rfg. - w/ felt",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        find: "Laminated - comp. shingle rfg. - w/ felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "3 tab 25 yr. composition shingle roofing incl. felt",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        find: "3 tab - 25 yr. - composition shingle roofing - incl. felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "Material Only 3 tab 25 yr. comp. shingle roofing - w/out felt",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        find: "Material Only 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "Material Only 3 tab 25 yr. composition shingle roofing - incl. felt",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        find: "Material Only 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "Install 3 tab 25 yr. comp. shingle roofing - w/out felt",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        find: "Install 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "Install 3 tab 25 yr. composition shingle roofing - incl. felt",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        find: "Install 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Install 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Material Only 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
-        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Material Only Laminated - comp. shingle rfg. - w/out felt",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Material Only Laminated - comp. shingle rfg. - w/ felt",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "Install Laminated comp. shingle rfg. - w/out felt",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        find: "Install Laminated - comp. shingle rfg. - w/out felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
-        find: "Install Laminated comp. shingle rfg. - w/ felt",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        find: "Install Laminated - comp. shingle rfg. - w/ felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Laminated - comp. shingle rfg (per SHINGLE)",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Material Only Laminated - comp. shingle rfg (per SHINGLE)",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       },
       {
         find: "Install Laminated - comp. shingle rfg (per SHINGLE)",
-        replace: "Laminated comp. shingle rfg. - w/out felt",
+        replace: "Laminated - comp. shingle rfg. - w/out felt",
         quantity: baseQuantity
       }
     ];
@@ -2372,42 +2372,42 @@ function EstimatePageContent() {
     // Removal shingle rules
     const removalRules = [
       {
-        find: "Remove Laminated comp. shingle rfg. - w/out felt",
+        find: "Remove Laminated - comp. shingle rfg. - w/out felt",
         replace: null,
         quantity: removalQuantity
       },
       {
-        find: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
+        find: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         replace: null,
         quantity: removalQuantity
       },
       {
-        find: "Remove 3 tab 25 yr. composition shingle roofing - incl. felt",
-        replace: "Remove Laminated comp. shingle rfg. - w/out felt",
+        find: "Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+        replace: "Remove Laminated - comp. shingle rfg. - w/out felt",
         quantity: removalQuantity
       },
       {
-        find: "Remove Laminated comp. shingle rfg. - w/ felt",
-        replace: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
+        find: "Remove Laminated - comp. shingle rfg. - w/ felt",
+        replace: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: removalQuantity
       },
       {
         find: "Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
-        replace: "Remove Laminated comp. shingle rfg. - w/out felt",
+        replace: "Remove Laminated - comp. shingle rfg. - w/out felt",
         quantity: removalQuantity
       },
       {
         find: "Remove Laminated - comp. shingle rfg (per SHINGLE)",
-        replace: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
+        replace: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
         quantity: removalQuantity
       },
       {
-        find: "Tear off, haul and dispose of comp. shingles - 3 tab",
+        find: "Tear off haul and dispose of comp. shingles - 3 tab",
         replace: null,
         quantity: removalQuantity
       },
       {
-        find: "Tear off, haul and dispose of comp. shingles - Laminated",
+        find: "Tear off haul and dispose of comp. shingles - Laminated",
         replace: null,
         quantity: removalQuantity
       },
@@ -2455,12 +2455,12 @@ function EstimatePageContent() {
         
         // Add dumpster if needed
         if (rule.addDumpster) {
-          const dumpsterExists = updatedItems.some((item: any) => item.description === "Dumpster load - Approx. 12 yards, 1-3 tons of debris");
+          const dumpsterExists = updatedItems.some((item: any) => item.description === "Dumpster load - Approx. 12 yards 1-3 tons of debris");
           if (!dumpsterExists) {
             const maxLineNumber = Math.max(...updatedItems.map((item: any) => parseInt(item.line_number) || 0), 0);
             const dumpsterItem = {
               line_number: (maxLineNumber + 1).toString(),
-              description: "Dumpster load - Approx. 12 yards, 1-3 tons of debris",
+              description: "Dumpster load - Approx. 12 yards 1-3 tons of debris",
               quantity: removalQuantity,
               unit: "EA",
               unit_price: 0, // Will be set from roof master macro if available
