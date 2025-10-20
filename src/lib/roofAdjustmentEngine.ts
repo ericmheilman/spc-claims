@@ -86,12 +86,37 @@ export class RoofAdjustmentEngine {
     REMOVE_3TAB_25YR_WITHOUT_FELT: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
     REMOVE_3TAB_25YR_WITH_FELT: "Remove 3 tab 25 yr. composition shingle roofing - incl. felt",
     REMOVE_LAMINATED_WITH_FELT: "Remove Laminated comp. shingle rfg. - w/ felt",
+    REMOVE_3TAB_PER_SHINGLE: "Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+    REMOVE_LAMINATED_PER_SHINGLE: "Remove Laminated - comp. shingle rfg (per SHINGLE)",
+    TEAR_OFF_3TAB: "Tear off, haul and dispose of comp. shingles - 3 tab",
+    TEAR_OFF_LAMINATED: "Tear off, haul and dispose of comp. shingles - Laminated",
+    TEAR_OFF_3TAB_NO_HAUL: "Tear off composition shingles - 3 tab (no haul off)",
+    TEAR_OFF_LAMINATED_NO_HAUL: "Tear off composition shingles - Laminated (no haul off)",
     
-    // Installation items
-    LAMINATED_WITHOUT_FELT: "Laminated comp. shingle rfg. w/out felt",
+    // Installation items - Standard
+    LAMINATED_WITHOUT_FELT: "Laminated comp. shingle rfg. - w/out felt",
     TAB_25YR_WITHOUT_FELT: "3 tab 25 yr. comp. shingle roofing - w/out felt",
     TAB_25YR_WITH_FELT: "3 tab 25 yr. composition shingle roofing incl. felt",
     LAMINATED_WITH_FELT: "Laminated comp. shingle rfg. - w/ felt",
+    
+    // Installation items - Material Only variations
+    MATERIAL_ONLY_LAMINATED_WITHOUT_FELT: "Material Only Laminated - comp. shingle rfg. - w/out felt",
+    MATERIAL_ONLY_LAMINATED_WITH_FELT: "Material Only Laminated - comp. shingle rfg. - w/ felt",
+    MATERIAL_ONLY_3TAB_WITHOUT_FELT: "Material Only 3 tab 25 yr. comp. shingle roofing - w/out felt",
+    MATERIAL_ONLY_3TAB_WITH_FELT: "Material Only 3 tab 25 yr. composition shingle roofing - incl. felt",
+    MATERIAL_ONLY_3TAB_PER_SHINGLE: "Material Only 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+    MATERIAL_ONLY_LAMINATED_PER_SHINGLE: "Material Only Laminated - comp. shingle rfg (per SHINGLE)",
+    
+    // Installation items - Install variations
+    INSTALL_LAMINATED_WITHOUT_FELT: "Install Laminated comp. shingle rfg. - w/out felt",
+    INSTALL_LAMINATED_WITH_FELT: "Install Laminated comp. shingle rfg. - w/ felt",
+    INSTALL_3TAB_WITHOUT_FELT: "Install 3 tab 25 yr. comp. shingle roofing - w/out felt",
+    INSTALL_3TAB_WITH_FELT: "Install 3 tab 25 yr. composition shingle roofing - incl. felt",
+    INSTALL_3TAB_PER_SHINGLE: "Install 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+    INSTALL_LAMINATED_PER_SHINGLE: "Install Laminated - comp. shingle rfg (per SHINGLE)",
+    
+    // Dumpster items
+    DUMPSTER_12_YARD: "Dumpster load - Approx. 12 yards, 1-3 tons of debris",
     
     // Starter courses
     STARTER_UNIVERSAL: "Asphalt starter - universal starter course",
@@ -333,13 +358,13 @@ export class RoofAdjustmentEngine {
     return items.map(item => {
       roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 'Checking unit price against roof master macro');
       
-      const masterItem = this.getRoofMasterItem(item.description);
+          const masterItem = this.getRoofMasterItem(item.description);
       if (masterItem && masterItem.unit_price > item.unit_price) {
         roofAdjustmentLogger.logAdjustment(ruleLog, item.description, 'unit_price', item.unit_price, masterItem.unit_price, 
           `Unit cost adjusted to roof master macro maximum: $${masterItem.unit_price}`);
         
         return this.adjustUnitPrice(
-          item,
+              item,
           masterItem.unit_price,
           `Unit cost adjusted to roof master macro maximum: $${masterItem.unit_price}`,
           'Category 1: Unit Cost Adjustment'
@@ -359,51 +384,272 @@ export class RoofAdjustmentEngine {
     const ruleLog = roofAdjustmentLogger.startRuleExecution('Shingle Quantity Adjustments', 'Category A');
     
     const totalRoofArea = this.getRMRValue(roofMeasurements, this.RMR_VARIABLES.TOTAL_ROOF_AREA);
-    // Shingles are quoted in SQ, so divide by 100
-    const requiredQuantity = totalRoofArea / 100;
+    const baseQuantity = totalRoofArea / 100; // Shingles are quoted in SQ, so divide by 100
+    const suggestedWaste = 0.10; // 10% waste percentage
     
-    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Calculated required quantity', 
-      `Total Roof Area (${totalRoofArea} sq ft) / 100 = ${requiredQuantity} SQ`);
+    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Calculated base quantities', 
+      `Total Roof Area (${totalRoofArea} sq ft) / 100 = ${baseQuantity} SQ, Waste: ${suggestedWaste * 100}%`);
     
-    const shingleDescriptions = [
-      this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT,
-      this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITHOUT_FELT,
-      this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITH_FELT,
-      this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITH_FELT,
-      this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT,
-      this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT,
-      this.EXACT_DESCRIPTIONS.TAB_25YR_WITH_FELT,
-      this.EXACT_DESCRIPTIONS.LAMINATED_WITH_FELT,
-    ];
-
-    const result = items.map(item => {
-      if (shingleDescriptions.includes(item.description)) {
-        roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
-          `Checking if quantity (${item.quantity}) needs adjustment to ${requiredQuantity}`);
-        
-        // CRITICAL: Only increase quantity using max()
-        const newQuantity = Math.max(item.quantity, requiredQuantity);
-        
-        if (newQuantity > item.quantity) {
-          roofAdjustmentLogger.logAdjustment(ruleLog, item.description, 'quantity', 
-            item.quantity, newQuantity, `Quantity increased to max(current, Total Roof Area / 100)`);
-          
-          return this.adjustQuantity(
-            item,
-            newQuantity,
-            `Quantity adjusted to max(${item.quantity}, ${requiredQuantity}) = ${newQuantity}`,
-            'Category A: Shingle Quantity Adjustment'
-          );
-        } else {
-          roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
-            `Current quantity (${item.quantity}) is already >= required (${requiredQuantity})`);
-        }
+    let adjustedItems = [...items];
+    
+    // Process each item for description replacements and quantity adjustments
+    adjustedItems = adjustedItems.map(item => {
+      let newItem = { ...item };
+      let descriptionChanged = false;
+      let quantityChanged = false;
+      let ruleApplied = '';
+      
+      // INSTALLATION RULES - Description replacements and quantity adjustments with waste
+      if (item.description === this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT) {
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Laminated Installation - Quantity with waste';
       }
-      return item;
+      else if (item.description === this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT) {
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = '3-Tab Installation - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.LAMINATED_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Laminated w/felt → w/out felt - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.TAB_25YR_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = '3-Tab w/felt → w/out felt - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_3TAB_WITHOUT_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Material Only 3-Tab → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_3TAB_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Material Only 3-Tab w/felt → Standard w/out felt - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.INSTALL_3TAB_WITHOUT_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Install 3-Tab → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.INSTALL_3TAB_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Install 3-Tab w/felt → Standard w/out felt - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_3TAB_PER_SHINGLE) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Material Only 3-Tab per SHINGLE → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.INSTALL_3TAB_PER_SHINGLE) {
+        newItem.description = this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Install 3-Tab per SHINGLE → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_LAMINATED_WITHOUT_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Material Only Laminated → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_LAMINATED_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Material Only Laminated w/felt → Standard w/out felt - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.INSTALL_LAMINATED_WITHOUT_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Install Laminated → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.INSTALL_LAMINATED_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Install Laminated w/felt → Standard w/out felt - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.INSTALL_LAMINATED_PER_SHINGLE) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Install Laminated per SHINGLE → Standard - Quantity with waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_LAMINATED_PER_SHINGLE) {
+        newItem.description = this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT;
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        newItem.quantity = Math.max(item.quantity, requiredQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Material Only Laminated per SHINGLE → Standard - Quantity with waste';
+      }
+      
+      // REMOVAL RULES - Different logic, no waste percentage
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT) {
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove Laminated - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITHOUT_FELT) {
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove 3-Tab - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT;
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove 3-Tab w/felt → Remove Laminated - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITH_FELT) {
+        newItem.description = this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITHOUT_FELT;
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove Laminated w/felt → Remove 3-Tab - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_PER_SHINGLE) {
+        newItem.description = this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT;
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove 3-Tab per SHINGLE → Remove Laminated - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_PER_SHINGLE) {
+        newItem.description = this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITHOUT_FELT;
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove Laminated per SHINGLE → Remove 3-Tab - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_3TAB) {
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Tear off 3-Tab - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_LAMINATED) {
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Tear off Laminated - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_3TAB_NO_HAUL) {
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Tear off 3-Tab no haul - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_LAMINATED_NO_HAUL) {
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Tear off Laminated no haul - Quantity without waste';
+      }
+      
+      // Log changes
+      if (descriptionChanged || quantityChanged) {
+        if (descriptionChanged) {
+          roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
+            `Description changed: ${item.description} → ${newItem.description}`);
+        }
+        if (quantityChanged) {
+          roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
+            `Quantity changed: ${item.quantity} → ${newItem.quantity}`);
+        }
+        
+        this.adjustmentCounts.quantity_adjustments++;
+        return this.adjustQuantity(
+          item,
+          newItem.quantity,
+          `Shingle adjustment: ${ruleApplied}`,
+          ruleApplied
+        );
+      }
+      
+      return newItem;
     });
     
+    // Handle dumpster additions for tear-off without haul-off
+    const dumpsterItems: LineItem[] = [];
+    adjustedItems.forEach(item => {
+      if (item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_3TAB_NO_HAUL ||
+          item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_LAMINATED_NO_HAUL) {
+        
+        // Check if dumpster already exists
+        const existingDumpster = adjustedItems.find(existingItem => 
+          existingItem.description === this.EXACT_DESCRIPTIONS.DUMPSTER_12_YARD
+        );
+        
+        if (!existingDumpster) {
+          const dumpsterItem: LineItem = {
+            line_number: 999, // High number to avoid conflicts
+            description: this.EXACT_DESCRIPTIONS.DUMPSTER_12_YARD,
+            quantity: baseQuantity,
+            unit: 'EA',
+            unit_price: 0, // Will be set by roof master macro
+            RCV: 0,
+            age_life: '',
+            condition: '',
+            dep_percent: 0,
+            depreciation_amount: 0,
+            ACV: 0,
+            location_room: 'Roof',
+            category: 'Roofing',
+            page_number: 999,
+            narrative: `Field Changed: quantity | Explanation: Added dumpster for tear-off without haul-off`
+          };
+          
+          dumpsterItems.push(dumpsterItem);
+          roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
+            `Added dumpster item with quantity ${baseQuantity}`);
+        }
+      }
+    });
+    
+    // Add dumpster items to the result
+    adjustedItems.push(...dumpsterItems);
+    
     roofAdjustmentLogger.endRuleExecution(ruleLog);
-    return result;
+    return adjustedItems;
   }
 
   private applyRoundingAdjustments(items: LineItem[]): LineItem[] {
@@ -418,7 +664,15 @@ export class RoofAdjustmentEngine {
       if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT ||
           item.description === this.EXACT_DESCRIPTIONS.LAMINATED_WITHOUT_FELT ||
           item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITH_FELT ||
-          item.description === this.EXACT_DESCRIPTIONS.LAMINATED_WITH_FELT) {
+          item.description === this.EXACT_DESCRIPTIONS.LAMINATED_WITH_FELT ||
+          item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_LAMINATED_WITHOUT_FELT ||
+          item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_LAMINATED_WITH_FELT ||
+          item.description === this.EXACT_DESCRIPTIONS.INSTALL_LAMINATED_WITHOUT_FELT ||
+          item.description === this.EXACT_DESCRIPTIONS.INSTALL_LAMINATED_WITH_FELT ||
+          item.description === this.EXACT_DESCRIPTIONS.INSTALL_LAMINATED_PER_SHINGLE ||
+          item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_LAMINATED_PER_SHINGLE ||
+          item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_LAMINATED ||
+          item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_LAMINATED_NO_HAUL) {
         newQuantity = this.roundToNearest(item.quantity, 0.25);
         ruleApplied = 'Category A: Laminated Rounding (0.25)';
         increment = 0.25;
@@ -428,7 +682,17 @@ export class RoofAdjustmentEngine {
       else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITHOUT_FELT ||
                item.description === this.EXACT_DESCRIPTIONS.TAB_25YR_WITHOUT_FELT ||
                item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITH_FELT ||
-               item.description === this.EXACT_DESCRIPTIONS.TAB_25YR_WITH_FELT) {
+               item.description === this.EXACT_DESCRIPTIONS.TAB_25YR_WITH_FELT ||
+               item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_3TAB_WITHOUT_FELT ||
+               item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_3TAB_WITH_FELT ||
+               item.description === this.EXACT_DESCRIPTIONS.INSTALL_3TAB_WITHOUT_FELT ||
+               item.description === this.EXACT_DESCRIPTIONS.INSTALL_3TAB_WITH_FELT ||
+               item.description === this.EXACT_DESCRIPTIONS.MATERIAL_ONLY_3TAB_PER_SHINGLE ||
+               item.description === this.EXACT_DESCRIPTIONS.INSTALL_3TAB_PER_SHINGLE ||
+               item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_PER_SHINGLE ||
+               item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_PER_SHINGLE ||
+               item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_3TAB ||
+               item.description === this.EXACT_DESCRIPTIONS.TEAR_OFF_3TAB_NO_HAUL) {
         newQuantity = this.roundToNearest(item.quantity, 0.33);
         ruleApplied = 'Category A: 3-Tab Rounding (0.33)';
         increment = 0.33;
@@ -488,12 +752,12 @@ export class RoofAdjustmentEngine {
       const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL);
           if (masterItem) {
         const newLineNumber = `${items.length + 1}`;
-        const newItem = this.addLineItem(
+          const newItem = this.addLineItem(
           this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL,
           requiredQuantity,
           masterItem.unit,
           masterItem.unit_price,
-          newLineNumber,
+            newLineNumber,
           `Missing starter course - added based on eaves + rakes length`,
           'Category A: Starter Course Addition'
         );
@@ -694,7 +958,7 @@ export class RoofAdjustmentEngine {
         }
       } else {
         const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.REMOVE_STEEP_12_PLUS);
-        if (masterItem) {
+      if (masterItem) {
           const newItem = this.addLineItem(
             this.EXACT_DESCRIPTIONS.REMOVE_STEEP_12_PLUS,
             requiredQuantity,
@@ -870,7 +1134,7 @@ export class RoofAdjustmentEngine {
             'Category A: Step Flashing Quantity Adjustment'
           );
           this.adjustmentCounts.step_flashing_adjustments++;
-        } else {
+      } else {
           roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
             `Current quantity (${stepFlashingItem.quantity}) is already >= required (${stepFlashingLength})`);
         }
