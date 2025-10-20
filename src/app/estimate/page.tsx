@@ -126,7 +126,6 @@ function EstimatePageContent() {
 
   // Unified Workflow state
   const [showUnifiedWorkflow, setShowUnifiedWorkflow] = useState(false);
-  const [currentWorkflowStep, setCurrentWorkflowStep] = useState(0);
   const [workflowData, setWorkflowData] = useState<any>(null);
 
   // Custom Price and Quantity Edit state
@@ -241,6 +240,17 @@ function EstimatePageContent() {
   const [showValleyCheckModal, setShowValleyCheckModal] = useState(false);
   const [valleysClosedConfirmed, setValleysClosedConfirmed] = useState<boolean | null>(null);
   const [valleyAdjustmentsApplied, setValleyAdjustmentsApplied] = useState(false);
+
+  // Workflow tracking state
+  const [currentWorkflowStep, setCurrentWorkflowStep] = useState<number>(0);
+  const workflowSteps = [
+    { id: 1, name: 'Waste Percentage', key: 'waste_percentage' },
+    { id: 2, name: 'Hidden Damages', key: 'hidden_damages' },
+    { id: 3, name: 'Roof Access', key: 'roof_access' },
+    { id: 4, name: 'Valley Check', key: 'valley_check' },
+    { id: 5, name: 'O&P Check', key: 'op_check' },
+    { id: 6, name: 'Summary', key: 'summary' }
+  ];
 
   // Waste Percentage state
   const [showWastePercentageModal, setShowWastePercentageModal] = useState(false);
@@ -2150,11 +2160,13 @@ function EstimatePageContent() {
     // First show waste percentage modal if not already completed
     if (!wastePercentageStepCompleted) {
       console.log('🔍 Showing waste percentage modal first');
+      setCurrentWorkflowStep(1);
       setShowWastePercentageModal(true);
       return;
     }
     
     // Always show the hidden damages modal to prompt for cost and narrative
+    setCurrentWorkflowStep(2);
     setShowSPCHiddenDamagesModal(true);
   };
 
@@ -2164,6 +2176,64 @@ function EstimatePageContent() {
     
     // Always show the roof access issues modal to prompt for details
     setShowSPCRoofAccessModal(true);
+  };
+
+  // Reset workflow state completely
+  const resetWorkflow = () => {
+    console.log('🔄 Resetting workflow completely');
+    setCurrentWorkflowStep(0);
+    setShowWastePercentageModal(false);
+    setShowSPCHiddenDamagesModal(false);
+    setShowSPCRoofAccessModal(false);
+    setShowValleyCheckModal(false);
+    setShowSPCOPModal(false);
+    setShowSPCOPFoundModal(false);
+    setShowSPCFinalStepModal(false);
+    setWastePercentageStepCompleted(false);
+    setHiddenDamagesCost('');
+    setHiddenDamagesNarrative('');
+    setRoofAccessIssues(null);
+    setRoofAccessIssueTypes([]);
+    setRoofstockingDelivery(null);
+    setValleysClosedConfirmed(null);
+    setValleyAdjustmentsApplied(false);
+  };
+
+  // Centralized workflow progression function
+  const proceedToNextWorkflowStep = (currentStep: string) => {
+    console.log(`🔄 Proceeding from ${currentStep} to next workflow step`);
+    
+    const updatedItems = ruleResults?.line_items || currentSPCLineItems || extractedLineItems;
+    
+    switch (currentStep) {
+      case 'waste_percentage':
+        console.log('→ Next step: Hidden Damages');
+        setCurrentWorkflowStep(2);
+        setTimeout(() => setShowSPCHiddenDamagesModal(true), 100);
+        break;
+      case 'hidden_damages':
+        console.log('→ Next step: Roof Access');
+        setCurrentWorkflowStep(3);
+        setTimeout(() => setShowSPCRoofAccessModal(true), 100);
+        break;
+      case 'roof_access':
+        console.log('→ Next step: Valley Check');
+        setCurrentWorkflowStep(4);
+        setTimeout(() => checkValleyItems(updatedItems), 100);
+        break;
+      case 'valley_check':
+        console.log('→ Next step: O&P Check');
+        setCurrentWorkflowStep(5);
+        setTimeout(() => checkOPItems(updatedItems), 100);
+        break;
+      case 'op_check':
+        console.log('→ Next step: Final Summary');
+        setCurrentWorkflowStep(6);
+        setTimeout(() => checkSPCAddedItems(updatedItems), 100);
+        break;
+      default:
+        console.log('❌ Unknown workflow step:', currentStep);
+    }
   };
 
   // Calculate waste percentage calculations
@@ -2461,10 +2531,8 @@ function EstimatePageContent() {
     }
     setCurrentSPCLineItems(adjustedItems);
     
-    // Proceed to hidden damages modal
-    setTimeout(() => {
-      setShowSPCHiddenDamagesModal(true);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('waste_percentage');
   };
 
   // Check for valley items and prompt user
@@ -2503,10 +2571,8 @@ function EstimatePageContent() {
       setShowValleyCheckModal(false);
       setValleyAdjustmentsApplied(true);
       
-      // Proceed to O&P check
-      setTimeout(() => {
-        checkOPItems(ruleResults?.line_items || extractedLineItems);
-      }, 100);
+      // Proceed to next workflow step
+      proceedToNextWorkflowStep('valley_check');
       return;
     }
     
@@ -2773,10 +2839,8 @@ function EstimatePageContent() {
     setShowValleyCheckModal(false);
     setValleyAdjustmentsApplied(true);
     
-    // Proceed to O&P check
-    setTimeout(() => {
-      checkOPItems(updatedItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('valley_check');
   };
 
   // Check for O&P items
@@ -3459,21 +3523,16 @@ function EstimatePageContent() {
     
     console.log('✅ Added hidden damages item:', newItem);
     
-    // After adding hidden damages item, proceed to roof access check
-    setTimeout(() => {
-      const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkRoofAccessIssues(updatedItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('hidden_damages');
   };
 
   // Add roof access labor cost based on calculations
   const handleAddRoofAccessLabor = async () => {
     if (!roofAccessIssues) {
-      // No roof access issues, just close modal and proceed to valley check
+      // No roof access issues, just close modal and proceed to next step
       setShowSPCRoofAccessModal(false);
-      setTimeout(() => {
-        checkValleyItems(ruleResults?.line_items || []);
-      }, 100);
+      proceedToNextWorkflowStep('roof_access');
       return;
     }
 
@@ -3499,11 +3558,9 @@ function EstimatePageContent() {
 
     // Only add labor if both roof access issues and delivery prevention are true
     if (!roofstockingDelivery) {
-      // No delivery prevention, just close modal and proceed to valley check
+      // No delivery prevention, just close modal and proceed to next step
       setShowSPCRoofAccessModal(false);
-      setTimeout(() => {
-        checkValleyItems(ruleResults?.line_items || []);
-      }, 100);
+      proceedToNextWorkflowStep('roof_access');
       return;
     }
 
@@ -3590,11 +3647,8 @@ function EstimatePageContent() {
     console.log('✅ Added roof access labor item:', newItem);
     console.log(`Calculations: bundles=${bundles}, laborTime=${laborTime}hrs, laborCost=$${laborCost.toFixed(2)}`);
     
-    // After adding roof access labor item, proceed to valley check
-    setTimeout(() => {
-      const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkValleyItems(updatedItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('roof_access');
   };
 
   // Add O&P item based on 20% of total RCV
@@ -3655,10 +3709,8 @@ function EstimatePageContent() {
     console.log('✅ Added O&P item:', newItem);
     console.log(`O&P calculated: 20% of $${totalRCV.toFixed(2)} = $${opAmount.toFixed(2)}`);
     
-    // After adding O&P item, proceed to final step
-    setTimeout(() => {
-      setShowSPCFinalStepModal(true);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('op_check');
   };
 
   // Add installation shingle item and continue workflow
@@ -3942,94 +3994,6 @@ function EstimatePageContent() {
   };
 
 
-  // Unified Workflow Steps - All 13+ steps from original workflow
-  const workflowSteps = [
-    {
-      id: 'shingle-removal',
-      title: 'Shingle Removal Check',
-      description: 'Checking for shingle removal line items'
-    },
-    {
-      id: 'installation-shingles',
-      title: 'Installation Shingles Check', 
-      description: 'Checking for installation shingle line items'
-    },
-    {
-      id: 'step-flashing',
-      title: 'Step Flashing Check',
-      description: 'Checking for step flashing and kick-out diverter requirements'
-    },
-    {
-      id: 'shingle-depreciation',
-      title: 'Shingle Depreciation Contest',
-      description: 'Contest shingle depreciation based on age'
-    },
-    {
-      id: 'valley-metal',
-      title: 'Valley Metal Check',
-      description: 'Checking for valley metal requirements'
-    },
-    {
-      id: 'oandp',
-      title: 'O&P Check',
-      description: 'Checking for overhead and profit line items'
-    },
-    {
-      id: 'chimney-analysis',
-      title: 'Chimney Analysis',
-      description: 'Analyzing chimney presence and flashing requirements'
-    },
-    {
-      id: 'additional-layers',
-      title: 'Additional Shingle Layers',
-      description: 'Checking for additional shingle layers'
-    },
-    {
-      id: 'stories-analysis',
-      title: 'Building Stories Analysis',
-      description: 'Determining number of building stories'
-    },
-    {
-      id: 'permit-analysis',
-      title: 'Permit Requirements',
-      description: 'Checking for missing permits'
-    },
-    {
-      id: 'depreciation-contest',
-      title: 'Depreciation Contest',
-      description: 'Contesting depreciation calculations'
-    },
-    {
-      id: 'hidden-damages',
-      title: 'Hidden Damages',
-      description: 'Accounting for hidden damages'
-    },
-    {
-      id: 'spaced-decking',
-      title: 'Spaced Decking',
-      description: 'Checking for spaced decking requirements'
-    },
-    {
-      id: 'roof-access',
-      title: 'Roof Access Issues',
-      description: 'Identifying roof access problems'
-    },
-    {
-      id: 'skylights-roof-windows',
-      title: 'Skylights/Roof Windows',
-      description: 'Analyzing skylights and roof windows'
-    },
-    {
-      id: 'valley-metal',
-      title: 'Valley Metal Analysis',
-      description: 'Checking valley metal requirements'
-    },
-    {
-      id: 'labor-calculation',
-      title: 'Labor Calculation',
-      description: 'Calculating labor requirements'
-    }
-  ];
 
 
   // Handle price and quantity editing
@@ -7763,13 +7727,13 @@ function EstimatePageContent() {
                   {currentWorkflowStep >= 15 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        {workflowSteps[currentWorkflowStep]?.title || 'Additional Step'}
+                        {workflowSteps[currentWorkflowStep]?.name || 'Additional Step'}
                       </h3>
                       <p className="text-gray-600">
-                        {workflowSteps[currentWorkflowStep]?.description || 'This step is being processed.'}
+                        Step {currentWorkflowStep + 1} of {workflowSteps.length}
                       </p>
                       <p className="text-sm text-gray-500 mt-4">
-                        This step is not yet implemented in the unified workflow.
+                        This step is being processed.
                       </p>
                     </div>
                   )}
@@ -7819,7 +7783,7 @@ function EstimatePageContent() {
                     {currentWorkflowStep < workflowData.totalSteps - 1 && (
                       <button
                         onClick={() => {
-                          console.log(`⏭️ Skipping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep].title}`);
+                          console.log(`⏭️ Skipping step ${currentWorkflowStep + 1}: ${workflowSteps[currentWorkflowStep]?.name || 'Unknown'}`);
                           setCurrentWorkflowStep(currentWorkflowStep + 1);
                         }}
                         className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium transition-colors"
@@ -9965,18 +9929,42 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowWastePercentageModal(false);
-                        setWastePercentageStepCompleted(true);
-                        // If user closes modal, proceed to hidden damages
-                        setTimeout(() => {
-                          setShowSPCHiddenDamagesModal(true);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-indigo-400/30">
+                    <div className="flex items-center justify-between text-xs">
+                      {workflowSteps.map((step, index) => (
+                        <div key={step.id} className="flex items-center">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-full font-semibold ${
+                            step.id === 1 ? 'bg-white text-indigo-600' : 
+                            step.id < 1 ? 'bg-indigo-400 text-white' : 
+                            'bg-indigo-800/40 text-indigo-200'
+                          }`}>
+                            {step.id}
+                          </div>
+                          {index < workflowSteps.length - 1 && (
+                            <div className={`w-8 h-0.5 mx-1 ${
+                              step.id < 1 ? 'bg-indigo-400' : 'bg-indigo-800/40'
+                            }`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      {workflowSteps.map((step) => (
+                        <div key={step.id} className={`text-[10px] text-center ${
+                          step.id === 1 ? 'text-white font-semibold' : 'text-indigo-200'
+                        }`} style={{width: '50px'}}>
+                          {step.name.split(' ')[0]}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -10044,19 +10032,16 @@ function EstimatePageContent() {
 
                 {/* Footer */}
                 <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between">
-                  <button
-                    onClick={() => {
-                      setShowWastePercentageModal(false);
-                      setWastePercentageStepCompleted(true);
-                      // If user cancels, proceed to hidden damages
-                      setTimeout(() => {
-                        setShowSPCHiddenDamagesModal(true);
-                      }, 100);
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                  >
-                    Skip
-                  </button>
+                    <button
+                      onClick={() => {
+                        setShowWastePercentageModal(false);
+                        setWastePercentageStepCompleted(true);
+                        proceedToNextWorkflowStep('waste_percentage');
+                      }}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                    >
+                      Skip
+                    </button>
                   <button
                     onClick={handleWastePercentageConfirmation}
                     disabled={!wastePercentage || wastePercentage <= 0}
@@ -10087,13 +10072,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCHiddenDamagesModal(false);
-                        // Proceed to roof access check if canceled
-                        setTimeout(() => {
-                          checkRoofAccessIssues(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -10159,10 +10138,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCHiddenDamagesModal(false);
-                      // Proceed to roof access check if canceled
-                      setTimeout(() => {
-                        checkRoofAccessIssues(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('hidden_damages');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -10198,13 +10174,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCRoofAccessModal(false);
-                        // Proceed to valley check if canceled
-                        setTimeout(() => {
-                          checkValleyItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -10381,10 +10351,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCRoofAccessModal(false);
-                      // Proceed to valley check if canceled
-                      setTimeout(() => {
-                        checkValleyItems(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('roof_access');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -10420,13 +10387,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowValleyCheckModal(false);
-                        // Proceed to O&P check if canceled
-                        setTimeout(() => {
-                          checkOPItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -10509,10 +10470,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowValleyCheckModal(false);
-                      // Proceed to O&P check if canceled
-                      setTimeout(() => {
-                        checkOPItems(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('valley_check');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -10537,13 +10495,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCOPModal(false);
-                        // Proceed to final step if canceled
-                        setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -10600,10 +10552,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCOPModal(false);
-                      // Proceed to final step if canceled
-                      setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
-                      }, 100);
+                      proceedToNextWorkflowStep('op_check');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -10634,13 +10583,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCOPFoundModal(false);
-                        // Proceed to final step
-                        setTimeout(() => {
-                          setShowSPCFinalStepModal(true);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -10684,10 +10627,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCOPFoundModal(false);
-                      // Proceed to final step
-                      setTimeout(() => {
-                        setShowSPCFinalStepModal(true);
-                      }, 100);
+                      proceedToNextWorkflowStep('op_check');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
