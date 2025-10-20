@@ -246,6 +246,7 @@ function EstimatePageContent() {
   const [showWastePercentageModal, setShowWastePercentageModal] = useState(false);
   const [wastePercentage, setWastePercentage] = useState<number>(10);
   const [wasteCalculations, setWasteCalculations] = useState<{areaSqft: number, squares: number} | null>(null);
+  const [wastePercentageStepCompleted, setWastePercentageStepCompleted] = useState(false);
 
   // Shingle Removal Check state
   const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
@@ -1706,10 +1707,17 @@ function EstimatePageContent() {
       
       // Start workflow with waste percentage step
       console.log('🔍 Starting workflow with waste percentage step');
-      setShowWastePercentageModal(true);
-      
-      // Return early - the workflow will continue from handleWastePercentageConfirmation
-      return;
+      if (!wastePercentageStepCompleted) {
+        setShowWastePercentageModal(true);
+        return;
+      } else {
+        // Waste percentage step already completed, proceed to hidden damages
+        console.log('✅ Waste percentage step already completed, proceeding to hidden damages');
+        setTimeout(() => {
+          checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+        }, 100);
+        return;
+      }
       
       // Check if any of the required removal line items are present (using exact spellings from shingleRemovalOptions)
       console.log('🔍 Checking for shingle removal items in:', updatedLineItems.length, 'line items');
@@ -2288,6 +2296,7 @@ function EstimatePageContent() {
     console.log('📊 Calculated Area (sqft):', wasteCalculations?.areaSqft);
     console.log('📊 Calculated Squares:', wasteCalculations?.squares);
     setShowWastePercentageModal(false);
+    setWastePercentageStepCompleted(true);
     
     // Proceed to hidden damages check (start of existing workflow)
     setTimeout(() => {
@@ -9795,6 +9804,7 @@ function EstimatePageContent() {
                     <button
                       onClick={() => {
                         setShowWastePercentageModal(false);
+                        setWastePercentageStepCompleted(true);
                         // If user closes modal, proceed to next step with default percentage
                         setTimeout(() => {
                           checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
@@ -9874,6 +9884,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowWastePercentageModal(false);
+                      setWastePercentageStepCompleted(true);
                       // If user cancels, proceed with default percentage
                       setTimeout(() => {
                         checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
