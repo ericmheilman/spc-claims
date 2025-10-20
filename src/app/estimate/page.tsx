@@ -244,12 +244,17 @@ function EstimatePageContent() {
   // Workflow tracking state
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState<number>(0);
   const workflowSteps = [
-    { id: 1, name: 'Waste Percentage', key: 'waste_percentage' },
-    { id: 2, name: 'Hidden Damages', key: 'hidden_damages' },
-    { id: 3, name: 'Roof Access', key: 'roof_access' },
-    { id: 4, name: 'Valley Check', key: 'valley_check' },
-    { id: 5, name: 'O&P Check', key: 'op_check' },
-    { id: 6, name: 'Summary', key: 'summary' }
+    { id: 1, name: 'Waste %', key: 'waste_percentage' },
+    { id: 2, name: 'Shingle Removal', key: 'shingle_removal' },
+    { id: 3, name: 'Shingle Install', key: 'shingle_installation' },
+    { id: 4, name: 'Hidden Damages', key: 'hidden_damages' },
+    { id: 5, name: 'Roof Access', key: 'roof_access' },
+    { id: 6, name: 'Chimney', key: 'chimney_check' },
+    { id: 7, name: 'Add Layers', key: 'additional_layers' },
+    { id: 8, name: 'Permit', key: 'permit_check' },
+    { id: 9, name: 'Valley', key: 'valley_check' },
+    { id: 10, name: 'O&P', key: 'op_check' },
+    { id: 11, name: 'Summary', key: 'summary' }
   ];
 
   // Waste Percentage state
@@ -2207,28 +2212,64 @@ function EstimatePageContent() {
     
     switch (currentStep) {
       case 'waste_percentage':
-        console.log('→ Next step: Hidden Damages');
+        console.log('→ Next step: Shingle Removal');
         setCurrentWorkflowStep(2);
+        setTimeout(() => {
+          // Check for shingle removal items
+          const foundRemovalItems = updatedItems.filter((item: any) => 
+            shingleRemovalOptions.some(option => item.description === option)
+          );
+          if (foundRemovalItems.length > 0) {
+            setFoundRemovalItems(foundRemovalItems);
+            setShowSPCItemsFoundModal(true);
+          } else {
+            setShowSPCShingleRemovalModal(true);
+          }
+        }, 100);
+        break;
+      case 'shingle_removal':
+        console.log('→ Next step: Shingle Installation');
+        setCurrentWorkflowStep(3);
+        setTimeout(() => checkInstallationItems(updatedItems), 100);
+        break;
+      case 'shingle_installation':
+        console.log('→ Next step: Hidden Damages');
+        setCurrentWorkflowStep(4);
         setTimeout(() => setShowSPCHiddenDamagesModal(true), 100);
         break;
       case 'hidden_damages':
         console.log('→ Next step: Roof Access');
-        setCurrentWorkflowStep(3);
+        setCurrentWorkflowStep(5);
         setTimeout(() => setShowSPCRoofAccessModal(true), 100);
         break;
       case 'roof_access':
+        console.log('→ Next step: Chimney Check');
+        setCurrentWorkflowStep(6);
+        setTimeout(() => checkChimneyFlashingItems(updatedItems), 100);
+        break;
+      case 'chimney_check':
+        console.log('→ Next step: Additional Layers');
+        setCurrentWorkflowStep(7);
+        setTimeout(() => checkAdditionalLayersItems(updatedItems), 100);
+        break;
+      case 'additional_layers':
+        console.log('→ Next step: Permit Check');
+        setCurrentWorkflowStep(8);
+        setTimeout(() => checkPermitItems(updatedItems), 100);
+        break;
+      case 'permit_check':
         console.log('→ Next step: Valley Check');
-        setCurrentWorkflowStep(4);
+        setCurrentWorkflowStep(9);
         setTimeout(() => checkValleyItems(updatedItems), 100);
         break;
       case 'valley_check':
         console.log('→ Next step: O&P Check');
-        setCurrentWorkflowStep(5);
+        setCurrentWorkflowStep(10);
         setTimeout(() => checkOPItems(updatedItems), 100);
         break;
       case 'op_check':
         console.log('→ Next step: Final Summary');
-        setCurrentWorkflowStep(6);
+        setCurrentWorkflowStep(11);
         setTimeout(() => checkSPCAddedItems(updatedItems), 100);
         break;
       default:
@@ -3094,12 +3135,8 @@ function EstimatePageContent() {
     
     console.log('✅ Added SPC shingle removal item:', newItem);
     
-    // After adding removal item, update current line items and proceed to installation check
-    const updatedSPCItems = currentSPCLineItems.concat(newItem);
-    setCurrentSPCLineItems(updatedSPCItems);
-    setTimeout(() => {
-      checkInstallationItems(updatedSPCItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('shingle_removal');
   };
 
   // Add SPC installation shingle item after removal check
@@ -3167,12 +3204,8 @@ function EstimatePageContent() {
     
     console.log('✅ Added SPC installation shingle item:', newItem);
     
-    // After adding installation item, update current line items and proceed to final step check
-    const updatedSPCItems = currentSPCLineItems.concat(newItem);
-    setCurrentSPCLineItems(updatedSPCItems);
-    setTimeout(() => {
-      checkSPCAddedItems(updatedSPCItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('shingle_installation');
   };
 
 
@@ -3279,21 +3312,16 @@ function EstimatePageContent() {
     
     console.log('✅ Added chimney cricket item:', newItem);
     
-    // After adding cricket item, proceed to additional layers check
-    setTimeout(() => {
-      const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkAdditionalLayersItems(updatedItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('chimney_check');
   };
 
   // Add additional layers item based on layer type and coverage
   const handleAddAdditionalLayers = async () => {
     if (!additionalLayersPresent) {
-      // No additional layers, just close modal and proceed to permit check
+      // No additional layers, just close modal and proceed to next step
       setShowSPCAdditionalLayersModal(false);
-      setTimeout(() => {
-        checkPermitItems(ruleResults?.line_items || []);
-      }, 100);
+      proceedToNextWorkflowStep('additional_layers');
       return;
     }
 
@@ -3387,21 +3415,16 @@ function EstimatePageContent() {
     
     console.log('✅ Added additional layers item:', newItem);
     
-    // After adding additional layers item, proceed to permit check
-    setTimeout(() => {
-      const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkPermitItems(updatedItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('additional_layers');
   };
 
   // Add permit item based on user cost input
   const handleAddPermit = async () => {
     if (!permitMissing) {
-      // Permit not missing, just close modal and proceed to hidden damages check
+      // Permit not missing, just close modal and proceed to next step
       setShowSPCPermitModal(false);
-      setTimeout(() => {
-        checkHiddenDamages(ruleResults?.line_items || []);
-      }, 100);
+      proceedToNextWorkflowStep('permit_check');
       return;
     }
 
@@ -3457,11 +3480,8 @@ function EstimatePageContent() {
     
     console.log('✅ Added permit item:', newItem);
     
-    // After adding permit item, proceed to hidden damages check
-    setTimeout(() => {
-      const updatedItems = [...(ruleResults?.line_items || []), newItem];
-      checkHiddenDamages(updatedItems);
-    }, 100);
+    // Proceed to next workflow step
+    proceedToNextWorkflowStep('permit_check');
   };
 
   // Add hidden damages item based on user cost and narrative input
@@ -8772,14 +8792,11 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCShingleRemovalModal(false);
-                      // Proceed to installation check even if canceled
-                      setTimeout(() => {
-                        checkInstallationItems(currentSPCLineItems);
-                      }, 100);
+                      proceedToNextWorkflowStep('shingle_removal');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Cancel
+                    Skip
                   </button>
                   <button
                     onClick={handleAddSPCShingleRemoval}
@@ -8850,10 +8867,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCItemsFoundModal(false);
-                      // Proceed to installation check after removal check is complete
-                      setTimeout(() => {
-                        checkInstallationItems(currentSPCLineItems);
-                      }, 100);
+                      proceedToNextWorkflowStep('shingle_removal');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
@@ -8966,14 +8980,11 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCInstallationModal(false);
-                      // Proceed to final step check even if canceled
-                      setTimeout(() => {
-                        checkSPCAddedItems(currentSPCLineItems);
-                      }, 100);
+                      proceedToNextWorkflowStep('shingle_installation');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
-                    Cancel
+                    Skip
                   </button>
                   <button
                     onClick={handleAddSPCInstallation}
@@ -9044,10 +9055,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCInstallationFoundModal(false);
-                      // Proceed to final step check
-                      setTimeout(() => {
-                        checkSPCAddedItems(currentSPCLineItems);
-                      }, 100);
+                      proceedToNextWorkflowStep('shingle_installation');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
@@ -9243,10 +9251,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCChimneyModal(false);
-                      // Proceed to additional layers check if canceled
-                      setTimeout(() => {
-                        checkAdditionalLayersItems(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('chimney_check');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -9336,10 +9341,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCChimneyFoundModal(false);
-                      // Proceed to additional layers check
-                      setTimeout(() => {
-                        checkAdditionalLayersItems(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('chimney_check');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
@@ -9556,10 +9558,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCAdditionalLayersModal(false);
-                      // Proceed to permit check if canceled
-                      setTimeout(() => {
-                        checkPermitItems(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('additional_layers');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -9639,10 +9638,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCAdditionalLayersFoundModal(false);
-                      // Proceed to permit check
-                      setTimeout(() => {
-                        checkPermitItems(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('additional_layers');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
@@ -9758,10 +9754,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCPermitModal(false);
-                      // Proceed to hidden damages check if canceled
-                      setTimeout(() => {
-                        checkHiddenDamages(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('permit_check');
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
@@ -9841,10 +9834,7 @@ function EstimatePageContent() {
                   <button
                     onClick={() => {
                       setShowSPCPermitFoundModal(false);
-                      // Proceed to hidden damages check
-                      setTimeout(() => {
-                        checkHiddenDamages(ruleResults?.line_items || []);
-                      }, 100);
+                      proceedToNextWorkflowStep('permit_check');
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
                   >
