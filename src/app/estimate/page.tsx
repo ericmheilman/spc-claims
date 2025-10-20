@@ -8698,6 +8698,37 @@ function EstimatePageContent() {
                       ✕
                     </button>
                   </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-purple-400/30">
+                    <div className="flex items-center justify-between text-xs">
+                      {workflowSteps.map((step, index) => (
+                        <div key={step.id} className="flex items-center">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-full font-semibold ${
+                            step.id === 2 ? 'bg-white text-purple-600' : 
+                            step.id < 2 ? 'bg-purple-400 text-white' : 
+                            'bg-purple-800/40 text-purple-200'
+                          }`}>
+                            {step.id}
+                          </div>
+                          {index < workflowSteps.length - 1 && (
+                            <div className={`w-8 h-0.5 mx-1 ${
+                              step.id < 2 ? 'bg-purple-400' : 'bg-purple-800/40'
+                            }`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      {workflowSteps.map((step) => (
+                        <div key={step.id} className={`text-[10px] text-center ${
+                          step.id === 2 ? 'text-white font-semibold' : 'text-purple-200'
+                        }`} style={{width: '50px'}}>
+                          {step.name.split(' ')[0]}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Body */}
@@ -8903,6 +8934,37 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-blue-400/30">
+                    <div className="flex items-center justify-between text-xs">
+                      {workflowSteps.map((step, index) => (
+                        <div key={step.id} className="flex items-center">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-full font-semibold ${
+                            step.id === 3 ? 'bg-white text-blue-600' : 
+                            step.id < 3 ? 'bg-blue-400 text-white' : 
+                            'bg-blue-800/40 text-blue-200'
+                          }`}>
+                            {step.id}
+                          </div>
+                          {index < workflowSteps.length - 1 && (
+                            <div className={`w-8 h-0.5 mx-1 ${
+                              step.id < 3 ? 'bg-blue-400' : 'bg-blue-800/40'
+                            }`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      {workflowSteps.map((step) => (
+                        <div key={step.id} className={`text-[10px] text-center ${
+                          step.id === 3 ? 'text-white font-semibold' : 'text-blue-200'
+                        }`} style={{width: '50px'}}>
+                          {step.name.split(' ')[0]}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -10014,6 +10076,37 @@ function EstimatePageContent() {
                       ✕
                     </button>
                   </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-gray-400/30">
+                    <div className="flex items-center justify-between text-xs">
+                      {workflowSteps.map((step, index) => (
+                        <div key={step.id} className="flex items-center">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-full font-semibold ${
+                            step.id === 4 ? 'bg-white text-gray-900' : 
+                            step.id < 4 ? 'bg-gray-400 text-white' : 
+                            'bg-gray-800/40 text-gray-200'
+                          }`}>
+                            {step.id}
+                          </div>
+                          {index < workflowSteps.length - 1 && (
+                            <div className={`w-8 h-0.5 mx-1 ${
+                              step.id < 4 ? 'bg-gray-400' : 'bg-gray-800/40'
+                            }`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      {workflowSteps.map((step) => (
+                        <div key={step.id} className={`text-[10px] text-center ${
+                          step.id === 4 ? 'text-white font-semibold' : 'text-gray-200'
+                        }`} style={{width: '50px'}}>
+                          {step.name.split(' ')[0]}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Body */}
@@ -10115,6 +10208,37 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-orange-400/30">
+                    <div className="flex items-center justify-between text-xs">
+                      {workflowSteps.map((step, index) => (
+                        <div key={step.id} className="flex items-center">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-full font-semibold ${
+                            step.id === 5 ? 'bg-white text-orange-600' : 
+                            step.id < 5 ? 'bg-orange-400 text-white' : 
+                            'bg-orange-800/40 text-orange-200'
+                          }`}>
+                            {step.id}
+                          </div>
+                          {index < workflowSteps.length - 1 && (
+                            <div className={`w-8 h-0.5 mx-1 ${
+                              step.id < 5 ? 'bg-orange-400' : 'bg-orange-800/40'
+                            }`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      {workflowSteps.map((step) => (
+                        <div key={step.id} className={`text-[10px] text-center ${
+                          step.id === 5 ? 'text-white font-semibold' : 'text-orange-200'
+                        }`} style={{width: '50px'}}>
+                          {step.name.split(' ')[0]}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
