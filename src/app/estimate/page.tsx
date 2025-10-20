@@ -453,22 +453,22 @@ function EstimatePageContent() {
               let cleanedResponseStr = responseStr;
               cleanedResponseStr = cleanedResponseStr.replace(/(\d+)"(\s*[,}])/g, '$1\\"$2');
               
-              // Try to parse as JSON directly
+            // Try to parse as JSON directly
               const parsed = JSON.parse(cleanedResponseStr);
-              if (Array.isArray(parsed)) {
-                lineItemsArray = parsed;
-              } else if (parsed.response && Array.isArray(parsed.response)) {
-                lineItemsArray = parsed.response;
-              } else if (parsed.line_items && Array.isArray(parsed.line_items)) {
-                // Handle JavaScript engine response format
-                lineItemsArray = parsed.line_items;
-              }
+            if (Array.isArray(parsed)) {
+              lineItemsArray = parsed;
+            } else if (parsed.response && Array.isArray(parsed.response)) {
+              lineItemsArray = parsed.response;
+            } else if (parsed.line_items && Array.isArray(parsed.line_items)) {
+              // Handle JavaScript engine response format
+              lineItemsArray = parsed.line_items;
+            }
               console.log(`✅ Successfully parsed ${lineItemsArray.length} line items from JSON fallback`);
             } catch (jsonError) {
               console.warn('JSON parsing failed:', jsonError);
               setErrorDetails(`Failed to parse response as CSV or JSON. Response preview: ${responseStr.substring(0, 200)}...`);
             }
-          } else {
+                  } else {
             console.log(`✅ Successfully parsed ${lineItemsArray.length} line items from CSV`);
           }
           
@@ -676,7 +676,7 @@ function EstimatePageContent() {
         console.error('Error loading Roof Master Macro:', error);
       }
     };
-
+    
     loadRoofMasterMacro();
   }, []);
 
@@ -2105,14 +2105,14 @@ function EstimatePageContent() {
     setTimeout(() => {
       setShowSPCFinalStepModal(true);
     }, 100);
-  } else {
+    } else {
     // No SPC items found, show summary modal anyway
     console.log('ℹ️ No SPC-added items found, proceeding to final summary');
-    setTimeout(() => {
+      setTimeout(() => {
       setShowSPCFinalStepModal(true);
-    }, 100);
-  }
-};
+      }, 100);
+    }
+  };
 
 
   // Chimney flashing options - MUST match Roof Master Macro exactly
@@ -2998,7 +2998,6 @@ function EstimatePageContent() {
     'Remove Laminated - comp. shingle rfg. - w/out felt',
     'Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt',
     'Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt',
-    'Remove 3 tab - 25 yr. - composition shingle roofing incl. felt', // Common variation without hyphen before "incl"
     'Remove Laminated - comp. shingle rfg. - w/ felt'
   ];
 
@@ -7102,18 +7101,18 @@ function EstimatePageContent() {
                               </select>
                             </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Quantity (SQ) *
-                          </label>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Quantity (SQ) *
+                              </label>
                           <div className="flex gap-2">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={shingleRemovalQuantity}
-                              onChange={(e) => setShingleRemovalQuantity(e.target.value)}
-                              placeholder="Enter quantity"
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={shingleRemovalQuantity}
+                                onChange={(e) => setShingleRemovalQuantity(e.target.value)}
+                                placeholder="Enter quantity"
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
                             />
                             <button
@@ -7132,7 +7131,7 @@ function EstimatePageContent() {
                               Apply Total Roof Area
                             </button>
                           </div>
-                        </div>
+                            </div>
 
                             {selectedShingleRemoval && shingleRemovalQuantity && roofMasterMacro.get(selectedShingleRemoval) && (
                               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -7855,10 +7854,10 @@ function EstimatePageContent() {
                 {/* Footer */}
                 <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between items-center flex-shrink-0">
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => {
+                  <button
+                    onClick={() => {
                         // Cancel workflow completely - reset all state
-                        setShowUnifiedWorkflow(false);
+                      setShowUnifiedWorkflow(false);
                         setCurrentWorkflowStep(0);
                         setWorkflowData(null);
                         setSelectedShingleRemoval('');
@@ -7871,11 +7870,11 @@ function EstimatePageContent() {
                         setShingleAge('');
                         setValleyType('');
                         console.log('❌ Workflow cancelled by user');
-                      }}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
                     
                     {/* Back Button - Available for all steps except the first one */}
                     {currentWorkflowStep > 0 && (
@@ -8784,8 +8783,8 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
-                  </div>
-                  
+                </div>
+
                   {/* Workflow Progress Indicator */}
                   <div className="mt-4 pt-4 border-t border-purple-400/30">
                     <div className="overflow-x-auto">
@@ -8798,20 +8797,20 @@ function EstimatePageContent() {
                               'bg-purple-800/40 text-purple-200'
                             }`}>
                               {step.id}
-                            </div>
+                    </div>
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 2 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '50px'}}>
                               {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
-                            </div>
+                          </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
                                 step.id < 2 ? 'bg-purple-400' : 'bg-purple-800/40'
                               }`} />
                             )}
-                          </div>
+                        </div>
                         ))}
-                      </div>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -8853,13 +8852,13 @@ function EstimatePageContent() {
                           Quantity (SQ)
                         </label>
                         <div className="flex gap-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={spcShingleRemovalQuantity}
-                            onChange={(e) => setSPCShingleRemovalQuantity(e.target.value)}
-                            placeholder="Enter quantity in squares"
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={spcShingleRemovalQuantity}
+                          onChange={(e) => setSPCShingleRemovalQuantity(e.target.value)}
+                          placeholder="Enter quantity in squares"
                             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
                           />
                           <button
@@ -9172,8 +9171,8 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
-                  </div>
-                  
+                </div>
+
                   {/* Workflow Progress Indicator */}
                   <div className="mt-4 pt-4 border-t border-green-400/30">
                     <div className="overflow-x-auto">
@@ -9186,21 +9185,21 @@ function EstimatePageContent() {
                               'bg-green-800/40 text-green-200'
                             }`}>
                               {step.id}
-                            </div>
+                    </div>
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 3 ? 'text-white font-semibold' : 'text-green-200'
                             }`} style={{width: '40px'}}>
                               {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
-                            </div>
+                  </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
                                 step.id < 3 ? 'bg-green-400' : 'bg-green-800/40'
                               }`} />
                             )}
-                          </div>
+                    </div>
                         ))}
                       </div>
-                    </div>
+                            </div>
                   </div>
                 </div>
 
