@@ -75,9 +75,13 @@ function EstimatePageContent() {
   const [foundInstallationItems, setFoundInstallationItems] = useState<any[]>([]);
   const [currentSPCLineItems, setCurrentSPCLineItems] = useState<any[]>([]);
 
-  // SPC Final Step Check state (for automatically added items)
-  const [showSPCFinalStepModal, setShowSPCFinalStepModal] = useState(false);
-  const [foundSPCAddedItems, setFoundSPCAddedItems] = useState<any[]>([]);
+  // Macro matching state
+  const [showMacroMatchingModal, setShowMacroMatchingModal] = useState(false);
+  const [macroMatchingResults, setMacroMatchingResults] = useState<any[]>([]);
+  const [isRunningMacroMatching, setIsRunningMacroMatching] = useState(false);
+  const [showMacroReplacementModal, setShowMacroReplacementModal] = useState(false);
+  const [selectedMacroItem, setSelectedMacroItem] = useState<any>(null);
+  const [macroSuggestions, setMacroSuggestions] = useState<any[]>([]);
 
 
   // SPC Chimney/Cricket Check state
@@ -1583,6 +1587,71 @@ function EstimatePageContent() {
     } finally {
       setIsRunningCombined(false);
     }
+  };
+
+  // Macro matching function
+  const runMacroMatching = async () => {
+    if (!extractedLineItems.length) {
+      alert('No line items to check against macro');
+      return;
+    }
+
+    setIsRunningMacroMatching(true);
+    setShowMacroMatchingModal(true);
+
+    try {
+      const response = await fetch('/api/macro-matching', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          line_items: extractedLineItems
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to run macro matching');
+      }
+
+      const data = await response.json();
+      setMacroMatchingResults(data.results || []);
+    } catch (error) {
+      console.error('Error running macro matching:', error);
+      alert('Error running macro matching. Please try again.');
+    } finally {
+      setIsRunningMacroMatching(false);
+    }
+  };
+
+  // Handle macro item replacement
+  const handleMacroReplacement = (originalItem: any, suggestedItem: any) => {
+    setSelectedMacroItem(originalItem);
+    setMacroSuggestions([suggestedItem]);
+    setShowMacroReplacementModal(true);
+  };
+
+  // Apply macro replacement
+  const applyMacroReplacement = (originalItem: any, replacementItem: any) => {
+    const updatedItems = extractedLineItems.map(item => 
+      item.line_number === originalItem.line_number 
+        ? { ...item, description: replacementItem.description }
+        : item
+    );
+    setExtractedLineItems(updatedItems);
+    setShowMacroReplacementModal(false);
+    
+    // Remove from matching results
+    setMacroMatchingResults(prev => 
+      prev.filter(result => result.line_number !== originalItem.line_number)
+    );
+  };
+
+  // Ignore macro item
+  const ignoreMacroItem = (item: any) => {
+    setMacroMatchingResults(prev => 
+      prev.filter(result => result.line_number !== item.line_number)
+    );
   };
 
   // SPC Adjustment Engine function
@@ -4563,6 +4632,18 @@ function EstimatePageContent() {
               >
                 <Settings className="inline-block w-4 h-4 mr-2" />
                 Manage Roof Master Macro
+              </button>
+              
+              <button
+                onClick={runMacroMatching}
+                disabled={isRunningMacroMatching || !extractedLineItems.length}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isRunningMacroMatching || !extractedLineItems.length
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-green-700 text-white hover:bg-green-800 border border-green-600'
+                }`}
+              >
+                {isRunningMacroMatching ? 'Checking...' : 'Macro Matching'}
               </button>
               
               <button
@@ -11123,6 +11204,162 @@ function EstimatePageContent() {
                     className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors"
                   >
                     Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Macro Matching Modal */}
+          {showMacroMatchingModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+                {/* Header */}
+                <div className="bg-green-600 px-6 py-4 rounded-t-2xl">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-white">Macro Matching Results</h2>
+                    <button
+                      onClick={() => setShowMacroMatchingModal(false)}
+                      className="text-white hover:text-gray-200 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {isRunningMacroMatching ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                      <span className="ml-3 text-gray-600">Checking line items against macro...</span>
+                    </div>
+                  ) : macroMatchingResults.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-green-600 text-6xl mb-4">✅</div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">All Items Match!</h3>
+                      <p className="text-gray-600">All line items have exact matches in the roof master macro.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Items Requiring Attention</h3>
+                        <p className="text-yellow-700 text-sm">
+                          The following items don't have exact matches in the roof master macro. 
+                          You can replace them with suggested matches or ignore them.
+                        </p>
+                      </div>
+                      
+                      {macroMatchingResults.map((result, index) => (
+                        <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 mb-2">Line {result.line_number}</h4>
+                              <p className="text-gray-700 mb-3">{result.description}</p>
+                              
+                              {result.suggestions && result.suggestions.length > 0 ? (
+                                <div className="space-y-2">
+                                  <p className="text-sm font-medium text-gray-600">Suggested replacements:</p>
+                                  {result.suggestions.map((suggestion: any, idx: number) => (
+                                    <div key={idx} className="bg-white border border-gray-200 rounded p-3">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-900">{suggestion.description}</p>
+                                          <p className="text-xs text-gray-500">
+                                            Match: {Math.round(suggestion.similarity * 100)}% | 
+                                            Price: ${suggestion.unit_price} | 
+                                            Unit: {suggestion.unit}
+                                          </p>
+                                        </div>
+                                        <button
+                                          onClick={() => handleMacroReplacement(result, suggestion)}
+                                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                                        >
+                                          Replace
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500">No close matches found</p>
+                              )}
+                            </div>
+                            
+                            <div className="ml-4 flex flex-col gap-2">
+                              <button
+                                onClick={() => ignoreMacroItem(result)}
+                                className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+                              >
+                                Ignore
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end">
+                  <button
+                    onClick={() => setShowMacroMatchingModal(false)}
+                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Macro Replacement Confirmation Modal */}
+          {showMacroReplacementModal && selectedMacroItem && macroSuggestions.length > 0 && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-green-600 px-6 py-4 rounded-t-2xl">
+                  <h2 className="text-xl font-bold text-white">Confirm Replacement</h2>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Original Item:</h3>
+                      <div className="bg-gray-100 border border-gray-200 rounded p-3">
+                        <p className="text-gray-700">Line {selectedMacroItem.line_number}: {selectedMacroItem.description}</p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Replace with:</h3>
+                      <div className="bg-green-50 border border-green-200 rounded p-3">
+                        <p className="text-gray-700">{macroSuggestions[0].description}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Price: ${macroSuggestions[0].unit_price} | Unit: {macroSuggestions[0].unit}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowMacroReplacementModal(false)}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => applyMacroReplacement(selectedMacroItem, macroSuggestions[0])}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Confirm Replacement
                   </button>
                 </div>
               </div>
