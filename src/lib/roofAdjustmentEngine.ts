@@ -605,12 +605,44 @@ export class RoofAdjustmentEngine {
         }
         
         this.adjustmentCounts.quantity_adjustments++;
-        return this.adjustQuantity(
-          item,
-          newItem.quantity,
-          `Shingle adjustment: ${ruleApplied}`,
-          ruleApplied
-        );
+        
+        // If description changed, we need to handle it specially since adjustQuantity only handles quantity
+        if (descriptionChanged) {
+          // Log the description change
+          this.logAudit({
+            line_number: item.line_number,
+            field: 'description',
+            before: item.description,
+            after: newItem.description,
+            explanation: `Shingle adjustment: ${ruleApplied}`,
+            rule_applied: ruleApplied,
+            timestamp: '',
+          });
+          
+          // Log the quantity change if applicable
+          if (quantityChanged) {
+            this.logAudit({
+              line_number: item.line_number,
+              field: 'quantity',
+              before: item.quantity,
+              after: newItem.quantity,
+              explanation: `Shingle adjustment: ${ruleApplied}`,
+              rule_applied: ruleApplied,
+              timestamp: '',
+            });
+          }
+          
+          // Return the newItem with both description and quantity changes
+          return newItem;
+        } else {
+          // Only quantity changed, use adjustQuantity
+          return this.adjustQuantity(
+            item,
+            newItem.quantity,
+            `Shingle adjustment: ${ruleApplied}`,
+            ruleApplied
+          );
+        }
       }
       
       return newItem;
