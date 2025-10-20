@@ -2023,7 +2023,8 @@ function EstimatePageContent() {
       console.log('📊 Using LIVE roof measurements:', roofMeasurements);
 
       // Use the internal function to run JavaScript rules
-      const ruleData = await runJavaScriptRules(extractedLineItems, roofMeasurements, wastePercentageStepCompleted ? wastePercentage : 0);
+      // Only pass waste percentage if the user has explicitly entered it in the workflow
+      const ruleData = await runJavaScriptRules(extractedLineItems, roofMeasurements, wastePercentageStepCompleted ? wastePercentage : null);
       
       console.log('JavaScript rule engine results:', ruleData);
       console.log('🔍 Debug: JavaScript audit log:', ruleData.data?.audit_log);
