@@ -1342,17 +1342,55 @@ function EstimatePageContent() {
   };
 
   // Roof Master Macro Export function
-  const handleRmmExport = () => {
+  // Unit Cost Comparator function
+  const runUnitCostComparator = async () => {
+    console.log('🔧 Running Unit Cost Comparator...');
+    setIsRunningMacroMatching(true); // Reuse existing loading state
+    
     try {
-      // Create a download link for the roof master macro CSV
-      const link = document.createElement('a');
-      link.href = '/roof_master_macro.csv';
-      link.download = 'roof_master_macro.csv';
-      link.click();
-      console.log('✅ Roof master macro CSV exported successfully');
+      const currentItems = ruleResults?.line_items || extractedLineItems;
+      
+      if (currentItems.length === 0) {
+        alert('No line items available. Please process documents first.');
+        setIsRunningMacroMatching(false);
+        return;
+      }
+
+      const response = await fetch('/api/unit-cost-adjustments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          line_items: currentItems
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.line_items) {
+        console.log(`✅ Unit Cost Comparator completed: ${result.adjustmentCount} items adjusted`);
+        
+        // Update state with adjusted items
+        setExtractedLineItems(result.line_items);
+        if (ruleResults) {
+          setRuleResults({
+            ...ruleResults,
+            line_items: result.line_items
+          });
+        }
+        setCurrentSPCLineItems(result.line_items);
+        setLastUpdateTime(Date.now());
+        
+        alert(`Unit cost comparison complete!\n${result.adjustmentCount} line items had their unit costs adjusted to match the roof master macro.`);
+      } else {
+        throw new Error(result.error || 'Unit cost comparator failed');
+      }
     } catch (error) {
-      console.error('❌ Error exporting roof master macro CSV:', error);
-      alert('Failed to export roof master macro CSV. Please try again.');
+      console.error('❌ Error running unit cost comparator:', error);
+      alert(`Unit cost comparator failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRunningMacroMatching(false);
     }
   };
 
@@ -2157,11 +2195,21 @@ function EstimatePageContent() {
     // Run final Unit Cost Adjustments to ensure all items have correct pricing
     console.log('🔧 Running final Unit Cost Adjustments against roof master macro...');
     try {
-      const finalRuleData = await runJavaScriptRules(updatedLineItems, extractedRoofMeasurements, wastePercentage);
+      const response = await fetch('/api/unit-cost-adjustments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          line_items: updatedLineItems
+        })
+      });
+
+      const finalRuleData = await response.json();
       
       if (finalRuleData.success && finalRuleData.line_items) {
         console.log('✅ Final Unit Cost Adjustments completed');
-        console.log(`📊 Final adjustments: ${finalRuleData.totalAdjustments || 0}`);
+        console.log(`📊 Final adjustments: ${finalRuleData.adjustmentCount || 0}`);
         
         // Update the line items with final pricing
         setExtractedLineItems(finalRuleData.line_items);
@@ -5011,30 +5059,18 @@ function EstimatePageContent() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {/* Upload Roof Master Macro Button */}
-              <label className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
-                isUploadingRMM
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 border border-blue-500'
-              }`}>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleRmmUpload}
-                  disabled={isUploadingRMM}
-                  className="hidden"
-                />
-                <Upload className="inline-block w-4 h-4 mr-2" />
-                {isUploadingRMM ? 'Uploading...' : 'Upload Roof Master Macro'}
-              </label>
-              
-              {/* Export Roof Master Macro Button */}
+              {/* Unit Cost Comparator Button */}
               <button
-                onClick={handleRmmExport}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-purple-600 text-white hover:bg-purple-700 border border-purple-500"
+                onClick={runUnitCostComparator}
+                disabled={isRunningMacroMatching || !extractedLineItems.length}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isRunningMacroMatching || !extractedLineItems.length
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 border border-blue-500'
+                }`}
               >
-                <Download className="inline-block w-4 h-4 mr-2" />
-                Export Roof Master Macro
+                <DollarSign className="inline-block w-4 h-4 mr-2" />
+                {isRunningMacroMatching ? 'Comparing...' : 'Unit Cost Comparator'}
               </button>
               
               {/* Manage Roof Master Macro Button */}

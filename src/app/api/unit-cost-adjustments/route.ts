@@ -1,0 +1,149 @@
+import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs/promises';
+import path from 'path';
+
+// Extend global to include roof master macro data
+declare global {
+  var roofMasterMacroData: string | undefined;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const inputData = await request.json();
+    
+    console.log('🔧 Running Unit Cost Adjustments only...');
+    console.log(`📊 Processing ${inputData.line_items?.length || 0} line items`);
+
+    // Load roof master macro CSV - try memory first, then file, then defaults
+    let csvContent = '';
+    
+    // Try memory first (for uploaded data)
+    if (global.roofMasterMacroData) {
+      console.log('📊 Using roof master macro data from memory (uploaded)');
+      csvContent = global.roofMasterMacroData;
+    } else {
+      // Try multiple file locations
+      const possiblePaths = [
+        path.join(process.cwd(), 'roof_master_macro.csv'), // Project root
+        path.join(process.cwd(), 'public', 'roof_master_macro.csv'), // Public directory
+        '/tmp/app/roof_master_macro.csv' // AWS Lambda temp directory
+      ];
+      
+      let loaded = false;
+      for (const csvPath of possiblePaths) {
+        try {
+          csvContent = await fs.readFile(csvPath, 'utf-8');
+          console.log(`📊 Using roof master macro data from file: ${csvPath}`);
+          loaded = true;
+          break;
+        } catch (error: any) {
+          console.log(`⚠️ Could not load from ${csvPath}:`, error.message);
+        }
+      }
+      
+      if (!loaded) {
+        console.log('⚠️ Could not load roof master macro from any file, using default');
+        // Fallback to a comprehensive default that includes the key items
+        csvContent = `Description,Unit,Unit Price
+Laminated - comp. shingle rfg. - w/out felt,SQ,249.37
+3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,235.6
+Remove Laminated - comp. shingle rfg. - w/out felt,SQ,67.4
+Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,65.96
+Asphalt starter - universal starter course,LF,1.73
+Drip edge/gutter apron,LF,3.09
+Step flashing,LF,10.28
+Aluminum sidewall/endwall flashing - mill finish,LF,6.77
+Roofing felt - 15 lb. - double coverage/low slope,SQ,61.44
+Roofing felt - 15 lb.,SQ,34.68
+Roofing felt - 30 lb.,SQ,42.64
+Additional charge for steep roof - 10/12 - 12/12 slope,SQ,64.99
+Remove Additional charge for steep roof - 10/12 - 12/12 slope,SQ,25.83`;
+      }
+    }
+    
+    // Simple CSV parsing without external library
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const records = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      if (values.length === headers.length) {
+        const record: any = {};
+        headers.forEach((header, index) => {
+          record[header] = values[index];
+        });
+        records.push(record);
+      }
+    }
+
+    // Convert CSV records to the format expected by the engine
+    const roofMasterMacroData: Record<string, any> = {};
+    for (const record of records) {
+      // Handle case-insensitive field names
+      const description = record.Description || record.description;
+      const unit = record.Unit || record.unit;
+      const unitPrice = record['Unit Price'] || record['unit_price'] || record.unit_price;
+      
+      if (description && unit && unitPrice) {
+        roofMasterMacroData[description] = {
+          description: description,
+          unit: unit,
+          unit_price: parseFloat(unitPrice),
+        };
+      }
+    }
+
+    console.log(`📊 Loaded ${Object.keys(roofMasterMacroData).length} items from roof master macro`);
+
+    // Apply Unit Cost Adjustments only
+    const adjustedLineItems = inputData.line_items.map((item: any) => {
+      const adjustedItem = { ...item };
+      
+      // Look up item in roof master macro
+      const macroItem = roofMasterMacroData[item.description];
+      
+      if (macroItem) {
+        // Take the maximum of current price and macro price
+        const currentPrice = adjustedItem.unit_price || 0;
+        const macroPrice = macroItem.unit_price || 0;
+        
+        if (macroPrice > currentPrice) {
+          console.log(`💰 Adjusting ${item.description}: $${currentPrice} → $${macroPrice}`);
+          adjustedItem.unit_price = macroPrice;
+          adjustedItem.RCV = macroPrice * adjustedItem.quantity;
+        } else {
+          console.log(`✓ ${item.description}: $${currentPrice} >= $${macroPrice} (no adjustment)`);
+        }
+      } else {
+        console.log(`⚠️ ${item.description}: Not found in roof master macro`);
+      }
+      
+      return adjustedItem;
+    });
+
+    const adjustmentCount = adjustedLineItems.filter((item: any, index: number) => 
+      item.unit_price !== inputData.line_items[index].unit_price
+    ).length;
+
+    console.log(`✅ Unit Cost Adjustments completed: ${adjustmentCount} items adjusted`);
+
+    return NextResponse.json({
+      success: true,
+      line_items: adjustedLineItems,
+      adjustmentCount,
+    });
+
+  } catch (error: any) {
+    console.error('Error running Unit Cost Adjustments:', error);
+    
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Unit Cost Adjustments failed: ${error.message || 'Unknown error'}`,
+      },
+      { status: 500 }
+    );
+  }
+}
+
