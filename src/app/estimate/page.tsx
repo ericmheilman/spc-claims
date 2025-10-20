@@ -9150,6 +9150,35 @@ function EstimatePageContent() {
                       ✕
                     </button>
                   </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-blue-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 6 ? 'bg-white text-blue-600' : 
+                              step.id < 6 ? 'bg-blue-400 text-white' : 
+                              'bg-blue-800/40 text-blue-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 6 ? 'text-white font-semibold' : 'text-blue-200'
+                            }`} style={{width: '40px'}}>
+                              {step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 6 ? 'bg-blue-400' : 'bg-blue-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Body */}
@@ -9435,6 +9464,35 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-violet-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 7 ? 'bg-white text-violet-600' : 
+                              step.id < 7 ? 'bg-violet-400 text-white' : 
+                              'bg-violet-800/40 text-violet-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 7 ? 'text-white font-semibold' : 'text-violet-200'
+                            }`} style={{width: '40px'}}>
+                              {step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 7 ? 'bg-violet-400' : 'bg-violet-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -9732,6 +9790,35 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-slate-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 8 ? 'bg-white text-slate-600' : 
+                              step.id < 8 ? 'bg-slate-400 text-white' : 
+                              'bg-slate-800/40 text-slate-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 8 ? 'text-white font-semibold' : 'text-slate-200'
+                            }`} style={{width: '40px'}}>
+                              {step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 8 ? 'bg-slate-400' : 'bg-slate-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -10443,6 +10530,35 @@ function EstimatePageContent() {
                       ✕
                     </button>
                   </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-indigo-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 9 ? 'bg-white text-indigo-600' : 
+                              step.id < 9 ? 'bg-indigo-400 text-white' : 
+                              'bg-indigo-800/40 text-indigo-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 9 ? 'text-white font-semibold' : 'text-indigo-200'
+                            }`} style={{width: '40px'}}>
+                              {step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 9 ? 'bg-indigo-400' : 'bg-indigo-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Body */}
@@ -10550,6 +10666,35 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-purple-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 10 ? 'bg-white text-purple-600' : 
+                              step.id < 10 ? 'bg-purple-400 text-white' : 
+                              'bg-purple-800/40 text-purple-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 10 ? 'text-white font-semibold' : 'text-purple-200'
+                            }`} style={{width: '40px'}}>
+                              {step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 10 ? 'bg-purple-400' : 'bg-purple-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -10707,6 +10852,35 @@ function EstimatePageContent() {
                     >
                       ✕
                     </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-purple-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 11 ? 'bg-white text-purple-600' : 
+                              step.id < 11 ? 'bg-purple-400 text-white' : 
+                              'bg-purple-800/40 text-purple-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 11 ? 'text-white font-semibold' : 'text-purple-200'
+                            }`} style={{width: '40px'}}>
+                              {step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 11 ? 'bg-purple-400' : 'bg-purple-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
