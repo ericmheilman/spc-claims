@@ -3186,12 +3186,21 @@ function EstimatePageContent() {
     const valleysLength = extractedRoofMeasurements["Total Line Lengths (Valleys)"]?.value || 0;
     const pitch0 = extractedRoofMeasurements["Area for Pitch 0/12 (sq ft)"]?.value || 0;
     
+    console.log('🔍 DEBUG - Current items count:', currentItems.length);
+    console.log('🔍 DEBUG - Valleys length:', valleysLength);
+    console.log('🔍 DEBUG - Pitch 0/12:', pitch0);
+    console.log('🔍 DEBUG - Roof Master Macro has Ice & water barrier:', roofMasterMacro.has('Ice & water barrier'));
+    console.log('🔍 DEBUG - Roof Master Macro size:', roofMasterMacro.size);
+    
     let updatedItems = [...currentItems];
     let adjustmentsMade = false;
     
     // Check Ice & water barrier (exact match from roof master macro)
     const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & water barrier');
     const requiredIceWaterQuantity = valleysLength * 3;
+    
+    console.log('🔍 DEBUG - Ice & water barrier found?', !!iceWaterItem);
+    console.log('🔍 DEBUG - Required Ice & water barrier quantity:', requiredIceWaterQuantity);
     
     if (iceWaterItem) {
       const threshold = requiredIceWaterQuantity * 0.25; // 25% threshold
@@ -3217,8 +3226,11 @@ function EstimatePageContent() {
     } else {
       // Ice & water barrier not present - add it
       console.log('⚠️ Ice & water barrier not found - adding new line item');
+      console.log('🔍 DEBUG - Attempting to get macro data for Ice & water barrier');
       
       const macroData = roofMasterMacro.get('Ice & water barrier');
+      console.log('🔍 DEBUG - Macro data retrieved:', macroData);
+      
       if (macroData) {
         // Get max line number
         const maxLineNumber = Math.max(
@@ -3244,8 +3256,12 @@ function EstimatePageContent() {
         updatedItems.push(newItem);
         adjustmentsMade = true;
         console.log('✅ Added Ice & water barrier with quantity:', requiredIceWaterQuantity);
+        console.log('🔍 DEBUG - New item added:', newItem);
+        console.log('🔍 DEBUG - Updated items count after adding:', updatedItems.length);
+        console.log('🔍 DEBUG - adjustmentsMade flag:', adjustmentsMade);
       } else {
         console.log('❌ Ice & water barrier not found in Roof Master Macro');
+        console.log('🔍 DEBUG - Available roof master macro items:', Array.from(roofMasterMacro.keys()).slice(0, 10));
       }
     }
     
@@ -3426,12 +3442,17 @@ function EstimatePageContent() {
       }
     }
     
+    console.log('🔍 DEBUG - Final adjustmentsMade value:', adjustmentsMade);
+    console.log('🔍 DEBUG - Final updatedItems count:', updatedItems.length);
+    
     if (adjustmentsMade) {
       console.log('✅ Valley adjustments applied, updating line items');
+      console.log('🔍 DEBUG - Calling setExtractedLineItems with', updatedItems.length, 'items');
       setExtractedLineItems(updatedItems);
       
       // If we have rule results, update those too
       if (ruleResults) {
+        console.log('🔍 DEBUG - Updating ruleResults');
         setRuleResults({
           ...ruleResults,
           line_items: updatedItems
@@ -3439,8 +3460,11 @@ function EstimatePageContent() {
       }
       
       // Update current SPC line items
+      console.log('🔍 DEBUG - Calling setCurrentSPCLineItems');
       setCurrentSPCLineItems(updatedItems);
       setLastUpdateTime(Date.now());
+      
+      console.log('🔍 DEBUG - All state updates completed');
     } else {
       console.log('ℹ️ No valley adjustments were needed');
     }
