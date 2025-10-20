@@ -253,16 +253,17 @@ function EstimatePageContent() {
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState<number>(0);
   const workflowSteps = [
     { id: 1, name: 'Waste %', key: 'waste_percentage' },
-    { id: 2, name: 'Shingle Removal', key: 'shingle_removal' },
-    { id: 3, name: 'Shingle Install', key: 'shingle_installation' },
-    { id: 4, name: 'Hidden Damages', key: 'hidden_damages' },
-    { id: 5, name: 'Roof Access', key: 'roof_access' },
-    { id: 6, name: 'Chimney', key: 'chimney_check' },
-    { id: 7, name: 'Add Layers', key: 'additional_layers' },
-    { id: 8, name: 'Permit', key: 'permit_check' },
-    { id: 9, name: 'Valley', key: 'valley_check' },
-    { id: 10, name: 'O&P', key: 'op_check' },
-    { id: 11, name: 'Summary', key: 'summary' }
+    { id: 2, name: 'Shingle Adj.', key: 'shingle_adjustments' },
+    { id: 3, name: 'Shingle Removal', key: 'shingle_removal' },
+    { id: 4, name: 'Shingle Install', key: 'shingle_installation' },
+    { id: 5, name: 'Hidden Damages', key: 'hidden_damages' },
+    { id: 6, name: 'Roof Access', key: 'roof_access' },
+    { id: 7, name: 'Chimney', key: 'chimney_check' },
+    { id: 8, name: 'Add Layers', key: 'additional_layers' },
+    { id: 9, name: 'Permit', key: 'permit_check' },
+    { id: 10, name: 'Valley', key: 'valley_check' },
+    { id: 11, name: 'O&P', key: 'op_check' },
+    { id: 12, name: 'Summary', key: 'summary' }
   ];
 
   // Waste Percentage state
@@ -270,6 +271,21 @@ function EstimatePageContent() {
   const [wastePercentage, setWastePercentage] = useState<number>(10);
   const [wasteCalculations, setWasteCalculations] = useState<{areaSqft: number, squares: number} | null>(null);
   const [wastePercentageStepCompleted, setWastePercentageStepCompleted] = useState(false);
+
+  // Shingle Adjustments Approval state (Step 2 after waste %)
+  const [showShingleAdjustmentsModal, setShowShingleAdjustmentsModal] = useState(false);
+  const [suggestedShingleAdjustments, setSuggestedShingleAdjustments] = useState<Array<{
+    lineNumber: string;
+    currentDescription: string;
+    currentQuantity: number;
+    suggestedDescription?: string;
+    suggestedQuantity?: number;
+    changeType: 'quantity_only' | 'description_and_quantity' | 'add_item';
+    reason: string;
+    approved: boolean | null;
+  }>>([]);
+  const [shingleAdjustmentsStepCompleted, setShingleAdjustmentsStepCompleted] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
 
   // Shingle Removal Check state
   const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
@@ -2292,8 +2308,15 @@ function EstimatePageContent() {
     
     switch (currentStep) {
       case 'waste_percentage':
-        console.log('→ Next step: Shingle Removal');
+        console.log('→ Next step: Shingle Adjustments');
         setCurrentWorkflowStep(2);
+        setTimeout(() => {
+          setShowShingleAdjustmentsModal(true);
+        }, 100);
+        break;
+      case 'shingle_adjustments':
+        console.log('→ Next step: Shingle Removal');
+        setCurrentWorkflowStep(3);
         setTimeout(() => {
           // Check for shingle removal items
           const foundRemovalItems = updatedItems.filter((item: any) => 
@@ -2309,47 +2332,47 @@ function EstimatePageContent() {
         break;
       case 'shingle_removal':
         console.log('→ Next step: Shingle Installation');
-        setCurrentWorkflowStep(3);
+        setCurrentWorkflowStep(4);
         setTimeout(() => checkInstallationItems(updatedItems), 100);
         break;
       case 'shingle_installation':
         console.log('→ Next step: Hidden Damages');
-        setCurrentWorkflowStep(4);
+        setCurrentWorkflowStep(5);
         setTimeout(() => setShowSPCHiddenDamagesModal(true), 100);
         break;
       case 'hidden_damages':
         console.log('→ Next step: Roof Access');
-        setCurrentWorkflowStep(5);
+        setCurrentWorkflowStep(6);
         setTimeout(() => setShowSPCRoofAccessModal(true), 100);
         break;
       case 'roof_access':
         console.log('→ Next step: Chimney Check');
-        setCurrentWorkflowStep(6);
+        setCurrentWorkflowStep(7);
         setTimeout(() => checkChimneyFlashingItems(updatedItems), 100);
         break;
       case 'chimney_check':
         console.log('→ Next step: Additional Layers');
-        setCurrentWorkflowStep(7);
+        setCurrentWorkflowStep(8);
         setTimeout(() => checkAdditionalLayersItems(updatedItems), 100);
         break;
       case 'additional_layers':
         console.log('→ Next step: Permit Check');
-        setCurrentWorkflowStep(8);
+        setCurrentWorkflowStep(9);
         setTimeout(() => checkPermitItems(updatedItems), 100);
         break;
       case 'permit_check':
         console.log('→ Next step: Valley Check');
-        setCurrentWorkflowStep(9);
+        setCurrentWorkflowStep(10);
         setTimeout(() => checkValleyItems(updatedItems), 100);
         break;
       case 'valley_check':
         console.log('→ Next step: O&P Check');
-        setCurrentWorkflowStep(10);
+        setCurrentWorkflowStep(11);
         setTimeout(() => checkOPItems(updatedItems), 100);
         break;
       case 'op_check':
         console.log('→ Next step: Final Summary');
-        setCurrentWorkflowStep(11);
+        setCurrentWorkflowStep(12);
         setTimeout(() => checkSPCAddedItems(updatedItems), 100);
         break;
       default:
@@ -2630,30 +2653,250 @@ function EstimatePageContent() {
     }
   };
 
+  // Calculate suggested shingle adjustments based on waste percentage
+  const calculateSuggestedShingleAdjustments = () => {
+    console.log('🔍 Calculating suggested shingle adjustments...');
+    const currentItems = ruleResults?.line_items || extractedLineItems;
+    const totalRoofArea = extractedRoofMeasurements["Total Roof Area"]?.value || 0;
+    const baseQuantity = totalRoofArea / 100; // Shingles are quoted in SQ
+    const suggestedWaste = wastePercentage / 100;
+    
+    const suggestions: Array<{
+      lineNumber: string;
+      currentDescription: string;
+      currentQuantity: number;
+      suggestedDescription?: string;
+      suggestedQuantity?: number;
+      changeType: 'quantity_only' | 'description_and_quantity' | 'add_item';
+      reason: string;
+      approved: boolean | null;
+    }> = [];
+
+    // Installation rules - WITH waste
+    const installationWithWasteRules = [
+      { match: "Laminated comp. shingle rfg. - w/out felt", replace: null },
+      { match: "3 tab 25 yr. comp. shingle roofing - w/out felt", replace: null },
+      { match: "Laminated comp. shingle rfg. - w/ felt", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "3 tab 25 yr. composition shingle roofing incl. felt", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Material Only 3 tab 25 yr. comp. shingle roofing - w/out felt", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Material Only 3 tab 25 yr. composition shingle roofing - incl. felt", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Install 3 tab 25 yr. comp. shingle roofing - w/out felt", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Install 3 tab 25 yr. composition shingle roofing - incl. felt", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "3 tab - 25 yr. - composition shingle roofing (per SHINGLE)", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Install 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Material Only 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)", replace: "3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Material Only Laminated comp. shingle rfg. w/out felt", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Material Only Laminated - comp. shingle rfg. - w/ felt", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Install Laminated comp. shingle rfg. - w/out felt", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Install Laminated comp. shingle rfg. - w/ felt", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Laminated - comp. shingle rfg (per SHINGLE)", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Material Only Laminated - comp. shingle rfg (per SHINGLE)", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Install Laminated - comp. shingle rfg (per SHINGLE)", replace: "Laminated - comp. shingle rfg. - w/out felt" },
+    ];
+
+    // Removal rules - WITHOUT waste
+    const removalWithoutWasteRules = [
+      { match: "Remove Laminated comp. shingle rfg. - w/out felt", replace: null },
+      { match: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt", replace: null },
+      { match: "Remove 3 tab 25 yr. composition shingle roofing - incl. felt", replace: "Remove Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Remove Laminated comp. shingle rfg. - w/ felt", replace: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)", replace: "Remove Laminated - comp. shingle rfg. - w/out felt" },
+      { match: "Remove Laminated - comp. shingle rfg (per SHINGLE)", replace: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt" },
+      { match: "Tear off, haul and dispose of comp. shingles - 3 tab", replace: null },
+      { match: "Tear off, haul and dispose of comp. shingles - Laminated", replace: null },
+      { match: "Tear off composition shingles - 3 tab (no haul off)", replace: null },
+      { match: "Tear off composition shingles - Laminated (no haul off)", replace: null },
+    ];
+
+    // Check installation items
+    currentItems.forEach((item: any) => {
+      const rule = installationWithWasteRules.find(r => item.description === r.match);
+      if (rule) {
+        const requiredQuantity = baseQuantity * (1 + suggestedWaste);
+        const needsUpdate = requiredQuantity > item.quantity || rule.replace;
+        
+        if (needsUpdate) {
+          suggestions.push({
+            lineNumber: item.line_number || 'N/A',
+            currentDescription: item.description,
+            currentQuantity: item.quantity,
+            suggestedDescription: rule.replace || undefined,
+            suggestedQuantity: Math.max(item.quantity, requiredQuantity),
+            changeType: rule.replace ? 'description_and_quantity' : 'quantity_only',
+            reason: rule.replace 
+              ? `Replace "${item.description}" with "${rule.replace}" and adjust quantity for ${wastePercentage}% waste`
+              : `Adjust quantity for ${wastePercentage}% waste (Total Roof Area: ${totalRoofArea} sqft)`,
+            approved: null
+          });
+        }
+      }
+    });
+
+    // Check removal items
+    currentItems.forEach((item: any) => {
+      const rule = removalWithoutWasteRules.find(r => item.description === r.match);
+      if (rule) {
+        const requiredQuantity = baseQuantity; // No waste for removal
+        const needsUpdate = requiredQuantity > item.quantity || rule.replace;
+        
+        if (needsUpdate) {
+          suggestions.push({
+            lineNumber: item.line_number || 'N/A',
+            currentDescription: item.description,
+            currentQuantity: item.quantity,
+            suggestedDescription: rule.replace || undefined,
+            suggestedQuantity: Math.max(item.quantity, requiredQuantity),
+            changeType: rule.replace ? 'description_and_quantity' : 'quantity_only',
+            reason: rule.replace
+              ? `Replace "${item.description}" with "${rule.replace}" and adjust quantity (no waste for removal)`
+              : `Adjust quantity based on Total Roof Area (${totalRoofArea} sqft, no waste for removal)`,
+            approved: null
+          });
+        }
+      }
+    });
+
+    // Check for dumpster additions
+    const hasTearOffNoHaul = currentItems.some((item: any) =>
+      item.description === "Tear off composition shingles - 3 tab (no haul off)" ||
+      item.description === "Tear off composition shingles - Laminated (no haul off)"
+    );
+    const hasDumpster = currentItems.some((item: any) =>
+      item.description === "Dumpster load - Approx. 12 yards, 1-3 tons of debris"
+    );
+
+    if (hasTearOffNoHaul && !hasDumpster) {
+      suggestions.push({
+        lineNumber: 'NEW',
+        currentDescription: '',
+        currentQuantity: 0,
+        suggestedDescription: "Dumpster load - Approx. 12 yards, 1-3 tons of debris",
+        suggestedQuantity: 1,
+        changeType: 'add_item',
+        reason: 'Dumpster required for tear-off without haul off',
+        approved: null
+      });
+    }
+
+    console.log(`📊 Found ${suggestions.length} suggested shingle adjustments`);
+    return suggestions;
+  };
+
   // Handle waste percentage confirmation
   const handleWastePercentageConfirmation = () => {
     console.log('✅ Waste percentage confirmed:', wastePercentage);
     console.log('📊 Calculated Area (sqft):', wasteCalculations?.areaSqft);
     console.log('📊 Calculated Squares:', wasteCalculations?.squares);
+    
+    // Calculate suggested adjustments
+    const suggestions = calculateSuggestedShingleAdjustments();
+    setSuggestedShingleAdjustments(suggestions);
+    
+    // Close waste percentage modal and show shingle adjustments modal
     setShowWastePercentageModal(false);
     setWastePercentageStepCompleted(true);
     
-    // Apply shingle adjustment rules
-    const currentItems = ruleResults?.line_items || currentSPCLineItems;
-    const adjustedItems = applyShingleAdjustmentRules(currentItems);
+    // Proceed to next workflow step (shingle adjustments)
+    proceedToNextWorkflowStep('waste_percentage');
+  };
+
+  // Handle approval/rejection of individual shingle adjustment
+  const handleAdjustmentApproval = (index: number, approved: boolean) => {
+    setSuggestedShingleAdjustments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], approved };
+      return updated;
+    });
+  };
+
+  // Apply all approved shingle adjustments
+  const applyApprovedShingleAdjustments = () => {
+    console.log('🔧 Applying approved shingle adjustments...');
     
-    // Update the line items with adjusted quantities
-    setExtractedLineItems(adjustedItems);
+    let currentItems = [...(ruleResults?.line_items || extractedLineItems)];
+    const approvedAdjustments = suggestedShingleAdjustments.filter(adj => adj.approved === true);
+    
+    console.log(`📊 Applying ${approvedAdjustments.length} of ${suggestedShingleAdjustments.length} adjustments`);
+    
+    // Apply each approved adjustment
+    approvedAdjustments.forEach(adjustment => {
+      if (adjustment.changeType === 'add_item' && adjustment.suggestedDescription) {
+        // Add new item - get pricing from roof master macro
+        const macroItem = Array.from(roofMasterMacro.values()).find((item: any) => 
+          item.description === adjustment.suggestedDescription
+        );
+        
+        const newItem = {
+          line_number: `SPC-${Date.now()}`,
+          description: adjustment.suggestedDescription,
+          quantity: adjustment.suggestedQuantity || 0,
+          unit: macroItem?.unit || 'EA',
+          unit_price: macroItem?.unit_price || 0,
+          RCV: (macroItem?.unit_price || 0) * (adjustment.suggestedQuantity || 0),
+          age_life: '',
+          condition: '',
+          dep_percent: 0,
+          depreciation_amount: 0,
+          ACV: 0,
+          location_room: 'Exterior',
+          category: 'Roofing',
+          page_number: 1
+        };
+        currentItems.push(newItem);
+        console.log(`✅ Added: ${adjustment.suggestedDescription} with unit price: $${macroItem?.unit_price || 0}`);
+      } else {
+        // Update existing item
+        const itemIndex = currentItems.findIndex(item => item.line_number === adjustment.lineNumber);
+        if (itemIndex !== -1) {
+          const updatedItem = { ...currentItems[itemIndex] };
+          
+          if (adjustment.suggestedDescription) {
+            // Get pricing from roof master macro for the new description
+            const macroItem = Array.from(roofMasterMacro.values()).find((item: any) => 
+              item.description === adjustment.suggestedDescription
+            );
+            
+            updatedItem.description = adjustment.suggestedDescription;
+            
+            if (macroItem) {
+              updatedItem.unit_price = macroItem.unit_price;
+              updatedItem.unit = macroItem.unit;
+              // Recalculate RCV with new unit price and quantity
+              const quantity = adjustment.suggestedQuantity !== undefined ? adjustment.suggestedQuantity : updatedItem.quantity;
+              updatedItem.RCV = macroItem.unit_price * quantity;
+              console.log(`✅ Updated description and pricing: ${adjustment.currentDescription} → ${adjustment.suggestedDescription} (Unit Price: $${macroItem.unit_price})`);
+            } else {
+              console.log(`⚠️ No roof master macro item found for: ${adjustment.suggestedDescription}`);
+            }
+          }
+          
+          if (adjustment.suggestedQuantity !== undefined) {
+            updatedItem.quantity = adjustment.suggestedQuantity;
+            // Recalculate RCV with new quantity
+            updatedItem.RCV = updatedItem.unit_price * adjustment.suggestedQuantity;
+            console.log(`✅ Updated quantity: ${adjustment.currentQuantity} → ${adjustment.suggestedQuantity}`);
+          }
+          
+          currentItems[itemIndex] = updatedItem;
+        }
+      }
+    });
+    
+    // Update state
+    setExtractedLineItems(currentItems);
     if (ruleResults) {
       setRuleResults({
         ...ruleResults,
-        line_items: adjustedItems
+        line_items: currentItems
       });
     }
-    setCurrentSPCLineItems(adjustedItems);
+    setCurrentSPCLineItems(currentItems);
+    setLastUpdateTime(Date.now());
     
-    // Proceed to next workflow step
-    proceedToNextWorkflowStep('waste_percentage');
+    // Close modal and proceed
+    setShowShingleAdjustmentsModal(false);
+    setShingleAdjustmentsStepCompleted(true);
+    proceedToNextWorkflowStep('shingle_adjustments');
   };
 
   // Check for valley items and prompt user
@@ -8801,7 +9044,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 2 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '50px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                           </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9036,7 +9279,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 3 ? 'text-white font-semibold' : 'text-blue-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9189,7 +9432,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 3 ? 'text-white font-semibold' : 'text-green-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                   </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9282,7 +9525,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 6 ? 'text-white font-semibold' : 'text-blue-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9597,7 +9840,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 7 ? 'text-white font-semibold' : 'text-violet-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -9923,7 +10166,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 8 ? 'text-white font-semibold' : 'text-slate-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10148,7 +10391,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 1 ? 'text-white font-semibold' : 'text-indigo-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10252,6 +10495,207 @@ function EstimatePageContent() {
             </div>
           )}
 
+          {/* Shingle Adjustments Approval Modal - Step 2 */}
+          {showShingleAdjustmentsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-green-600 sticky top-0 z-10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">✓ Shingle Adjustments Approval - Step 2</h2>
+                      <p className="text-green-100 text-sm">
+                        Review and approve/reject the suggested adjustments based on {wastePercentage}% waste
+                      </p>
+                    </div>
+                    <button
+                      onClick={resetWorkflow}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  {/* Workflow Progress Indicator */}
+                  <div className="mt-4 pt-4 border-t border-green-400/30">
+                    <div className="overflow-x-auto">
+                      <div className="flex items-center space-x-2 min-w-max px-2">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step.id} className="flex flex-col items-center">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
+                              step.id === 2 ? 'bg-white text-green-600' : 
+                              step.id < 2 ? 'bg-green-400 text-white' : 
+                              'bg-green-800/40 text-green-200'
+                            }`}>
+                              {step.id}
+                            </div>
+                            <div className={`text-[9px] mt-1 text-center leading-tight ${
+                              step.id === 2 ? 'text-white font-semibold' : 'text-green-200'
+                            }`} style={{width: '50px'}}>
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
+                            </div>
+                            {index < workflowSteps.length - 1 && (
+                              <div className={`absolute top-3 left-8 w-4 h-0.5 ${
+                                step.id < 2 ? 'bg-green-400' : 'bg-green-800/40'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  {suggestedShingleAdjustments.length === 0 ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                      <p className="text-gray-700 text-lg mb-2">✓ No adjustments needed</p>
+                      <p className="text-gray-600">All shingle items are already properly configured.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700 mb-2">
+                          <strong>Review each suggested change below.</strong> Select "Yes" to approve or "No" to reject each adjustment.
+                        </p>
+                        <p className="text-gray-600 text-sm">
+                          Found <strong>{suggestedShingleAdjustments.length}</strong> suggested adjustment{suggestedShingleAdjustments.length !== 1 ? 's' : ''} based on {wastePercentage}% waste and Total Roof Area ({extractedRoofMeasurements["Total Roof Area"]?.value || 0} sqft).
+                        </p>
+                      </div>
+
+                      {/* List of Adjustments */}
+                      <div className="space-y-4">
+                        {suggestedShingleAdjustments.map((adjustment, index) => (
+                          <div
+                            key={index}
+                            className={`border-2 rounded-lg p-4 transition-all ${
+                              adjustment.approved === true
+                                ? 'border-green-500 bg-green-50'
+                                : adjustment.approved === false
+                                ? 'border-red-500 bg-red-50'
+                                : 'border-gray-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-xs font-semibold text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                                    {adjustment.changeType === 'add_item' ? 'ADD' : adjustment.changeType === 'description_and_quantity' ? 'REPLACE & UPDATE' : 'UPDATE'}
+                                  </span>
+                                  {adjustment.lineNumber !== 'NEW' && (
+                                    <span className="text-xs text-gray-500">Line {adjustment.lineNumber}</span>
+                                  )}
+                                </div>
+
+                                {/* Current State */}
+                                {adjustment.changeType !== 'add_item' && (
+                                  <div className="mb-3 bg-gray-100 p-3 rounded border border-gray-200">
+                                    <p className="text-xs font-semibold text-gray-500 mb-1">Current:</p>
+                                    <p className="text-sm text-gray-700">
+                                      <span className="font-medium">{adjustment.currentDescription}</span>
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      Quantity: <strong>{adjustment.currentQuantity}</strong>
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Suggested State */}
+                                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                                  <p className="text-xs font-semibold text-blue-700 mb-1">
+                                    {adjustment.changeType === 'add_item' ? 'Add New Item:' : 'Suggested:'}
+                                  </p>
+                                  {adjustment.suggestedDescription && (
+                                    <p className="text-sm text-gray-900">
+                                      <span className="font-medium">{adjustment.suggestedDescription}</span>
+                                    </p>
+                                  )}
+                                  {adjustment.suggestedQuantity !== undefined && (
+                                    <p className="text-xs text-gray-700 mt-1">
+                                      Quantity: <strong>{adjustment.suggestedQuantity.toFixed(2)}</strong>
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Reason */}
+                                <p className="text-xs text-gray-600 mt-2 italic">
+                                  {adjustment.reason}
+                                </p>
+                              </div>
+
+                              {/* Approval Buttons */}
+                              <div className="flex flex-col gap-2">
+                                <button
+                                  onClick={() => handleAdjustmentApproval(index, true)}
+                                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                                    adjustment.approved === true
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                                  }`}
+                                >
+                                  ✓ Yes
+                                </button>
+                                <button
+                                  onClick={() => handleAdjustmentApproval(index, false)}
+                                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                                    adjustment.approved === false
+                                      ? 'bg-red-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                                  }`}
+                                >
+                                  ✗ No
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between sticky bottom-0">
+                  <button
+                    onClick={() => {
+                      setShowShingleAdjustmentsModal(false);
+                      setShingleAdjustmentsStepCompleted(true);
+                      proceedToNextWorkflowStep('shingle_adjustments');
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip All
+                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        // Approve all
+                        setSuggestedShingleAdjustments(prev =>
+                          prev.map(adj => ({ ...adj, approved: true }))
+                        );
+                      }}
+                      className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium transition-colors"
+                    >
+                      ✓ Approve All
+                    </button>
+                    <button
+                      onClick={applyApprovedShingleAdjustments}
+                      disabled={!suggestedShingleAdjustments.some(adj => adj.approved === true)}
+                      className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                        suggestedShingleAdjustments.some(adj => adj.approved === true)
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Apply Selected ({suggestedShingleAdjustments.filter(adj => adj.approved === true).length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SPC Hidden Damages Modal */}
           {showSPCHiddenDamagesModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -10289,7 +10733,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 4 ? 'text-white font-semibold' : 'text-gray-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10420,7 +10864,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 5 ? 'text-white font-semibold' : 'text-orange-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10662,7 +11106,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 9 ? 'text-white font-semibold' : 'text-indigo-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10799,7 +11243,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 10 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
@@ -10985,7 +11429,7 @@ function EstimatePageContent() {
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 11 ? 'text-white font-semibold' : 'text-purple-200'
                             }`} style={{width: '40px'}}>
-                              {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
+                              {step.id === 3 ? 'Removal' : step.id === 4 ? 'Installation' : step.id === 6 ? 'Roof Access' : step.id === 8 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
                               <div className={`absolute top-3 left-8 w-4 h-0.5 ${
