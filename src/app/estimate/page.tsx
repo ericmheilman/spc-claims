@@ -1698,30 +1698,18 @@ function EstimatePageContent() {
       setRuleResults(resultsWithLineItems);
       setShowRuleResults(true);
 
-      // After SPC Adjustment Engine completes, start workflow with waste percentage
+      // After SPC Adjustment Engine completes, start workflow
       // Get the updated line items from the results
       const updatedLineItems = finalLineItems;
       
       // Store the current line items for the workflow
       setCurrentSPCLineItems(updatedLineItems);
       
-      // Start workflow with waste percentage step
-      console.log('🔍 Starting workflow with waste percentage step');
-      console.log('🔍 wastePercentageStepCompleted:', wastePercentageStepCompleted);
-      console.log('🔍 showWastePercentageModal:', showWastePercentageModal);
-      
-      if (true) { // Temporarily force show modal for debugging
-        console.log('🔍 Showing waste percentage modal (forced)');
-        setShowWastePercentageModal(true);
-        return;
-      } else {
-        // Waste percentage step already completed, proceed to hidden damages
-        console.log('✅ Waste percentage step already completed, proceeding to hidden damages');
-        setTimeout(() => {
-          checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
-        }, 100);
-        return;
-      }
+      // Start workflow with hidden damages check (which will show waste percentage first if needed)
+      console.log('🔍 Starting workflow');
+      setTimeout(() => {
+        checkHiddenDamages(updatedLineItems);
+      }, 100);
 
     } catch (error) {
       console.error('Error running Python rule engine:', error);
@@ -2210,6 +2198,13 @@ function EstimatePageContent() {
   const checkHiddenDamages = (updatedLineItems: any[]) => {
     console.log('🔍 Checking for hidden damages - prompting user for input');
     
+    // First show waste percentage modal if not already completed
+    if (!wastePercentageStepCompleted) {
+      console.log('🔍 Showing waste percentage modal first');
+      setShowWastePercentageModal(true);
+      return;
+    }
+    
     // Always show the hidden damages modal to prompt for cost and narrative
     setShowSPCHiddenDamagesModal(true);
   };
@@ -2240,9 +2235,9 @@ function EstimatePageContent() {
     setShowWastePercentageModal(false);
     setWastePercentageStepCompleted(true);
     
-    // Proceed to hidden damages check (start of existing workflow)
+    // Proceed to hidden damages modal
     setTimeout(() => {
-      checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+      setShowSPCHiddenDamagesModal(true);
     }, 100);
   };
 
@@ -9747,9 +9742,9 @@ function EstimatePageContent() {
                       onClick={() => {
                         setShowWastePercentageModal(false);
                         setWastePercentageStepCompleted(true);
-                        // If user closes modal, proceed to next step with default percentage
+                        // If user closes modal, proceed to hidden damages
                         setTimeout(() => {
-                          checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+                          setShowSPCHiddenDamagesModal(true);
                         }, 100);
                       }}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
@@ -9827,9 +9822,9 @@ function EstimatePageContent() {
                     onClick={() => {
                       setShowWastePercentageModal(false);
                       setWastePercentageStepCompleted(true);
-                      // If user cancels, proceed with default percentage
+                      // If user cancels, proceed to hidden damages
                       setTimeout(() => {
-                        checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+                        setShowSPCHiddenDamagesModal(true);
                       }, 100);
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
