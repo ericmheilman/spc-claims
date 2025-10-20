@@ -9766,7 +9766,7 @@ function EstimatePageContent() {
                         ))}
                       </ul>
                       <p className="text-gray-600 text-sm mt-4">
-                        No additional layers items need to be added. The SPC Adjustment Engine workflow is now complete.
+                        No additional layers items need to be added.
                       </p>
                     </div>
                   </div>
