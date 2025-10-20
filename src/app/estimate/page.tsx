@@ -1575,6 +1575,9 @@ function EstimatePageContent() {
     console.log('=== RUNNING PYTHON RULE ENGINE ===');
     setIsRunningRules(true);
     
+    // Reset workflow state for new run
+    setWastePercentageStepCompleted(false);
+    
     try {
       if (extractedLineItems.length === 0) {
         alert('No line items available. Please upload and process documents first.');
