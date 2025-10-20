@@ -1913,7 +1913,7 @@ function EstimatePageContent() {
   };
 
   // JavaScript Rules Engine function (internal version for workflow)
-  const runJavaScriptRules = async (lineItems: any[], roofMeasurements: any, wastePct: number) => {
+  const runJavaScriptRules = async (lineItems: any[], roofMeasurements: any, wastePct: number | null) => {
     console.log('🔄 Running JavaScript rules internally...');
     
     try {
@@ -2096,7 +2096,7 @@ function EstimatePageContent() {
   };
 
   // Check for SPC-added items (final step)
-  const checkSPCAddedItems = (updatedLineItems: any[]) => {
+  const checkSPCAddedItems = async (updatedLineItems: any[]) => {
     console.log('🔍 Checking for SPC-added items in:', updatedLineItems.length, 'line items');
     
     // Items that are automatically added by the SPC Adjustment Engine
@@ -2154,34 +2154,123 @@ function EstimatePageContent() {
     
     console.log('🔍 Found SPC-added items:', foundSPCItems.map((item: any) => item.description));
     
-    if (foundSPCItems.length > 0) {
-      console.log('✅ SPC-added items found, storing for final summary');
+    // Run final Unit Cost Adjustments to ensure all items have correct pricing
+    console.log('🔧 Running final Unit Cost Adjustments against roof master macro...');
+    try {
+      const finalRuleData = await runJavaScriptRules(updatedLineItems, extractedRoofMeasurements, wastePercentage);
       
-      // Deduplicate items by description to prevent multiple entries of the same item
-      const uniqueSPCItems = foundSPCItems.reduce((acc: any[], current: any) => {
-        const existingItem = acc.find(item => item.description === current.description);
-        if (!existingItem) {
-          acc.push(current);
-        } else {
-          // If duplicate found, log it and skip
-          console.log('⚠️ Duplicate SPC item found, skipping:', current.description);
+      if (finalRuleData.success && finalRuleData.line_items) {
+        console.log('✅ Final Unit Cost Adjustments completed');
+        console.log(`📊 Final adjustments: ${finalRuleData.totalAdjustments || 0}`);
+        
+        // Update the line items with final pricing
+        setExtractedLineItems(finalRuleData.line_items);
+        if (ruleResults) {
+          setRuleResults({
+            ...ruleResults,
+            line_items: finalRuleData.line_items
+          });
         }
-        return acc;
-      }, []);
-      
-    console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
-    setFoundSPCAddedItems(uniqueSPCItems);
-    
-    // Show summary modal
-    setTimeout(() => {
-      setShowSPCFinalStepModal(true);
-    }, 100);
-    } else {
-    // No SPC items found, show summary modal anyway
-    console.log('ℹ️ No SPC-added items found, proceeding to final summary');
-      setTimeout(() => {
-      setShowSPCFinalStepModal(true);
-      }, 100);
+        setCurrentSPCLineItems(finalRuleData.line_items);
+        setLastUpdateTime(Date.now());
+        
+        // Use the updated line items for SPC item checking
+        const finalUpdatedItems = finalRuleData.line_items;
+        
+        if (foundSPCItems.length > 0) {
+          console.log('✅ SPC-added items found, storing for final summary');
+          
+          // Deduplicate items by description to prevent multiple entries of the same item
+          const uniqueSPCItems = foundSPCItems.reduce((acc: any[], current: any) => {
+            const existingItem = acc.find(item => item.description === current.description);
+            if (!existingItem) {
+              acc.push(current);
+            } else {
+              // If duplicate found, log it and skip
+              console.log('⚠️ Duplicate SPC item found, skipping:', current.description);
+            }
+            return acc;
+          }, []);
+          
+          console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
+          setFoundSPCAddedItems(uniqueSPCItems);
+          
+          // Show summary modal
+          setTimeout(() => {
+            setShowSPCFinalStepModal(true);
+          }, 100);
+        } else {
+          // No SPC items found, show summary modal anyway
+          console.log('ℹ️ No SPC-added items found, proceeding to final summary');
+          setTimeout(() => {
+            setShowSPCFinalStepModal(true);
+          }, 100);
+        }
+      } else {
+        console.log('⚠️ Final Unit Cost Adjustments failed, proceeding with original items');
+        // Fallback to original logic if final adjustments fail
+        if (foundSPCItems.length > 0) {
+          console.log('✅ SPC-added items found, storing for final summary');
+          
+          // Deduplicate items by description to prevent multiple entries of the same item
+          const uniqueSPCItems = foundSPCItems.reduce((acc: any[], current: any) => {
+            const existingItem = acc.find(item => item.description === current.description);
+            if (!existingItem) {
+              acc.push(current);
+            } else {
+              // If duplicate found, log it and skip
+              console.log('⚠️ Duplicate SPC item found, skipping:', current.description);
+            }
+            return acc;
+          }, []);
+          
+          console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
+          setFoundSPCAddedItems(uniqueSPCItems);
+          
+          // Show summary modal
+          setTimeout(() => {
+            setShowSPCFinalStepModal(true);
+          }, 100);
+        } else {
+          // No SPC items found, show summary modal anyway
+          console.log('ℹ️ No SPC-added items found, proceeding to final summary');
+          setTimeout(() => {
+            setShowSPCFinalStepModal(true);
+          }, 100);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error running final Unit Cost Adjustments:', error);
+      // Fallback to original logic if final adjustments fail
+      if (foundSPCItems.length > 0) {
+        console.log('✅ SPC-added items found, storing for final summary');
+        
+        // Deduplicate items by description to prevent multiple entries of the same item
+        const uniqueSPCItems = foundSPCItems.reduce((acc: any[], current: any) => {
+          const existingItem = acc.find(item => item.description === current.description);
+          if (!existingItem) {
+            acc.push(current);
+          } else {
+            // If duplicate found, log it and skip
+            console.log('⚠️ Duplicate SPC item found, skipping:', current.description);
+          }
+          return acc;
+        }, []);
+        
+        console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
+        setFoundSPCAddedItems(uniqueSPCItems);
+        
+        // Show summary modal
+        setTimeout(() => {
+          setShowSPCFinalStepModal(true);
+        }, 100);
+      } else {
+        // No SPC items found, show summary modal anyway
+        console.log('ℹ️ No SPC-added items found, proceeding to final summary');
+        setTimeout(() => {
+          setShowSPCFinalStepModal(true);
+        }, 100);
+      }
     }
   };
 
@@ -2428,7 +2517,7 @@ function EstimatePageContent() {
       case 'op_check':
         console.log('→ Next step: Final Summary');
         setCurrentWorkflowStep(12);
-        setTimeout(() => checkSPCAddedItems(updatedItems), 100);
+        setTimeout(async () => await checkSPCAddedItems(updatedItems), 100);
         break;
       default:
         console.log('❌ Unknown workflow step:', currentStep);
