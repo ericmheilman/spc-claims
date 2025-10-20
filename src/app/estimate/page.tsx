@@ -2227,6 +2227,269 @@ function EstimatePageContent() {
     console.log(`📊 Waste calculations: ${percentage}% of ${totalRoofArea} sqft = ${areaSqft} sqft = ${squares} squares`);
   };
 
+  // Apply shingle adjustment rules based on waste percentage
+  const applyShingleAdjustmentRules = (lineItems: any[]) => {
+    console.log('🔧 Applying shingle adjustment rules with waste percentage:', wastePercentage);
+    
+    const totalRoofArea = extractedRoofMeasurements["Total Roof Area"]?.value || 0;
+    const wasteMultiplier = 1 + (wastePercentage / 100); // Convert percentage to multiplier
+    const baseQuantity = (totalRoofArea / 100) * wasteMultiplier;
+    const removalQuantity = totalRoofArea / 100;
+    
+    console.log('📊 Total Roof Area:', totalRoofArea);
+    console.log('📊 Waste Multiplier:', wasteMultiplier);
+    console.log('📊 Base Quantity (with waste):', baseQuantity);
+    console.log('📊 Removal Quantity:', removalQuantity);
+    
+    let updatedItems = [...lineItems];
+    let adjustmentsMade = false;
+    
+    // Installation shingle rules
+    const installationRules = [
+      {
+        find: "Laminated comp. shingle rfg. - w/out felt",
+        replace: null,
+        quantity: baseQuantity
+      },
+      {
+        find: "3 tab 25 yr. comp. shingle roofing - w/out felt", 
+        replace: null,
+        quantity: baseQuantity
+      },
+      {
+        find: "Laminated comp. shingle rfg. - w/ felt",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "3 tab 25 yr. composition shingle roofing incl. felt",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Material Only 3 tab 25 yr. comp. shingle roofing - w/out felt",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Material Only 3 tab 25 yr. composition shingle roofing - incl. felt",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Install 3 tab 25 yr. comp. shingle roofing - w/out felt",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Install 3 tab 25 yr. composition shingle roofing - incl. felt",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Install 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Material Only 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+        replace: "3 tab 25 yr. comp. shingle roofing - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Material Only Laminated - comp. shingle rfg. - w/out felt",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Material Only Laminated - comp. shingle rfg. - w/ felt",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Install Laminated comp. shingle rfg. - w/out felt",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Install Laminated comp. shingle rfg. - w/ felt",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Laminated - comp. shingle rfg (per SHINGLE)",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Material Only Laminated - comp. shingle rfg (per SHINGLE)",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      },
+      {
+        find: "Install Laminated - comp. shingle rfg (per SHINGLE)",
+        replace: "Laminated comp. shingle rfg. - w/out felt",
+        quantity: baseQuantity
+      }
+    ];
+    
+    // Apply installation rules
+    for (const rule of installationRules) {
+      const itemIndex = updatedItems.findIndex((item: any) => item.description === rule.find);
+      if (itemIndex !== -1) {
+        const item = updatedItems[itemIndex];
+        const newQuantity = Math.max(item.quantity, rule.quantity);
+        
+        if (rule.replace) {
+          // Replace description
+          updatedItems[itemIndex] = {
+            ...item,
+            description: rule.replace,
+            quantity: newQuantity,
+            RCV: newQuantity * item.unit_price,
+            ACV: newQuantity * item.unit_price - (item.depreciation_amount || 0)
+          };
+          console.log(`✅ Replaced "${rule.find}" with "${rule.replace}" and updated quantity to ${newQuantity}`);
+        } else {
+          // Just update quantity
+          updatedItems[itemIndex] = {
+            ...item,
+            quantity: newQuantity,
+            RCV: newQuantity * item.unit_price,
+            ACV: newQuantity * item.unit_price - (item.depreciation_amount || 0)
+          };
+          console.log(`✅ Updated "${rule.find}" quantity to ${newQuantity}`);
+        }
+        adjustmentsMade = true;
+      }
+    }
+    
+    // Removal shingle rules
+    const removalRules = [
+      {
+        find: "Remove Laminated comp. shingle rfg. - w/out felt",
+        replace: null,
+        quantity: removalQuantity
+      },
+      {
+        find: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
+        replace: null,
+        quantity: removalQuantity
+      },
+      {
+        find: "Remove 3 tab 25 yr. composition shingle roofing - incl. felt",
+        replace: "Remove Laminated comp. shingle rfg. - w/out felt",
+        quantity: removalQuantity
+      },
+      {
+        find: "Remove Laminated comp. shingle rfg. - w/ felt",
+        replace: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
+        quantity: removalQuantity
+      },
+      {
+        find: "Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
+        replace: "Remove Laminated comp. shingle rfg. - w/out felt",
+        quantity: removalQuantity
+      },
+      {
+        find: "Remove Laminated - comp. shingle rfg (per SHINGLE)",
+        replace: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
+        quantity: removalQuantity
+      },
+      {
+        find: "Tear off, haul and dispose of comp. shingles - 3 tab",
+        replace: null,
+        quantity: removalQuantity
+      },
+      {
+        find: "Tear off, haul and dispose of comp. shingles - Laminated",
+        replace: null,
+        quantity: removalQuantity
+      },
+      {
+        find: "Tear off composition shingles - 3 tab (no haul off)",
+        replace: null,
+        quantity: removalQuantity,
+        addDumpster: true
+      },
+      {
+        find: "Tear off composition shingles - Laminated (no haul off)",
+        replace: null,
+        quantity: removalQuantity,
+        addDumpster: true
+      }
+    ];
+    
+    // Apply removal rules
+    for (const rule of removalRules) {
+      const itemIndex = updatedItems.findIndex((item: any) => item.description === rule.find);
+      if (itemIndex !== -1) {
+        const item = updatedItems[itemIndex];
+        const newQuantity = Math.max(item.quantity, rule.quantity);
+        
+        if (rule.replace) {
+          // Replace description
+          updatedItems[itemIndex] = {
+            ...item,
+            description: rule.replace,
+            quantity: newQuantity,
+            RCV: newQuantity * item.unit_price,
+            ACV: newQuantity * item.unit_price - (item.depreciation_amount || 0)
+          };
+          console.log(`✅ Replaced "${rule.find}" with "${rule.replace}" and updated quantity to ${newQuantity}`);
+        } else {
+          // Just update quantity
+          updatedItems[itemIndex] = {
+            ...item,
+            quantity: newQuantity,
+            RCV: newQuantity * item.unit_price,
+            ACV: newQuantity * item.unit_price - (item.depreciation_amount || 0)
+          };
+          console.log(`✅ Updated "${rule.find}" quantity to ${newQuantity}`);
+        }
+        
+        // Add dumpster if needed
+        if (rule.addDumpster) {
+          const dumpsterExists = updatedItems.some((item: any) => item.description === "Dumpster load - Approx. 12 yards, 1-3 tons of debris");
+          if (!dumpsterExists) {
+            const maxLineNumber = Math.max(...updatedItems.map((item: any) => parseInt(item.line_number) || 0), 0);
+            const dumpsterItem = {
+              line_number: (maxLineNumber + 1).toString(),
+              description: "Dumpster load - Approx. 12 yards, 1-3 tons of debris",
+              quantity: removalQuantity,
+              unit: "EA",
+              unit_price: 0, // Will be set from roof master macro if available
+              RCV: 0,
+              age_life: '',
+              condition: '',
+              dep_percent: null,
+              depreciation_amount: 0,
+              ACV: 0,
+              page_number: null
+            };
+            updatedItems.push(dumpsterItem);
+            console.log(`✅ Added dumpster item with quantity ${removalQuantity}`);
+          }
+        }
+        
+        adjustmentsMade = true;
+      }
+    }
+    
+    if (adjustmentsMade) {
+      console.log('✅ Shingle adjustment rules applied successfully');
+      return updatedItems;
+    } else {
+      console.log('ℹ️ No shingle items found to adjust');
+      return lineItems;
+    }
+  };
+
   // Handle waste percentage confirmation
   const handleWastePercentageConfirmation = () => {
     console.log('✅ Waste percentage confirmed:', wastePercentage);
@@ -2234,6 +2497,20 @@ function EstimatePageContent() {
     console.log('📊 Calculated Squares:', wasteCalculations?.squares);
     setShowWastePercentageModal(false);
     setWastePercentageStepCompleted(true);
+    
+    // Apply shingle adjustment rules
+    const currentItems = ruleResults?.line_items || currentSPCLineItems;
+    const adjustedItems = applyShingleAdjustmentRules(currentItems);
+    
+    // Update the line items with adjusted quantities
+    setExtractedLineItems(adjustedItems);
+    if (ruleResults) {
+      setRuleResults({
+        ...ruleResults,
+        line_items: adjustedItems
+      });
+    }
+    setCurrentSPCLineItems(adjustedItems);
     
     // Proceed to hidden damages modal
     setTimeout(() => {
