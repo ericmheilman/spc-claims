@@ -82,22 +82,22 @@ export class RoofAdjustmentEngine {
   // Exact line item descriptions from the comprehensive rule set
   private readonly EXACT_DESCRIPTIONS = {
     // Removal items
-    REMOVE_LAMINATED_WITHOUT_FELT: "Remove Laminated comp. shingle rfg. - w/out felt",
-    REMOVE_3TAB_25YR_WITHOUT_FELT: "Remove 3 tab- 25 yr. comp. shingle roofing - w/out felt",
-    REMOVE_3TAB_25YR_WITH_FELT: "Remove 3 tab 25 yr. composition shingle roofing - incl. felt",
-    REMOVE_LAMINATED_WITH_FELT: "Remove Laminated comp. shingle rfg. - w/ felt",
+    REMOVE_LAMINATED_WITHOUT_FELT: "Remove Laminated - comp. shingle rfg. - w/out felt",
+    REMOVE_3TAB_25YR_WITHOUT_FELT: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+    REMOVE_3TAB_25YR_WITH_FELT: "Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+    REMOVE_LAMINATED_WITH_FELT: "Remove Laminated - comp. shingle rfg. - w/ felt",
     REMOVE_3TAB_PER_SHINGLE: "Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
     REMOVE_LAMINATED_PER_SHINGLE: "Remove Laminated - comp. shingle rfg (per SHINGLE)",
-    TEAR_OFF_3TAB: "Tear off, haul and dispose of comp. shingles - 3 tab",
-    TEAR_OFF_LAMINATED: "Tear off, haul and dispose of comp. shingles - Laminated",
+    TEAR_OFF_3TAB: "Tear off haul and dispose of comp. shingles - 3 tab",
+    TEAR_OFF_LAMINATED: "Tear off haul and dispose of comp. shingles - Laminated",
     TEAR_OFF_3TAB_NO_HAUL: "Tear off composition shingles - 3 tab (no haul off)",
     TEAR_OFF_LAMINATED_NO_HAUL: "Tear off composition shingles - Laminated (no haul off)",
     
     // Installation items - Standard
-    LAMINATED_WITHOUT_FELT: "Laminated comp. shingle rfg. - w/out felt",
-    TAB_25YR_WITHOUT_FELT: "3 tab 25 yr. comp. shingle roofing - w/out felt",
-    TAB_25YR_WITH_FELT: "3 tab 25 yr. composition shingle roofing incl. felt",
-    LAMINATED_WITH_FELT: "Laminated comp. shingle rfg. - w/ felt",
+    LAMINATED_WITHOUT_FELT: "Laminated - comp. shingle rfg. - w/out felt",
+    TAB_25YR_WITHOUT_FELT: "3 tab - 25 yr. - comp. shingle roofing - w/out felt",
+    TAB_25YR_WITH_FELT: "3 tab - 25 yr. - composition shingle roofing - incl. felt",
+    LAMINATED_WITH_FELT: "Laminated - comp. shingle rfg. - w/ felt",
     
     // Installation items - Material Only variations
     MATERIAL_ONLY_LAMINATED_WITHOUT_FELT: "Material Only Laminated - comp. shingle rfg. - w/out felt",
@@ -116,7 +116,7 @@ export class RoofAdjustmentEngine {
     INSTALL_LAMINATED_PER_SHINGLE: "Install Laminated - comp. shingle rfg (per SHINGLE)",
     
     // Dumpster items
-    DUMPSTER_12_YARD: "Dumpster load - Approx. 12 yards, 1-3 tons of debris",
+    DUMPSTER_12_YARD: "Dumpster load - Approx. 12 yards 1-3 tons of debris",
     
     // Starter courses
     STARTER_UNIVERSAL: "Asphalt starter - universal starter course",
