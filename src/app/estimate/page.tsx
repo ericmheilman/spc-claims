@@ -2024,15 +2024,21 @@ function EstimatePageContent() {
         return acc;
       }, []);
       
-      console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
-      setFoundSPCAddedItems(uniqueSPCItems);
-    }
+    console.log('🔍 Deduplicated SPC items:', uniqueSPCItems.map((item: any) => item.description));
+    setFoundSPCAddedItems(uniqueSPCItems);
     
-    // Skip ridge vent check and proceed directly to chimney check
+    // Show summary modal
     setTimeout(() => {
-      checkChimneyFlashingItems(updatedLineItems);
+      setShowSPCFinalStepModal(true);
     }, 100);
-  };
+  } else {
+    // No SPC items found, show summary modal anyway
+    console.log('ℹ️ No SPC-added items found, proceeding to final summary');
+    setTimeout(() => {
+      setShowSPCFinalStepModal(true);
+    }, 100);
+  }
+};
 
 
   // Chimney flashing options - MUST match Roof Master Macro exactly
