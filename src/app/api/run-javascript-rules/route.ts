@@ -18,25 +18,50 @@ export async function POST(request: NextRequest) {
       wastePercentage: inputData.waste_percentage
     });
 
-    // Load roof master macro CSV - try memory first, then file
+    // Load roof master macro CSV - try memory first, then file, then defaults
     let csvContent = '';
     
+    // Try memory first (for uploaded data)
     if (global.roofMasterMacroData) {
       console.log('📊 Using roof master macro data from memory (uploaded)');
       csvContent = global.roofMasterMacroData;
     } else {
-      try {
-        const csvPath = path.join(process.cwd(), 'public', 'roof_master_macro.csv');
-        csvContent = await fs.readFile(csvPath, 'utf-8');
-        console.log('📊 Using roof master macro data from file');
-      } catch (error) {
-        console.log('⚠️ Could not load roof master macro from file, using default');
-        // Fallback to a minimal default if no file is available
+      // Try multiple file locations
+      const possiblePaths = [
+        path.join(process.cwd(), 'roof_master_macro.csv'), // Project root
+        path.join(process.cwd(), 'public', 'roof_master_macro.csv'), // Public directory
+        '/tmp/app/roof_master_macro.csv' // AWS Lambda temp directory
+      ];
+      
+      let loaded = false;
+      for (const csvPath of possiblePaths) {
+        try {
+          csvContent = await fs.readFile(csvPath, 'utf-8');
+          console.log(`📊 Using roof master macro data from file: ${csvPath}`);
+          loaded = true;
+          break;
+        } catch (error) {
+          console.log(`⚠️ Could not load from ${csvPath}:`, error.message);
+        }
+      }
+      
+      if (!loaded) {
+        console.log('⚠️ Could not load roof master macro from any file, using default');
+        // Fallback to a comprehensive default that includes the key items
         csvContent = `Description,Unit,Unit Price
 Laminated - comp. shingle rfg. - w/out felt,SQ,249.37
 3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,235.6
 Remove Laminated - comp. shingle rfg. - w/out felt,SQ,67.4
-Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,65.96`;
+Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,65.96
+Asphalt starter - universal starter course,LF,1.73
+Drip edge/gutter apron,LF,3.09
+Step flashing,LF,10.28
+Aluminum sidewall/endwall flashing - mill finish,LF,6.77
+Roofing felt - 15 lb. - double coverage/low slope,SQ,61.44
+Roofing felt - 15 lb.,SQ,34.68
+Roofing felt - 30 lb.,SQ,42.64
+Additional charge for steep roof - 10/12 - 12/12 slope,SQ,64.99
+Remove Additional charge for steep roof - 10/12 - 12/12 slope,SQ,25.83`;
       }
     }
     
