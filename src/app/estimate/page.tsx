@@ -242,6 +242,11 @@ function EstimatePageContent() {
   const [valleysClosedConfirmed, setValleysClosedConfirmed] = useState<boolean | null>(null);
   const [valleyAdjustmentsApplied, setValleyAdjustmentsApplied] = useState(false);
 
+  // Waste Percentage state
+  const [showWastePercentageModal, setShowWastePercentageModal] = useState(false);
+  const [wastePercentage, setWastePercentage] = useState<number>(10);
+  const [wasteCalculations, setWasteCalculations] = useState<{areaSqft: number, squares: number} | null>(null);
+
   // Shingle Removal Check state
   const [showShingleRemovalModal, setShowShingleRemovalModal] = useState(false);
   const [selectedShingleRemoval, setSelectedShingleRemoval] = useState('');
@@ -647,9 +652,16 @@ function EstimatePageContent() {
         console.error('Error loading Roof Master Macro:', error);
       }
     };
-    
+
     loadRoofMasterMacro();
   }, []);
+
+  // Calculate waste calculations when percentage changes
+  useEffect(() => {
+    if (extractedRoofMeasurements["Total Roof Area"]?.value) {
+      calculateWasteCalculations(wastePercentage);
+    }
+  }, [wastePercentage, extractedRoofMeasurements]);
 
   // Quick Switch Definitions
   const quickSwitchOptions: Record<string, string> = {
@@ -1685,12 +1697,19 @@ function EstimatePageContent() {
       setRuleResults(resultsWithLineItems);
       setShowRuleResults(true);
 
-      // After SPC Adjustment Engine completes, check for shingle removal items
+      // After SPC Adjustment Engine completes, start workflow with waste percentage
       // Get the updated line items from the results
       const updatedLineItems = finalLineItems;
       
       // Store the current line items for the workflow
       setCurrentSPCLineItems(updatedLineItems);
+      
+      // Start workflow with waste percentage step
+      console.log('🔍 Starting workflow with waste percentage step');
+      setShowWastePercentageModal(true);
+      
+      // Return early - the workflow will continue from handleWastePercentageConfirmation
+      return;
       
       // Check if any of the required removal line items are present (using exact spellings from shingleRemovalOptions)
       console.log('🔍 Checking for shingle removal items in:', updatedLineItems.length, 'line items');
@@ -2251,6 +2270,29 @@ function EstimatePageContent() {
     
     // Always show the roof access issues modal to prompt for details
     setShowSPCRoofAccessModal(true);
+  };
+
+  // Calculate waste percentage calculations
+  const calculateWasteCalculations = (percentage: number) => {
+    const totalRoofArea = extractedRoofMeasurements["Total Roof Area"]?.value || 0;
+    const areaSqft = totalRoofArea * (percentage / 100);
+    const squares = Math.round((areaSqft / 100) * 10) / 10; // Round to 1 decimal place
+    
+    setWasteCalculations({ areaSqft, squares });
+    console.log(`📊 Waste calculations: ${percentage}% of ${totalRoofArea} sqft = ${areaSqft} sqft = ${squares} squares`);
+  };
+
+  // Handle waste percentage confirmation
+  const handleWastePercentageConfirmation = () => {
+    console.log('✅ Waste percentage confirmed:', wastePercentage);
+    console.log('📊 Calculated Area (sqft):', wasteCalculations?.areaSqft);
+    console.log('📊 Calculated Squares:', wasteCalculations?.squares);
+    setShowWastePercentageModal(false);
+    
+    // Proceed to hidden damages check (start of existing workflow)
+    setTimeout(() => {
+      checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+    }, 100);
   };
 
   // Check for valley items and prompt user
@@ -9729,6 +9771,126 @@ function EstimatePageContent() {
                       }, 100);
                     }}
                     className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Waste Percentage Modal */}
+          {showWastePercentageModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="px-6 py-4 rounded-t-2xl bg-indigo-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white mb-1">📊 Waste Percentage - Step 1</h2>
+                      <p className="text-indigo-100 text-sm">
+                        Enter the waste percentage to calculate adjusted roof area
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowWastePercentageModal(false);
+                        // If user closes modal, proceed to next step with default percentage
+                        setTimeout(() => {
+                          checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+                      <p className="text-gray-700 mb-4">
+                        <strong>Waste percentage</strong> accounts for material waste during installation. Common values range from 10-15%.
+                      </p>
+                      
+                      {/* Waste Percentage Input */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Waste Percentage (%):
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={wastePercentage}
+                          onChange={(e) => setWastePercentage(parseFloat(e.target.value) || 0)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                          placeholder="Enter waste percentage"
+                        />
+                      </div>
+
+                      {/* Calculations Display */}
+                      {wasteCalculations && (
+                        <div className="bg-white border border-indigo-200 rounded-lg p-4 mt-4">
+                          <p className="text-gray-700 font-medium mb-3">
+                            📏 Calculated Values:
+                          </p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Total Roof Area:</span>
+                              <span className="text-gray-900 font-semibold">
+                                {extractedRoofMeasurements["Total Roof Area"]?.value || 0} sqft
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Waste Percentage:</span>
+                              <span className="text-gray-900 font-semibold">{wastePercentage}%</span>
+                            </div>
+                            <div className="h-px bg-indigo-200 my-2"></div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-indigo-700 font-medium">Area (sqft):</span>
+                              <span className="text-indigo-900 font-bold text-lg">
+                                {wasteCalculations.areaSqft.toFixed(2)} sqft
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-indigo-700 font-medium">Squares:</span>
+                              <span className="text-indigo-900 font-bold text-lg">
+                                {wasteCalculations.squares.toFixed(1)} SQ
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-between">
+                  <button
+                    onClick={() => {
+                      setShowWastePercentageModal(false);
+                      // If user cancels, proceed with default percentage
+                      setTimeout(() => {
+                        checkHiddenDamages(ruleResults?.line_items || currentSPCLineItems);
+                      }, 100);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleWastePercentageConfirmation}
+                    disabled={!wastePercentage || wastePercentage <= 0}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                      wastePercentage && wastePercentage > 0
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                   >
                     Continue
                   </button>
