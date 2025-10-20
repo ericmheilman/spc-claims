@@ -8800,7 +8800,7 @@ function EstimatePageContent() {
                             </div>
                             <div className={`text-[9px] mt-1 text-center leading-tight ${
                               step.id === 2 ? 'text-white font-semibold' : 'text-purple-200'
-                            }`} style={{width: '40px'}}>
+                            }`} style={{width: '50px'}}>
                               {step.id === 2 ? 'Removal' : step.id === 3 ? 'Installation' : step.id === 5 ? 'Roof Access' : step.id === 7 ? 'Layers' : step.name.split(' ')[0]}
                             </div>
                             {index < workflowSteps.length - 1 && (
