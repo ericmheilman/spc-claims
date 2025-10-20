@@ -3246,6 +3246,28 @@ function EstimatePageContent() {
           };
           adjustmentsMade = true;
           console.log('✅ Adjusted Ice & water barrier quantity to:', newQuantity);
+          
+          // Add audit log entry for the quantity adjustment
+          if (ruleResults && ruleResults.audit_log) {
+            const auditEntry = {
+              line_number: iceWaterItem.line_number,
+              description: iceWaterItem.description,
+              field: 'quantity',
+              rule_applied: 'Valley Closed - Ice & Water Barrier Adjustment',
+              explanation: `Adjusted Ice & water barrier quantity for closed valleys (required: ${requiredIceWaterQuantity} SF, was: ${iceWaterItem.quantity} SF, now: ${newQuantity} SF)`,
+              fields_changed: [{
+                field: 'quantity',
+                before: iceWaterItem.quantity,
+                after: newQuantity
+              }, {
+                field: 'RCV',
+                before: iceWaterItem.RCV,
+                after: newQuantity * iceWaterItem.unit_price
+              }]
+            };
+            ruleResults.audit_log.push(auditEntry);
+            console.log('🔍 DEBUG - Added audit log entry for Ice & water barrier adjustment');
+          }
         }
       }
     } else {
@@ -3284,6 +3306,28 @@ function EstimatePageContent() {
         console.log('🔍 DEBUG - New item added:', newItem);
         console.log('🔍 DEBUG - Updated items count after adding:', updatedItems.length);
         console.log('🔍 DEBUG - adjustmentsMade flag:', adjustmentsMade);
+        
+        // Add audit log entry for the new item
+        if (ruleResults && ruleResults.audit_log) {
+          const auditEntry = {
+            line_number: newItem.line_number,
+            description: newItem.description,
+            field: 'quantity',
+            rule_applied: 'Valley Closed - Ice & Water Barrier Addition',
+            explanation: `Added Ice & water barrier for closed valleys (quantity = Total Line Lengths (Valleys) × 3 = ${valleysLength} × 3 = ${requiredIceWaterQuantity} SF)`,
+            fields_changed: [{
+              field: 'quantity',
+              before: 0,
+              after: requiredIceWaterQuantity
+            }, {
+              field: 'RCV',
+              before: 0,
+              after: newItem.RCV
+            }]
+          };
+          ruleResults.audit_log.push(auditEntry);
+          console.log('🔍 DEBUG - Added audit log entry for Ice & water barrier');
+        }
       } else {
         console.log('❌ Ice & water barrier not found in Roof Master Macro');
         console.log('🔍 DEBUG - Available roof master macro items:', Array.from(roofMasterMacro.keys()).slice(0, 10));
@@ -3359,6 +3403,28 @@ function EstimatePageContent() {
           updatedItems.push(newItem);
           adjustmentsMade = true;
           console.log('✅ Added Modified bitumen roof with quantity:', requiredRollQuantity);
+          
+          // Add audit log entry for the new item
+          if (ruleResults && ruleResults.audit_log) {
+            const auditEntry = {
+              line_number: newItem.line_number,
+              description: newItem.description,
+              field: 'quantity',
+              rule_applied: 'Valley Closed - Modified Bitumen Addition',
+              explanation: `Added Modified bitumen roof for closed valleys (Area for Pitch 0/12 = 0, quantity = ${requiredRollQuantity} SF)`,
+              fields_changed: [{
+                field: 'quantity',
+                before: 0,
+                after: requiredRollQuantity
+              }, {
+                field: 'RCV',
+                before: 0,
+                after: newItem.RCV
+              }]
+            };
+            ruleResults.audit_log.push(auditEntry);
+            console.log('🔍 DEBUG - Added audit log entry for Modified bitumen roof');
+          }
         } else {
           console.log('❌ Modified bitumen roof not found in Roof Master Macro');
         }
@@ -3410,6 +3476,28 @@ function EstimatePageContent() {
           updatedItems.push(newItem);
           adjustmentsMade = true;
           console.log('✅ Added Modified bitumen roof - self-adhering with quantity:', requiredRollQuantity);
+          
+          // Add audit log entry for the new item
+          if (ruleResults && ruleResults.audit_log) {
+            const auditEntry = {
+              line_number: newItem.line_number,
+              description: newItem.description,
+              field: 'quantity',
+              rule_applied: 'Valley Closed - Modified Bitumen Self-Adhering Addition',
+              explanation: `Added Modified bitumen roof - self-adhering for closed valleys (Area for Pitch 0/12 = 0, quantity = ${requiredRollQuantity} SF)`,
+              fields_changed: [{
+                field: 'quantity',
+                before: 0,
+                after: requiredRollQuantity
+              }, {
+                field: 'RCV',
+                before: 0,
+                after: newItem.RCV
+              }]
+            };
+            ruleResults.audit_log.push(auditEntry);
+            console.log('🔍 DEBUG - Added audit log entry for Modified bitumen roof - self-adhering');
+          }
         } else {
           console.log('❌ Modified bitumen roof - self-adhering not found in Roof Master Macro');
         }
@@ -3461,6 +3549,28 @@ function EstimatePageContent() {
           updatedItems.push(newItem);
           adjustmentsMade = true;
           console.log('✅ Added Modified bitumen roof - hot mopped with quantity:', requiredRollQuantity);
+          
+          // Add audit log entry for the new item
+          if (ruleResults && ruleResults.audit_log) {
+            const auditEntry = {
+              line_number: newItem.line_number,
+              description: newItem.description,
+              field: 'quantity',
+              rule_applied: 'Valley Closed - Modified Bitumen Hot Mopped Addition',
+              explanation: `Added Modified bitumen roof - hot mopped for closed valleys (Area for Pitch 0/12 = 0, quantity = ${requiredRollQuantity} SF)`,
+              fields_changed: [{
+                field: 'quantity',
+                before: 0,
+                after: requiredRollQuantity
+              }, {
+                field: 'RCV',
+                before: 0,
+                after: newItem.RCV
+              }]
+            };
+            ruleResults.audit_log.push(auditEntry);
+            console.log('🔍 DEBUG - Added audit log entry for Modified bitumen roof - hot mopped');
+          }
         } else {
           console.log('❌ Modified bitumen roof - hot mopped not found in Roof Master Macro');
         }
