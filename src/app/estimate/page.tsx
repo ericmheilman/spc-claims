@@ -8666,13 +8666,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCShingleRemovalModal(false);
-                        // Proceed to installation check even if closed via X button
-                        setTimeout(() => {
-                          checkInstallationItems(currentSPCLineItems);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -8817,13 +8811,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCItemsFoundModal(false);
-                        // Proceed to installation check even if closed via X button
-                        setTimeout(() => {
-                          checkInstallationItems(currentSPCLineItems);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -8890,13 +8878,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCInstallationModal(false);
-                        // Proceed to final step check even if closed via X button
-                        setTimeout(() => {
-                          checkSPCAddedItems(currentSPCLineItems);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9023,13 +9005,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCInstallationFoundModal(false);
-                        // Proceed to final step check
-                        setTimeout(() => {
-                          checkSPCAddedItems(currentSPCLineItems);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9096,13 +9072,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCChimneyModal(false);
-                        // Proceed to additional layers check if canceled
-                        setTimeout(() => {
-                          checkAdditionalLayersItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9322,13 +9292,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCChimneyFoundModal(false);
-                        // Proceed to additional layers check
-                        setTimeout(() => {
-                          checkAdditionalLayersItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9400,13 +9364,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCAdditionalLayersModal(false);
-                        // Proceed to permit check if canceled
-                        setTimeout(() => {
-                          checkPermitItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9637,13 +9595,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCAdditionalLayersFoundModal(false);
-                        // Proceed to permit check
-                        setTimeout(() => {
-                          checkPermitItems(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9715,13 +9667,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCPermitModal(false);
-                        // Proceed to hidden damages check if canceled
-                        setTimeout(() => {
-                          checkHiddenDamages(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
@@ -9851,13 +9797,7 @@ function EstimatePageContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowSPCPermitFoundModal(false);
-                        // Proceed to hidden damages check
-                        setTimeout(() => {
-                          checkHiddenDamages(ruleResults?.line_items || []);
-                        }, 100);
-                      }}
+                      onClick={resetWorkflow}
                       className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded text-sm hover:bg-white/30 font-medium transition-all duration-200 border border-white/30"
                     >
                       ✕
