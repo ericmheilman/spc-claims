@@ -3,6 +3,11 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+// Extend global to include roof master macro data
+declare global {
+  var roofMasterMacroData: string | undefined;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -55,17 +60,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save to project root (overwrite existing roof_master_macro.csv)
-    const filePath = join(process.cwd(), 'roof_master_macro.csv');
-    await writeFile(filePath, buffer);
-
-    // Also save to public directory for backup
-    const publicDir = join(process.cwd(), 'public');
-    if (!existsSync(publicDir)) {
-      await mkdir(publicDir, { recursive: true });
+    // Try to save to project root (overwrite existing roof_master_macro.csv)
+    let filePath = '';
+    let publicFilePath = '';
+    
+    try {
+      filePath = join(process.cwd(), 'roof_master_macro.csv');
+      await writeFile(filePath, buffer);
+      console.log('✅ Saved to project root:', filePath);
+    } catch (error) {
+      console.log('⚠️ Could not save to project root (read-only filesystem):', error);
     }
-    const publicFilePath = join(publicDir, 'roof_master_macro.csv');
-    await writeFile(publicFilePath, buffer);
+
+    // Try to save to public directory for backup
+    try {
+      const publicDir = join(process.cwd(), 'public');
+      if (!existsSync(publicDir)) {
+        await mkdir(publicDir, { recursive: true });
+      }
+      publicFilePath = join(publicDir, 'roof_master_macro.csv');
+      await writeFile(publicFilePath, buffer);
+      console.log('✅ Saved to public directory:', publicFilePath);
+    } catch (error) {
+      console.log('⚠️ Could not save to public directory (read-only filesystem):', error);
+    }
+
+    // Store in memory for production environments with read-only filesystems
+    // This will be used by the JavaScript rules API
+    global.roofMasterMacroData = content;
+    console.log('✅ Stored roof master macro data in memory for production use');
 
     // Count valid items (use detected delimiter)
     let itemCount = 0;

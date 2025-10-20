@@ -3,6 +3,11 @@ import { RoofAdjustmentEngine } from '@/lib/roofAdjustmentEngine';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Extend global to include roof master macro data
+declare global {
+  var roofMasterMacroData: string | undefined;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const inputData = await request.json();
@@ -13,9 +18,27 @@ export async function POST(request: NextRequest) {
       wastePercentage: inputData.waste_percentage
     });
 
-    // Load roof master macro CSV
-    const csvPath = path.join(process.cwd(), 'public', 'roof_master_macro.csv');
-    const csvContent = await fs.readFile(csvPath, 'utf-8');
+    // Load roof master macro CSV - try memory first, then file
+    let csvContent = '';
+    
+    if (global.roofMasterMacroData) {
+      console.log('📊 Using roof master macro data from memory (uploaded)');
+      csvContent = global.roofMasterMacroData;
+    } else {
+      try {
+        const csvPath = path.join(process.cwd(), 'public', 'roof_master_macro.csv');
+        csvContent = await fs.readFile(csvPath, 'utf-8');
+        console.log('📊 Using roof master macro data from file');
+      } catch (error) {
+        console.log('⚠️ Could not load roof master macro from file, using default');
+        // Fallback to a minimal default if no file is available
+        csvContent = `Description,Unit,Unit Price
+Laminated - comp. shingle rfg. - w/out felt,SQ,249.37
+3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,235.6
+Remove Laminated - comp. shingle rfg. - w/out felt,SQ,67.4
+Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt,SQ,65.96`;
+      }
+    }
     
     // Simple CSV parsing without external library
     const lines = csvContent.split('\n').filter(line => line.trim());
