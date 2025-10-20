@@ -3189,14 +3189,14 @@ function EstimatePageContent() {
     let updatedItems = [...currentItems];
     let adjustmentsMade = false;
     
-    // Check Ice & Water Barrier (exact match from specification)
-    const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & Water Barrier');
+    // Check Ice & water barrier (exact match from roof master macro)
+    const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & water barrier');
     const requiredIceWaterQuantity = valleysLength * 3;
     
     if (iceWaterItem) {
       const threshold = requiredIceWaterQuantity * 0.25; // 25% threshold
       
-      console.log('🔍 Ice & Water Barrier found:', iceWaterItem.quantity);
+      console.log('🔍 Ice & water barrier found:', iceWaterItem.quantity);
       console.log('🔍 Required quantity:', requiredIceWaterQuantity);
       console.log('🔍 Within 25% threshold?', Math.abs(iceWaterItem.quantity - requiredIceWaterQuantity) <= threshold);
       
@@ -3211,14 +3211,14 @@ function EstimatePageContent() {
             ACV: newQuantity * iceWaterItem.unit_price - (iceWaterItem.depreciation_amount || 0)
           };
           adjustmentsMade = true;
-          console.log('✅ Adjusted Ice & Water Barrier quantity to:', newQuantity);
+          console.log('✅ Adjusted Ice & water barrier quantity to:', newQuantity);
         }
       }
     } else {
-      // Ice & Water Barrier not present - add it
-      console.log('⚠️ Ice & Water Barrier not found - adding new line item');
+      // Ice & water barrier not present - add it
+      console.log('⚠️ Ice & water barrier not found - adding new line item');
       
-      const macroData = roofMasterMacro.get('Ice & Water Barrier');
+      const macroData = roofMasterMacro.get('Ice & water barrier');
       if (macroData) {
         // Get max line number
         const maxLineNumber = Math.max(
@@ -3228,7 +3228,7 @@ function EstimatePageContent() {
         
         const newItem = {
           line_number: (maxLineNumber + 1).toString(),
-          description: 'Ice & Water Barrier',
+          description: 'Ice & water barrier',
           quantity: requiredIceWaterQuantity,
           unit: macroData.unit,
           unit_price: macroData.unit_price,
@@ -3243,9 +3243,9 @@ function EstimatePageContent() {
         
         updatedItems.push(newItem);
         adjustmentsMade = true;
-        console.log('✅ Added Ice & Water Barrier with quantity:', requiredIceWaterQuantity);
+        console.log('✅ Added Ice & water barrier with quantity:', requiredIceWaterQuantity);
       } else {
-        console.log('❌ Ice & Water Barrier not found in Roof Master Macro');
+        console.log('❌ Ice & water barrier not found in Roof Master Macro');
       }
     }
     
@@ -11431,8 +11431,8 @@ function EstimatePageContent() {
                         <strong>ℹ️ Note:</strong> If you select "Closed Valleys," the system will:
                       </p>
                         <ul className="list-disc list-inside space-y-1 text-gray-600 text-sm ml-4 mt-2">
-                          <li>Add "Ice & Water Barrier" if not present (quantity = Total Line Lengths (Valleys) × 3)</li>
-                          <li>Adjust "Ice & Water Barrier" if present and within 25% of required quantity</li>
+                          <li>Add "Ice & water barrier" if not present (quantity = Total Line Lengths (Valleys) × 3)</li>
+                          <li>Adjust "Ice & water barrier" if present and within 25% of required quantity</li>
                           <li>Adjust "Roll roofing" if present and Area for Pitch 0/12 = 0</li>
                           <li>Add/adjust "Modified bitumen roof" variants if Area for Pitch 0/12 = 0</li>
                         </ul>
