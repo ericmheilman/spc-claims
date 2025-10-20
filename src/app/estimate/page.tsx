@@ -1718,68 +1718,6 @@ function EstimatePageContent() {
         }, 100);
         return;
       }
-      
-      // Check if any of the required removal line items are present (using exact spellings from shingleRemovalOptions)
-      console.log('🔍 Checking for shingle removal items in:', updatedLineItems.length, 'line items');
-      console.log('🔍 Required items:', shingleRemovalOptions);
-      console.log('🔍 All line item descriptions:', updatedLineItems.map((item: any) => item.description));
-      
-      const foundRemovalItems = updatedLineItems.filter((item: any) => {
-        if (!item.description) return false;
-        
-        console.log('🔍 Checking item:', item.description);
-        
-        return shingleRemovalOptions.some(requiredItem => {
-          // Try exact match first
-          if (item.description === requiredItem) {
-            console.log('✅ Found exact match:', item.description);
-            return true;
-          }
-          
-          // Try case-insensitive match
-          if (item.description.toLowerCase() === requiredItem.toLowerCase()) {
-            console.log('✅ Found case-insensitive match:', item.description, '===', requiredItem);
-            return true;
-          }
-          
-          // Check for removal items containing key terms
-          const itemDesc = item.description.toLowerCase();
-          const requiredDesc = requiredItem.toLowerCase();
-          
-          // Check if it's a removal item and contains key shingle type terms
-          if (itemDesc.includes('remove')) {
-            const hasLaminated = (itemDesc.includes('laminated') && requiredDesc.includes('laminated')) || 
-                               (!itemDesc.includes('laminated') && !requiredDesc.includes('laminated'));
-            const has3Tab = (itemDesc.includes('3 tab') && requiredDesc.includes('3 tab')) || 
-                           (!itemDesc.includes('3 tab') && !requiredDesc.includes('3 tab'));
-            const hasComp = itemDesc.includes('comp') && requiredDesc.includes('comp');
-            const hasShingle = itemDesc.includes('shingle') && requiredDesc.includes('shingle');
-            const hasFelt = (itemDesc.includes('felt') && requiredDesc.includes('felt'));
-            
-            if (hasComp && hasShingle && (hasLaminated || has3Tab)) {
-              console.log('✅ Found removal item match:', item.description, 'matches pattern for', requiredItem);
-              return true;
-            }
-          }
-          
-          return false;
-        });
-      });
-      
-      console.log('🔍 Found removal items:', foundRemovalItems.map((item: any) => item.description));
-      
-      if (foundRemovalItems.length > 0) {
-        // Show message that removal items were found
-        console.log('✅ Removal line items found, proceeding without modal');
-        setFoundRemovalItems(foundRemovalItems);
-        setShowSPCItemsFoundModal(true);
-        // After removal check, proceed to installation check
-        // We'll trigger this when the modal is closed
-      } else {
-        // No removal items found, show modal for user selection
-        console.log('⚠️ No removal items found, showing SPC modal');
-        setShowSPCShingleRemovalModal(true);
-      }
 
     } catch (error) {
       console.error('Error running Python rule engine:', error);
