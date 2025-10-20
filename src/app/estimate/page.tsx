@@ -2998,6 +2998,7 @@ function EstimatePageContent() {
     'Remove Laminated - comp. shingle rfg. - w/out felt',
     'Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt',
     'Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt',
+    'Remove 3 tab - 25 yr. - composition shingle roofing incl. felt', // Common variation without hyphen before "incl"
     'Remove Laminated - comp. shingle rfg. - w/ felt'
   ];
 
