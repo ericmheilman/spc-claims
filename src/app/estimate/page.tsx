@@ -75,6 +75,10 @@ function EstimatePageContent() {
   const [foundInstallationItems, setFoundInstallationItems] = useState<any[]>([]);
   const [currentSPCLineItems, setCurrentSPCLineItems] = useState<any[]>([]);
 
+  // SPC Final Step Check state (for automatically added items)
+  const [showSPCFinalStepModal, setShowSPCFinalStepModal] = useState(false);
+  const [foundSPCAddedItems, setFoundSPCAddedItems] = useState<any[]>([]);
+
   // Macro matching state
   const [showMacroMatchingModal, setShowMacroMatchingModal] = useState(false);
   const [macroMatchingResults, setMacroMatchingResults] = useState<any[]>([]);
