@@ -85,6 +85,7 @@ export class RoofAdjustmentEngine {
     REMOVE_LAMINATED_WITHOUT_FELT: "Remove Laminated - comp. shingle rfg. - w/out felt",
     REMOVE_3TAB_25YR_WITHOUT_FELT: "Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt",
     REMOVE_3TAB_25YR_WITH_FELT: "Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt",
+    REMOVE_3TAB_25YR_WITH_FELT_NO_HYPHEN: "Remove 3 tab - 25 yr. - composition shingle roofing incl. felt", // Common variation without hyphen
     REMOVE_LAMINATED_WITH_FELT: "Remove Laminated - comp. shingle rfg. - w/ felt",
     REMOVE_3TAB_PER_SHINGLE: "Remove 3 tab - 25 yr. - composition shingle roofing (per SHINGLE)",
     REMOVE_LAMINATED_PER_SHINGLE: "Remove Laminated - comp. shingle rfg (per SHINGLE)",
@@ -542,6 +543,13 @@ export class RoofAdjustmentEngine {
         descriptionChanged = true;
         quantityChanged = newItem.quantity > item.quantity;
         ruleApplied = 'Remove 3-Tab w/felt → Remove Laminated - Quantity without waste';
+      }
+      else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITH_FELT_NO_HYPHEN) {
+        newItem.description = this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITHOUT_FELT;
+        newItem.quantity = Math.max(item.quantity, baseQuantity);
+        descriptionChanged = true;
+        quantityChanged = newItem.quantity > item.quantity;
+        ruleApplied = 'Remove 3-Tab w/felt (no hyphen) → Remove Laminated - Quantity without waste';
       }
       else if (item.description === this.EXACT_DESCRIPTIONS.REMOVE_LAMINATED_WITH_FELT) {
         newItem.description = this.EXACT_DESCRIPTIONS.REMOVE_3TAB_25YR_WITHOUT_FELT;
