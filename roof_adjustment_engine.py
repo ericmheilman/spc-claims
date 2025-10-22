@@ -334,8 +334,7 @@ class RoofAdjustmentEngine:
             "ACV": acv,
             "location_room": location_room,
             "category": category,
-            "page_number": max(int(item.get("page_number", 0)) for item in line_items),
-            "narrative": f"Field Changed: quantity |Explanation: New line item added based on roof measurements and standard roofing practices"
+            "page_number": max(int(item.get("page_number", 0)) for item in line_items)
         }
         line_items.append(new_item)
         print(f"    ✅ Added: {desc} - Qty: {rounded_qty} {macro_unit} @ ${unit_price:.2f}/{macro_unit} = ${rcv:.2f}")
@@ -783,8 +782,6 @@ class RoofAdjustmentEngine:
                     print(f"    ✅ ADJUSTED: {old_qty} → {item['quantity']}")
                     self.results.add_adjustment(desc, old_qty, item["quantity"], 
                                               f"Drip edge quantity should equal (Total Eaves + Total Rakes) = {drip_edge_length:.2f} LF")
-                    # Add narrative to the line item for frontend highlighting
-                    item["narrative"] = f"Field Changed: quantity |Explanation: Drip edge quantity adjusted to match roof perimeter calculation (Eaves + Rakes = {drip_edge_length:.2f} LF)"
                     # Add audit log entry
                     self.results.add_audit_entry_for_item(
                         item, 'quantity', old_qty, item["quantity"],
@@ -1410,9 +1407,6 @@ class RoofAdjustmentEngine:
                     print(f"  ✅ PRICE INCREASED: '{description[:50]}...'")
                     print(f"     Unit Price: ${old_price:.2f} → ${new_price:.2f}")
                     print(f"     RCV: ${quantity * old_price:.2f} → ${item['RCV']:.2f}")
-                    
-                    # Add narrative to the line item for frontend highlighting
-                    item["narrative"] = f"Field Changed: unit_price |Explanation: Unit price increased to match Roof Master Macro maximum (${new_price:.2f})"
                     
                     # Add audit log entry for unit price adjustment
                     self.results.add_audit_entry_for_item(

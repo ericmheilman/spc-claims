@@ -159,21 +159,25 @@ export async function POST(request: NextRequest) {
         similarity: number;
       }> = [];
       
-      // Check for exact match first
+      // Check for exact match first (99%+ similarity)
       for (const macroItem of macroItems) {
         const normalizedMacroDescription = normalizeText(macroItem.description);
-        if (normalizedDescription === normalizedMacroDescription) {
+        const similarity = calculateSimilarity(normalizedDescription, normalizedMacroDescription);
+        
+        // Consider 99%+ similarity as exact match
+        if (similarity >= 0.99) {
           hasExactMatch = true;
           break;
         }
       }
       
-      // If no exact match, find suggestions with 85%+ similarity
+      // If no exact match, find suggestions with 70-99% similarity
       if (!hasExactMatch) {
         for (const macroItem of macroItems) {
           const similarity = calculateSimilarity(normalizedDescription, normalizeText(macroItem.description));
           
-          if (similarity >= 0.85) {
+          // Only suggest items with 70-99% similarity (confidence interval)
+          if (similarity >= 0.70 && similarity < 0.99) {
             suggestions.push({
               description: macroItem.description,
               unit: macroItem.unit,

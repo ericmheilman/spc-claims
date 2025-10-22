@@ -6,6 +6,7 @@ import { Settings, FileText, CheckCircle, Building, DollarSign, TrendingUp, Down
 import { extractRoofMeasurements, applyRoofAdjustmentRules, type RulesEngineResult } from '../../utils/roofAdjustmentRules';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import RoofMasterMacroViewer from '../../components/RoofMasterMacroViewer';
 
 interface LineItem {
   line_number: string;
@@ -86,6 +87,9 @@ function EstimatePageContent() {
   const [showMacroReplacementModal, setShowMacroReplacementModal] = useState(false);
   const [selectedMacroItem, setSelectedMacroItem] = useState<any>(null);
   const [macroSuggestions, setMacroSuggestions] = useState<any[]>([]);
+  
+  // Roof Master Macro Viewer state
+  const [showMacroViewer, setShowMacroViewer] = useState(false);
 
 
   // SPC Chimney/Cricket Check state
@@ -3138,7 +3142,28 @@ function EstimatePageContent() {
     proceedToNextWorkflowStep('shingle_adjustments');
   };
 
-  // Check for valley items and prompt user
+  // Helper function to get the best matching Ice & water barrier from roof master macro
+  const getIceWaterBarrierMacroData = () => {
+    let macroData = roofMasterMacro.get('Ice & water barrier');
+    if (!macroData) {
+      // If exact match not found, try to find any Ice & water barrier variation
+      for (const [key, value] of roofMasterMacro.entries()) {
+        if (key.toLowerCase().includes('ice & water barrier')) {
+          macroData = value;
+          console.log('🔍 DEBUG - Found alternative Ice & water barrier:', key);
+          break;
+        }
+      }
+    }
+    return macroData;
+  };
+
+  // Helper function to check if any Ice & water barrier variation exists in line items
+  const hasIceWaterBarrier = (items: any[]) => {
+    return items.some((item: any) => 
+      item.description && item.description.toLowerCase().includes('ice & water barrier')
+    );
+  };
   const checkValleyItems = (updatedLineItems: any[]) => {
     console.log('🔍 Checking for valley items in:', updatedLineItems.length, 'line items');
     
@@ -3147,16 +3172,14 @@ function EstimatePageContent() {
       item.description === 'Valley metal' || item.description === 'Valley metal - (W) profile'
     );
     
-    // Check if Ice & water barrier exists (for closed valleys)
-    const hasIceWaterBarrier = updatedLineItems.some((item: any) => 
-      item.description === 'Ice & water barrier'
-    );
+    // Check if any Ice & water barrier variation exists (for closed valleys)
+    const hasIceWaterBarrierItem = hasIceWaterBarrier(updatedLineItems);
     
     // Get Total Line Lengths (Valleys) from roof measurements
     const valleysLength = extractedRoofMeasurements["Total Line Lengths (Valleys)"]?.value || 0;
     
     console.log('🔍 Has valley metal items:', hasValleyMetal);
-    console.log('🔍 Has Ice & water barrier:', hasIceWaterBarrier);
+    console.log('🔍 Has Ice & water barrier:', hasIceWaterBarrierItem);
     console.log('🔍 Total Line Lengths (Valleys):', valleysLength);
     
     // Case B: If no valley metal items AND valleys exist, prompt user
@@ -3164,7 +3187,7 @@ function EstimatePageContent() {
       console.log('⚠️ No valley metal items found but valleys detected - showing valley check modal');
       console.log('🔍 DEBUG - Will show valley check modal because:', {
         hasValleyMetal,
-        hasIceWaterBarrier,
+        hasIceWaterBarrierItem,
         valleysLength
       });
       setShowValleyCheckModal(true);
@@ -3172,7 +3195,7 @@ function EstimatePageContent() {
       console.log('✅ Valley check not needed, proceeding to O&P check');
       console.log('🔍 DEBUG - Skipping valley check because:', {
         hasValleyMetal,
-        hasIceWaterBarrier,
+        hasIceWaterBarrierItem,
         valleysLength
       });
       checkOPItems(ruleResults?.line_items || updatedLineItems);
@@ -3211,8 +3234,10 @@ function EstimatePageContent() {
     let updatedItems = [...currentItems];
     let adjustmentsMade = false;
     
-    // Check Ice & water barrier (exact match from roof master macro)
-    const iceWaterItem = updatedItems.find((item: any) => item.description === 'Ice & water barrier');
+    // Check for any Ice & water barrier variation (not just exact match)
+    const iceWaterItem = updatedItems.find((item: any) => 
+      item.description && item.description.toLowerCase().includes('ice & water barrier')
+    );
     const requiredIceWaterQuantity = valleysLength * 3;
     
     console.log('🔍 DEBUG - Ice & water barrier found?', !!iceWaterItem);
@@ -3275,7 +3300,8 @@ function EstimatePageContent() {
       console.log('⚠️ Ice & water barrier not found - adding new line item');
       console.log('🔍 DEBUG - Attempting to get macro data for Ice & water barrier');
       
-      const macroData = roofMasterMacro.get('Ice & water barrier');
+      // Try to find the best matching Ice & water barrier from roof master macro
+      const macroData = getIceWaterBarrierMacroData();
       console.log('🔍 DEBUG - Macro data retrieved:', macroData);
       
       if (macroData) {
@@ -4705,7 +4731,9 @@ function EstimatePageContent() {
     } else if (valleyType === 'closed') {
       itemDescription = 'Ice & water barrier';
       quantity = (valleyLengthValue * 3) / 100;
-      macroData = roofMasterMacro.get('Ice & water barrier');
+      
+      // Try to find the best matching Ice & water barrier from roof master macro
+      macroData = getIceWaterBarrierMacroData();
     }
 
     if (!macroData) {
@@ -4766,10 +4794,7 @@ function EstimatePageContent() {
   };
 
   const handlePriceSave = () => {
-    if (!priceJustification.justification_text.trim()) {
-      alert('Please provide justification text for the changes.');
-      return;
-    }
+    // Justification text is now optional - no validation required
 
     if (!editingPriceItem) return;
 
@@ -5270,29 +5295,6 @@ function EstimatePageContent() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {/* Unit Cost Comparator Button */}
-              <button
-                onClick={runUnitCostComparator}
-                disabled={isRunningMacroMatching || !extractedLineItems.length}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isRunningMacroMatching || !extractedLineItems.length
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700 border border-blue-500'
-                }`}
-              >
-                <DollarSign className="inline-block w-4 h-4 mr-2" />
-                {isRunningMacroMatching ? 'Comparing...' : 'Unit Cost Comparator'}
-              </button>
-              
-              {/* Manage Roof Master Macro Button */}
-              <button
-                onClick={() => setShowRMMModal(true)}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-green-600 text-white hover:bg-green-700 border border-green-500"
-              >
-                <Settings className="inline-block w-4 h-4 mr-2" />
-                Manage Roof Master Macro
-              </button>
-              
               <button
                 onClick={runMacroMatching}
                 disabled={isRunningMacroMatching || !extractedLineItems.length}
@@ -5303,6 +5305,14 @@ function EstimatePageContent() {
                 }`}
               >
                 {isRunningMacroMatching ? 'Checking...' : 'Macro Matching'}
+              </button>
+              
+              <button
+                onClick={() => setShowMacroViewer(true)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-purple-700 text-white hover:bg-purple-800 border border-purple-600"
+              >
+                <FileText className="w-4 h-4 inline mr-2" />
+                View Macro
               </button>
               
               <button
@@ -8203,15 +8213,15 @@ function EstimatePageContent() {
                                           <span className="font-semibold">Description:</span> Ice & water barrier
                                         </div>
                                         <div className="text-gray-700">
-                                          <span className="font-semibold">Quantity:</span> {((valleyLengthValue * 3) / 100).toFixed(2)} {roofMasterMacro.get('Ice & water barrier')?.unit || 'SF'}
+                                          <span className="font-semibold">Quantity:</span> {((valleyLengthValue * 3) / 100).toFixed(2)} {getIceWaterBarrierMacroData()?.unit || 'SF'}
                                         </div>
-                                        {roofMasterMacro.get('Ice & water barrier') && (
+                                        {getIceWaterBarrierMacroData() && (
                                           <>
                                             <div className="text-gray-700">
-                                              <span className="font-semibold">Unit Price:</span> ${roofMasterMacro.get('Ice & water barrier')!.unit_price.toFixed(2)}
+                                              <span className="font-semibold">Unit Price:</span> ${getIceWaterBarrierMacroData()!.unit_price.toFixed(2)}
                                             </div>
                                             <div className="text-gray-700">
-                                              <span className="font-semibold">Total RCV:</span> ${(roofMasterMacro.get('Ice & water barrier')!.unit_price * ((valleyLengthValue * 3) / 100)).toFixed(2)}
+                                              <span className="font-semibold">Total RCV:</span> ${(getIceWaterBarrierMacroData()!.unit_price * ((valleyLengthValue * 3) / 100)).toFixed(2)}
                                             </div>
                                           </>
                                         )}
@@ -8727,10 +8737,10 @@ function EstimatePageContent() {
                     {/* Justification Textarea */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Justification for Changes <span className="text-red-500">*</span>
+                        Justification for Changes (Optional)
                       </label>
                       <textarea
-                        placeholder="Explain why these changes are necessary..."
+                        placeholder="Explain why these changes are necessary (optional)..."
                         value={priceJustification.justification_text}
                         onChange={(e) => setPriceJustification(prev => ({
                           ...prev,
@@ -12238,6 +12248,11 @@ function EstimatePageContent() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Roof Master Macro Viewer */}
+          {showMacroViewer && (
+            <RoofMasterMacroViewer onClose={() => setShowMacroViewer(false)} />
           )}
         </div>
       </main>
