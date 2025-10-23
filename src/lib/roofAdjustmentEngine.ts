@@ -1117,21 +1117,31 @@ export class RoofAdjustmentEngine {
     // Drip edge is quoted in LF, so do NOT divide by 100
     const requiredQuantity = eavesLength + rakesLength;
     
-    const dripEdgeItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.DRIP_EDGE);
+    // Check if "Drip edge" (without "gutter apron") is already present
+    const existingDripEdge = this.findLineItem(items, ["Drip edge"]);
     
-    if (dripEdgeItem) {
-      if (dripEdgeItem.quantity < requiredQuantity) {
-        const index = items.findIndex(item => item === dripEdgeItem);
+    if (existingDripEdge) {
+      console.log('🔍 Found existing "Drip edge" item, skipping "Drip edge/gutter apron" addition');
+      // If "Drip edge" is present, don't add "Drip edge/gutter apron"
+      return items;
+    }
+    
+    // Check if "Drip edge/gutter apron" is already present
+    const dripEdgeGutterApronItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.DRIP_EDGE);
+    
+    if (dripEdgeGutterApronItem) {
+      if (dripEdgeGutterApronItem.quantity < requiredQuantity) {
+        const index = items.findIndex(item => item === dripEdgeGutterApronItem);
         items[index] = this.adjustQuantity(
-          dripEdgeItem,
+          dripEdgeGutterApronItem,
           requiredQuantity,
-          `Drip edge quantity adjusted to Eaves + Rakes: ${requiredQuantity} LF`,
+          `Drip edge/gutter apron quantity adjusted to Eaves + Rakes: ${requiredQuantity} LF`,
           'Category A: Drip Edge Quantity Adjustment'
         );
         this.adjustmentCounts.drip_edge_adjustments++;
       }
     } else {
-      // Add drip edge if missing
+      // Add drip edge/gutter apron if missing and no "Drip edge" exists
       const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.DRIP_EDGE);
       if (masterItem) {
         const newItem = this.addLineItem(
@@ -1140,7 +1150,7 @@ export class RoofAdjustmentEngine {
           masterItem.unit,
           masterItem.unit_price,
           `${items.length + 1}`,
-          `Missing drip edge - added based on eaves + rakes length`,
+          `Missing drip edge/gutter apron - added based on eaves + rakes length`,
           'Category A: Drip Edge Addition'
         );
         items.push(newItem);

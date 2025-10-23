@@ -1576,9 +1576,24 @@ function EstimatePageContent() {
         roofMeasurements = roofMeasurementsObj;
       }
 
-      // Prepare Python input data (using RMM-adjusted line items)
+      // Filter line items to only include roof-related items before sending to SPC Adjustment Engine
+      const allLineItems = rmmData.updated_line_items || extractedLineItems;
+      const roofOnlyItems = allLineItems.filter(item => {
+        const locationRoom = (item.location_room || '').toLowerCase();
+        const category = (item.category || '').toLowerCase();
+        const description = (item.description || '').toLowerCase();
+        
+        // Include items that have "roof" in location_room, category, or description
+        return locationRoom.includes('roof') || 
+               category.includes('roof') || 
+               description.includes('roof');
+      });
+
+      console.log(`🔍 SPC Adjustment Engine: Filtered ${allLineItems.length} total items to ${roofOnlyItems.length} roof-only items`);
+
+      // Prepare Python input data (using roof-filtered line items)
       const pythonInputData = {
-        line_items: (rmmData.updated_line_items || extractedLineItems).map(item => ({
+        line_items: roofOnlyItems.map(item => ({
           line_number: item.line_number || 'N/A',
           description: item.description || 'Unknown',
           quantity: item.quantity || 0,
@@ -1791,9 +1806,23 @@ function EstimatePageContent() {
 
       console.log('📊 Using LIVE roof measurements:', roofMeasurements);
 
+      // Filter line items to only include roof-related items before sending to Python rules
+      const roofOnlyItems = extractedLineItems.filter(item => {
+        const locationRoom = (item.location_room || '').toLowerCase();
+        const category = (item.category || '').toLowerCase();
+        const description = (item.description || '').toLowerCase();
+        
+        // Include items that have "roof" in location_room, category, or description
+        return locationRoom.includes('roof') || 
+               category.includes('roof') || 
+               description.includes('roof');
+      });
+
+      console.log(`🔍 Python Rules: Filtered ${extractedLineItems.length} total items to ${roofOnlyItems.length} roof-only items`);
+
       // Prepare data for Python script
       const pythonInputData = {
-        line_items: extractedLineItems.map(item => ({
+        line_items: roofOnlyItems.map(item => ({
           line_number: item.line_number || 'N/A',
           description: item.description || 'Unknown',
           quantity: item.quantity || 0,
@@ -1961,9 +1990,23 @@ function EstimatePageContent() {
     console.log('🔄 Running JavaScript rules internally...');
     
     try {
+      // Filter line items to only include roof-related items before sending to JavaScript rules
+      const roofOnlyItems = lineItems.filter(item => {
+        const locationRoom = (item.location_room || '').toLowerCase();
+        const category = (item.category || '').toLowerCase();
+        const description = (item.description || '').toLowerCase();
+        
+        // Include items that have "roof" in location_room, category, or description
+        return locationRoom.includes('roof') || 
+               category.includes('roof') || 
+               description.includes('roof');
+      });
+
+      console.log(`🔍 JavaScript Rules: Filtered ${lineItems.length} total items to ${roofOnlyItems.length} roof-only items`);
+
       // Prepare data for JavaScript script
       const jsInputData = {
-        line_items: lineItems.map(item => ({
+        line_items: roofOnlyItems.map(item => ({
           line_number: item.line_number || 'N/A',
           description: item.description || 'Unknown',
           quantity: item.quantity || 0,
@@ -2139,6 +2182,167 @@ function EstimatePageContent() {
     }
   };
 
+  // Ridge Vent Logic - Automated workflow for hip/ridge cap adjustments
+  const applyRidgeVentLogic = (lineItems: any[]) => {
+    console.log('🔧 Applying Ridge Vent Logic...');
+    
+    const updatedItems = [...lineItems];
+    let hasChanges = false;
+    
+    // Get roof measurements
+    const hipsLength = extractedRoofMeasurements.hipLength || 0;
+    const ridgesLength = extractedRoofMeasurements.ridgeLength || 0;
+    const totalRidgesHipsLength = extractedRoofMeasurements["Total Ridges/Hips Length"]?.value || (hipsLength + ridgesLength);
+    
+    console.log('🔍 Roof measurements:', {
+      hipsLength,
+      ridgesLength,
+      totalRidgesHipsLength
+    });
+    
+    // Helper function to find item by exact description
+    const findItem = (description: string) => {
+      return updatedItems.find((item: any) => item.description === description);
+    };
+    
+    // Helper function to update item quantity
+    const updateItemQuantity = (description: string, newQuantity: number) => {
+      const item = findItem(description);
+      if (item) {
+        const oldQuantity = item.quantity || 0;
+        item.quantity = Math.max(oldQuantity, newQuantity);
+        console.log(`📝 Updated ${description}: ${oldQuantity} → ${item.quantity}`);
+        hasChanges = true;
+        return true;
+      }
+      return false;
+    };
+    
+    // Helper function to add new item
+    const addNewItem = (description: string, quantity: number) => {
+      const macroData = roofMasterMacro.get(description);
+      if (macroData) {
+        const newItem = {
+          line_number: updatedItems.length + 1,
+          description: description,
+          quantity: quantity,
+          unit: macroData.unit,
+          unit_price: macroData.unit_price,
+          RCV: quantity * macroData.unit_price,
+          ACV: quantity * macroData.unit_price * 0.8, // Assuming 20% depreciation
+          depreciation: quantity * macroData.unit_price * 0.2
+        };
+        updatedItems.push(newItem);
+        console.log(`➕ Added new item: ${description} (${quantity} ${macroData.unit})`);
+        hasChanges = true;
+        return true;
+      } else {
+        console.log(`⚠️ Could not find macro data for: ${description}`);
+        return false;
+      }
+    };
+    
+    // Case 1: Aluminum ridge vent present AND hips length > 0
+    const aluminumRidgeVent = findItem('Continuous ridge vent - aluminum');
+    if (aluminumRidgeVent && hipsLength > 0) {
+      console.log('🔍 Case 1: Aluminum ridge vent present with hips');
+      
+      const removeLaminated = findItem('Remove Laminated - comp. shingle rfg. - w/out felt');
+      const remove3Tab = findItem('Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt');
+      
+      if (removeLaminated) {
+        // ENSURE "Hip / Ridge cap - Standard profile - composition shingles"
+        updateItemQuantity('Hip / Ridge cap - Standard profile - composition shingles', hipsLength);
+      } else if (remove3Tab) {
+        // Handle 3 tab removal
+        const hipRidgeCap3Tab = findItem('Hip / Ridge cap - cut from 3 tab - composition shingles');
+        const universalStarter = findItem('Asphalt starter - universal starter course');
+        const peelStickStarter = findItem('Asphalt starter - peel and stick');
+        
+        if (hipRidgeCap3Tab) {
+          // Update existing 3 tab cap
+          updateItemQuantity('Hip / Ridge cap - cut from 3 tab - composition shingles', hipsLength);
+        } else if (universalStarter || peelStickStarter) {
+          // Add new 3 tab cap
+          addNewItem('Hip / Ridge cap - cut from 3 tab - composition shingles', hipsLength);
+        }
+        // Else: neither starter nor cap listed → considered inside waste → do nothing
+        
+        // Also update standard profile cap if present
+        updateItemQuantity('Hip / Ridge cap - Standard profile - composition shingles', hipsLength);
+      }
+    }
+    
+    // Case 2: Shingle-over ridge vent present AND total ridges/hips > 0
+    const shingleOverRidgeVent = findItem('Continuous ridge vent - shingle-over style');
+    if (shingleOverRidgeVent && totalRidgesHipsLength > 0) {
+      console.log('🔍 Case 2: Shingle-over ridge vent present');
+      
+      const removeLaminated = findItem('Remove Laminated - comp. shingle rfg. - w/out felt');
+      const remove3Tab = findItem('Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt');
+      
+      if (removeLaminated) {
+        // ENSURE "Hip / Ridge cap - Standard profile - composition shingles"
+        updateItemQuantity('Hip / Ridge cap - Standard profile - composition shingles', totalRidgesHipsLength);
+      } else if (remove3Tab) {
+        // Handle 3 tab removal
+        const hipRidgeCap3Tab = findItem('Hip / Ridge cap - cut from 3 tab - composition shingles');
+        const universalStarter = findItem('Asphalt starter - universal starter course');
+        const peelStickStarter = findItem('Asphalt starter - peel and stick');
+        
+        if (hipRidgeCap3Tab) {
+          // Update existing 3 tab cap
+          updateItemQuantity('Hip / Ridge cap - cut from 3 tab - composition shingles', totalRidgesHipsLength);
+        } else if (universalStarter || peelStickStarter) {
+          // Add new 3 tab cap
+          addNewItem('Hip / Ridge cap - cut from 3 tab - composition shingles', totalRidgesHipsLength);
+        }
+        // Else: neither starter nor cap listed → considered inside waste → do nothing
+        
+        // Also update standard profile cap if present
+        updateItemQuantity('Hip / Ridge cap - Standard profile - composition shingles', totalRidgesHipsLength);
+      }
+    }
+    
+    // Case 3: No ridge vent present AND total ridges/hips > 0
+    if (!aluminumRidgeVent && !shingleOverRidgeVent && totalRidgesHipsLength > 0) {
+      console.log('🔍 Case 3: No ridge vent present');
+      
+      const removeLaminated = findItem('Remove Laminated - comp. shingle rfg. - w/out felt');
+      const remove3Tab = findItem('Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt');
+      
+      if (removeLaminated) {
+        // ENSURE "Hip / Ridge cap - Standard profile - composition shingles"
+        updateItemQuantity('Hip / Ridge cap - Standard profile - composition shingles', totalRidgesHipsLength);
+      } else if (remove3Tab) {
+        // Handle 3 tab removal
+        const hipRidgeCap3Tab = findItem('Hip / Ridge cap - cut from 3 tab - composition shingles');
+        const universalStarter = findItem('Asphalt starter - universal starter course');
+        const peelStickStarter = findItem('Asphalt starter - peel and stick');
+        
+        if (hipRidgeCap3Tab) {
+          // Update existing 3 tab cap
+          updateItemQuantity('Hip / Ridge cap - cut from 3 tab - composition shingles', totalRidgesHipsLength);
+        } else if (universalStarter || peelStickStarter) {
+          // Add new 3 tab cap
+          addNewItem('Hip / Ridge cap - cut from 3 tab - composition shingles', totalRidgesHipsLength);
+        }
+        // Else: neither starter nor cap listed → considered inside waste → do nothing
+        
+        // Also update standard profile cap if present
+        updateItemQuantity('Hip / Ridge cap - Standard profile - composition shingles', totalRidgesHipsLength);
+      }
+    }
+    
+    if (hasChanges) {
+      console.log('✅ Ridge Vent Logic applied with changes');
+    } else {
+      console.log('ℹ️ Ridge Vent Logic applied - no changes needed');
+    }
+    
+    return updatedItems;
+  };
+
   // Check for SPC-added items (final step)
   const checkSPCAddedItems = async (updatedLineItems: any[]) => {
     console.log('🔍 Checking for SPC-added items in:', updatedLineItems.length, 'line items');
@@ -2198,6 +2402,10 @@ function EstimatePageContent() {
     
     console.log('🔍 Found SPC-added items:', foundSPCItems.map((item: any) => item.description));
     
+    // Apply Ridge Vent Logic before final adjustments
+    console.log('🔧 Applying Ridge Vent Logic...');
+    const itemsAfterRidgeVentLogic = applyRidgeVentLogic(updatedLineItems);
+    
     // Run final Unit Cost Adjustments to ensure all items have correct pricing
     console.log('🔧 Running final Unit Cost Adjustments against roof master macro...');
     try {
@@ -2207,7 +2415,7 @@ function EstimatePageContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          line_items: updatedLineItems
+          line_items: itemsAfterRidgeVentLogic
         })
       });
 
@@ -2261,8 +2469,19 @@ function EstimatePageContent() {
           }, 100);
         }
       } else {
-        console.log('⚠️ Final Unit Cost Adjustments failed, proceeding with original items');
-        // Fallback to original logic if final adjustments fail
+        console.log('⚠️ Final Unit Cost Adjustments failed, proceeding with ridge vent logic results');
+        // Update state with ridge vent logic results
+        setExtractedLineItems(itemsAfterRidgeVentLogic);
+        if (ruleResults) {
+          setRuleResults({
+            ...ruleResults,
+            line_items: itemsAfterRidgeVentLogic
+          });
+        }
+        setCurrentSPCLineItems(itemsAfterRidgeVentLogic);
+        setLastUpdateTime(Date.now());
+        
+        // Fallback to ridge vent logic results if final adjustments fail
         if (foundSPCItems.length > 0) {
           console.log('✅ SPC-added items found, storing for final summary');
           
@@ -2295,7 +2514,18 @@ function EstimatePageContent() {
       }
     } catch (error) {
       console.error('❌ Error running final Unit Cost Adjustments:', error);
-      // Fallback to original logic if final adjustments fail
+      // Update state with ridge vent logic results
+      setExtractedLineItems(itemsAfterRidgeVentLogic);
+      if (ruleResults) {
+        setRuleResults({
+          ...ruleResults,
+          line_items: itemsAfterRidgeVentLogic
+        });
+      }
+      setCurrentSPCLineItems(itemsAfterRidgeVentLogic);
+      setLastUpdateTime(Date.now());
+      
+      // Fallback to ridge vent logic results if final adjustments fail
       if (foundSPCItems.length > 0) {
         console.log('✅ SPC-added items found, storing for final summary');
         
@@ -3682,7 +3912,11 @@ function EstimatePageContent() {
     'Remove Laminated - comp. shingle rfg. - w/out felt',
     'Remove 3 tab - 25 yr. - comp. shingle roofing - w/out felt',
     'Remove 3 tab - 25 yr. - composition shingle roofing - incl. felt',
-    'Remove Laminated - comp. shingle rfg. - w/ felt'
+    'Remove Laminated - comp. shingle rfg. - w/ felt',
+    'Tear off haul and dispose of comp. shingles - 3 tab',
+    'Tear off haul and dispose of comp. shingles - Laminated',
+    'Tear off composition shingles - 3 tab (no haul off)',
+    'Tear off composition shingles - Laminated (no haul off)'
   ];
 
   // Installation Shingle Options - MUST match Roof Master Macro exactly
@@ -4478,7 +4712,7 @@ function EstimatePageContent() {
       user_prompt_step: 'op' // Track which step added this item
     };
 
-    // Update only the SPC adjusted line items (rule results), NOT the original extractedLineItems
+    // Update both ruleResults and extractedLineItems to ensure totals are recalculated everywhere
     if (ruleResults) {
       const updatedRuleResults = {
         ...ruleResults,
@@ -4486,6 +4720,9 @@ function EstimatePageContent() {
       };
       setRuleResults(updatedRuleResults);
     }
+    
+    // Also update extractedLineItems to ensure all total calculations are consistent
+    setExtractedLineItems(prev => [...prev, newItem]);
 
     // Close modal
     setShowSPCOPModal(false);
