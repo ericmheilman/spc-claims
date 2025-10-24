@@ -719,6 +719,67 @@ function EstimatePageContent() {
     }
   }, [wastePercentage, extractedRoofMeasurements, calculateWasteCalculations]);
 
+  // Load sample data for demo purposes
+  const loadSampleData = useCallback(async () => {
+    try {
+      console.log('🔄 Loading sample data...');
+      
+      // Load sample data from the JSON file
+      const response = await fetch('/sample_data.json');
+      const sampleData = await response.json();
+      
+      console.log('📊 Sample data loaded:', sampleData);
+      
+      // Transform sample data to match the expected format
+      const transformedData = {
+        extractedLineItems: sampleData.line_items.map((item: any, index: number) => ({
+          ...item,
+          page_number: 1,
+          narrative: `Sample line item ${index + 1}`
+        })),
+        roofMeasurements: sampleData.roof_measurements,
+        timestamp: Date.now(),
+        uploadedClaimFileName: 'sample_claim.pdf',
+        uploadedRoofFileName: 'sample_roof_report.pdf',
+        claimAgentResponse: {
+          response: JSON.stringify(sampleData.line_items),
+          status: 'success'
+        },
+        roofAgentResponse: {
+          response: JSON.stringify(sampleData.roof_measurements),
+          status: 'success'
+        }
+      };
+      
+      // Store in localStorage
+      localStorage.setItem('extractedClaimData', JSON.stringify(transformedData));
+      
+      // Update state
+      setRawAgentData(transformedData);
+      setExtractedLineItems(transformedData.extractedLineItems);
+      setExtractedRoofMeasurements(transformedData.roofMeasurements);
+      
+      // Update debug info
+      setDebugInfo({
+        hasStoredData: true,
+        storedDataLength: JSON.stringify(transformedData).length,
+        timestamp: new Date().toISOString(),
+        hasExtractedLineItems: true,
+        extractedLineItemsCount: transformedData.extractedLineItems.length,
+        claimAgentError: null
+      });
+      
+      console.log('✅ Sample data loaded successfully!');
+      
+      // Show success message
+      alert('Sample data loaded successfully! You can now explore the app features.');
+      
+    } catch (error) {
+      console.error('❌ Error loading sample data:', error);
+      alert('Error loading sample data. Please try again.');
+    }
+  }, []);
+
   // Quick Switch Definitions
   const quickSwitchOptions: Record<string, string> = {
     'Hip/Ridge cap Standard profile - composition shingles': 'Hip/Ridge cap High profile - composition shingles',
@@ -5395,12 +5456,20 @@ function EstimatePageContent() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">No Claim Data Available</h1>
             <p className="text-gray-600 mb-6">Please upload and process insurance claim documents first.</p>
-            <button
-              onClick={() => router.push('/')}
-              className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium transition-colors"
-            >
-              Go to Upload Page
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => router.push('/')}
+                className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium transition-colors"
+              >
+                Go to Upload Page
+              </button>
+              <button
+                onClick={loadSampleData}
+                className="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 text-sm font-medium transition-colors"
+              >
+                Load Sample Data (Demo)
+              </button>
+            </div>
           </div>
 
           {/* Debug Information Panel */}

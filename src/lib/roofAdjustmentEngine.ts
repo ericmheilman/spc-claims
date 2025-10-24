@@ -1307,6 +1307,287 @@ export class RoofAdjustmentEngine {
     return items;
   }
 
+  private applyRRRules(items: LineItem[]): LineItem[] {
+    console.log('🔧 Applying R&R (Remove and Replace) Rules');
+
+    const ruleLog = roofAdjustmentLogger.startRuleExecution('R&R Rules', 'Category A');
+
+    const updatedItems: LineItem[] = [];
+    let rrReplacements = 0;
+
+    // R&R Rules mapping - each R&R item gets replaced with Remove + Install items
+    const rrRules: Record<string, { remove: string; install: string }> = {
+      'R&R Gable cornice return - 3 tab': {
+        remove: 'Remove Gable cornice return - 3 tab',
+        install: 'Gable cornice return - 3 tab'
+      },
+      'R&R Gable cornice return - 3 tab - 2 stories or greater': {
+        remove: 'Remove Gable cornice return - 3 tab - 2 stories or greater',
+        install: 'Gable cornice return - 3 tab - 2 stories or greater'
+      },
+      'R&R Gable cornice return - laminated': {
+        remove: 'Remove Gable cornice return - laminated',
+        install: 'Gable cornice return - laminated'
+      },
+      'R&R Gable cornice return - laminated - 2 stories or greater': {
+        remove: 'Remove Gable cornice return - laminated - 2 stories or greater',
+        install: 'Gable cornice return - laminated - 2 stories or greater'
+      },
+      'R&R Gable cornice strip - 3 tab': {
+        remove: 'Remove Gable cornice strip - 3 tab',
+        install: 'Gable cornice strip - 3 tab'
+      },
+      'R&R Gable cornice strip - 3 tab - 2 stories or greater': {
+        remove: 'Remove Gable cornice strip - 3 tab - 2 stories or greater',
+        install: 'Gable cornice strip - 3 tab - 2 stories or greater'
+      },
+      'R&R Gable cornice strip - laminated': {
+        remove: 'Remove Gable cornice strip - laminated',
+        install: 'Gable cornice strip - laminated'
+      },
+      'R&R Gable cornice strip - laminated - 2 stories or greater': {
+        remove: 'Remove Gable cornice strip - laminated - 2 stories or greater',
+        install: 'Gable cornice strip - laminated - 2 stories or greater'
+      },
+      'R&R Hip / Ridge cap - High profile - composition shingles': {
+        remove: 'Remove Hip / Ridge cap - High profile - composition shingles',
+        install: 'Hip / Ridge cap - High profile - composition shingles'
+      },
+      'R&R Hip / Ridge cap - cut from 3 tab - composition shingles': {
+        remove: 'Remove Hip / Ridge cap - cut from 3 tab - composition shingles',
+        install: 'Hip / Ridge cap - cut from 3 tab - composition shingles'
+      },
+      'R&R Hip / Ridge cap - Standard profile - composition shingles': {
+        remove: 'Remove Hip / Ridge cap - Standard profile - composition shingles',
+        install: 'Hip / Ridge cap - Standard profile - composition shingles'
+      },
+      'R&R Continuous ridge vent - shingle-over style': {
+        remove: 'Remove Continuous ridge vent - shingle-over style',
+        install: 'Continuous ridge vent - shingle-over style'
+      },
+      'R&R Continuous ridge vent - aluminum': {
+        remove: 'Remove Continuous ridge vent - aluminum',
+        install: 'Continuous ridge vent - aluminum'
+      },
+      'R&R Counterflashing - Apron flashing': {
+        remove: 'Remove Counterflashing - Apron flashing',
+        install: 'Counterflashing - Apron flashing'
+      },
+      'R&R Valley metal': {
+        remove: 'Remove Valley metal',
+        install: 'Valley metal'
+      },
+      'R&R Valley metal - (W) profile': {
+        remove: 'Remove Valley metal - (W) profile',
+        install: 'Valley metal - (W) profile'
+      },
+      'R&R Roof vent - turtle type - Plastic': {
+        remove: 'Remove Roof vent - turtle type - Plastic',
+        install: 'Roof vent - turtle type - Plastic'
+      },
+      'R&R Roof vent - turtle type - Metal': {
+        remove: 'Remove Roof vent - turtle type - Metal',
+        install: 'Roof vent - turtle type - Metal'
+      },
+      'R&R Exhaust cap - through roof - up to 4"': {
+        remove: 'Remove Exhaust cap - through roof - up to 4"',
+        install: 'Exhaust cap - through roof - up to 4"'
+      },
+      'R&R Exhaust cap - through roof - 6" to 8"': {
+        remove: 'Remove Exhaust cap - through roof - 6" to 8"',
+        install: 'Exhaust cap - through roof - 6" to 8"'
+      },
+      'R&R Flashing - rain diverter': {
+        remove: 'Remove Flashing - rain diverter',
+        install: 'Flashing - rain diverter'
+      },
+      'R&R Flashing - kick-out diverter': {
+        remove: 'Remove Flashing - kick-out diverter',
+        install: 'Flashing - kick-out diverter'
+      },
+      'R&R Flashing - pipe jack - copper': {
+        remove: 'Remove Flashing - pipe jack - copper',
+        install: 'Flashing - pipe jack - copper'
+      },
+      'R&R Flashing - pipe jack - lead': {
+        remove: 'Remove Flashing - pipe jack - lead',
+        install: 'Flashing - pipe jack - lead'
+      },
+      'R&R Flashing - pipe jack - 6"': {
+        remove: 'Remove Flashing - pipe jack - 6"',
+        install: 'Flashing - pipe jack - 6"'
+      },
+      'R&R Flashing - pipe jack - 8"': {
+        remove: 'Remove Flashing - pipe jack - 8"',
+        install: 'Flashing - pipe jack - 8"'
+      },
+      'R&R Flashing - pipe jack - split boot': {
+        remove: 'Remove Flashing - pipe jack - split boot',
+        install: 'Flashing - pipe jack - split boot'
+      },
+      'R&R Power attic vent cover only - metal': {
+        remove: 'Remove Power attic vent cover only - metal',
+        install: 'Power attic vent cover only - metal'
+      },
+      'R&R Power attic vent cover only - plastic': {
+        remove: 'Remove Power attic vent cover only - plastic',
+        install: 'Power attic vent cover only - plastic'
+      },
+      'R&R Aluminum sidewall/endwall flashing - mill finish': {
+        remove: 'Remove Aluminum sidewall/endwall flashing - mill finish',
+        install: 'Aluminum sidewall/endwall flashing - mill finish'
+      },
+      'R&R Flashing 14" wide': {
+        remove: 'Remove Flashing 14" wide',
+        install: 'Flashing 14" wide'
+      },
+      'R&R Flashing - pipe jack': {
+        remove: 'Remove Flashing - pipe jack',
+        install: 'Flashing - pipe jack'
+      },
+      'R&R Flashing 14" wide - copper': {
+        remove: 'Remove Flashing 14" wide - copper',
+        install: 'Flashing 14" wide - copper'
+      },
+      'R&R Flashing 20" wide': {
+        remove: 'Remove Flashing 20" wide',
+        install: 'Flashing 20" wide'
+      },
+      'R&R Chimney flashing - small (24" x 24")': {
+        remove: 'Remove Chimney flashing - small (24" x 24")',
+        install: 'Chimney flashing - small (24" x 24")'
+      },
+      'R&R Chimney flashing - average (32" x 36")': {
+        remove: 'Remove Chimney flashing - average (32" x 36")',
+        install: 'Chimney flashing - average (32" x 36")'
+      },
+      'R&R Chimney flashing - large (32" x 60")': {
+        remove: 'Remove Chimney flashing - large (32" x 60")',
+        install: 'Chimney flashing - large (32" x 60")'
+      },
+      'R&R Skylight flashing kit - dome': {
+        remove: 'Remove Skylight flashing kit - dome',
+        install: 'Skylight flashing kit - dome'
+      },
+      'R&R Skylight flashing kit - dome - High grade': {
+        remove: 'Remove Skylight flashing kit - dome - High grade',
+        install: 'Skylight flashing kit - dome - High grade'
+      },
+      'R&R Skylight flashing kit - dome - Large - High grade': {
+        remove: 'Remove Skylight flashing kit - dome - Large - High grade',
+        install: 'Skylight flashing kit - dome - Large - High grade'
+      },
+      'R&R Skylight flashing kit - dome - Large': {
+        remove: 'Remove Skylight flashing kit - dome - Large',
+        install: 'Skylight flashing kit - dome - Large'
+      },
+      'R&R Roof window step flashing kit': {
+        remove: 'Remove Roof window step flashing kit',
+        install: 'Roof window step flashing kit'
+      },
+      'R&R Roof window step flashing kit - Large': {
+        remove: 'Remove Roof window step flashing kit - Large',
+        install: 'Roof window step flashing kit - Large'
+      },
+      'R&R Drip edge/gutter apron': {
+        remove: 'Remove Drip edge/gutter apron',
+        install: 'Drip edge/gutter apron'
+      },
+      'R&R Drip edge': {
+        remove: 'Remove Drip edge',
+        install: 'Drip edge'
+      },
+      'R&R Drip edge - copper': {
+        remove: 'Remove Drip edge - copper',
+        install: 'Drip edge - copper'
+      },
+      'R&R Sheathing - OSB - 1/2"': {
+        remove: 'Remove Sheathing - OSB - 1/2"',
+        install: 'Sheathing - OSB - 1/2"'
+      },
+      'R&R Sheathing - OSB - 5/8"': {
+        remove: 'Remove Sheathing - OSB - 5/8"',
+        install: 'Sheathing - OSB - 5/8"'
+      },
+      'R&R Modified bitumen roof': {
+        remove: 'Remove Modified bitumen roof',
+        install: 'Modified bitumen roof'
+      },
+      'R&R Modified bitumen roof - self-adhering': {
+        remove: 'Remove Modified bitumen roof - self-adhering',
+        install: 'Modified bitumen roof - self-adhering'
+      },
+      'R&R Modified bitumen roof - hot mopped': {
+        remove: 'Remove Modified bitumen roof - hot mopped',
+        install: 'Modified bitumen roof - hot mopped'
+      },
+      'R&R Flashing - L flashing - galvanized': {
+        remove: 'Remove Flashing - L flashing - galvanized',
+        install: 'Flashing - L flashing - galvanized'
+      }
+    };
+
+    // Process each item
+    for (const item of items) {
+      const rrRule = rrRules[item.description];
+      
+      if (rrRule) {
+        roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
+          `Found R&R item, replacing with Remove + Install items`);
+        
+        // Get the remove item from roof master macro
+        const removeMasterItem = this.getRoofMasterItem(rrRule.remove);
+        if (removeMasterItem) {
+          const removeItem = this.addLineItem(
+            rrRule.remove,
+            item.quantity,
+            removeMasterItem.unit,
+            removeMasterItem.unit_price,
+            `${updatedItems.length + 1}`,
+            `R&R replacement: Remove ${item.description}`,
+            'Category A: R&R Rules - Remove Item'
+          );
+          updatedItems.push(removeItem);
+          roofAdjustmentLogger.logAddition(ruleLog, rrRule.remove, 
+            item.quantity, 'Added remove item for R&R replacement');
+        } else {
+          roofAdjustmentLogger.logWarning(ruleLog, `Remove item not found in roof master macro: ${rrRule.remove}`);
+        }
+        
+        // Get the install item from roof master macro
+        const installMasterItem = this.getRoofMasterItem(rrRule.install);
+        if (installMasterItem) {
+          const installItem = this.addLineItem(
+            rrRule.install,
+            item.quantity,
+            installMasterItem.unit,
+            installMasterItem.unit_price,
+            `${updatedItems.length + 1}`,
+            `R&R replacement: Install ${item.description}`,
+            'Category A: R&R Rules - Install Item'
+          );
+          updatedItems.push(installItem);
+          roofAdjustmentLogger.logAddition(ruleLog, rrRule.install, 
+            item.quantity, 'Added install item for R&R replacement');
+        } else {
+          roofAdjustmentLogger.logWarning(ruleLog, `Install item not found in roof master macro: ${rrRule.install}`);
+        }
+        
+        rrReplacements++;
+        this.adjustmentCounts.new_additions += 2; // Count both remove and install as additions
+      } else {
+        // Keep non-R&R items as-is
+        updatedItems.push(item);
+      }
+    }
+
+    roofAdjustmentLogger.logRuleDecision(ruleLog, 'R&R processing completed', 
+      `Processed ${items.length} items, replaced ${rrReplacements} R&R items with ${rrReplacements * 2} new items`);
+    
+    roofAdjustmentLogger.endRuleExecution(ruleLog);
+    return updatedItems;
+  }
+
   private applyAluminumFlashingAdjustments(items: LineItem[], roofMeasurements: RoofMeasurements): LineItem[] {
     const ruleLog = roofAdjustmentLogger.startRuleExecution('Aluminum/Endwall Flashing Adjustments', 'Category A');
     
@@ -1317,53 +1598,216 @@ export class RoofAdjustmentEngine {
     
     // Only proceed if flashing length > 0
     if (flashingLength > 0) {
-      const flashingItem = this.findLineItem(items, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
+      // Endwall Flashing Rules — Before Swap
+      // Check for "Aluminum sidewall/endwall flashing - mill finish" (exact match from roof master macro)
+      const aluminumFlashingItem = this.findLineItem(items, [this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING]);
       
-      if (flashingItem) {
+      if (aluminumFlashingItem) {
         roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
-          `Found existing endwall flashing with quantity ${flashingItem.quantity}, checking against required ${flashingLength}`);
+          `Found existing aluminum sidewall/endwall flashing with quantity ${aluminumFlashingItem.quantity}, checking against required ${flashingLength}`);
         
-        // CRITICAL: Only increase quantity using max()
-        const newQuantity = Math.max(flashingItem.quantity, flashingLength);
+        // Set QUANTITY = max(QUANTITY, "Total Flashing Length")
+        const newQuantity = Math.max(aluminumFlashingItem.quantity, flashingLength);
         
-        if (newQuantity > flashingItem.quantity) {
+        if (newQuantity > aluminumFlashingItem.quantity) {
           roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'quantity', 
-            flashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
+            aluminumFlashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
           
-          const index = items.findIndex(item => item === flashingItem);
+          const index = items.findIndex(item => item === aluminumFlashingItem);
           items[index] = this.adjustQuantity(
-            flashingItem,
+            aluminumFlashingItem,
             newQuantity,
-            `Endwall flashing quantity adjusted to max(${flashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
-            'Category A: Endwall Flashing Quantity Adjustment'
+            `Aluminum sidewall/endwall flashing quantity adjusted to max(${aluminumFlashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
+            'Category A: Endwall Flashing Before Swap - Quantity Adjustment'
           );
+          this.adjustmentCounts.endwall_flashing_adjustments++;
         } else {
           roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
-            `Current quantity (${flashingItem.quantity}) is already >= required (${flashingLength})`);
+            `Current quantity (${aluminumFlashingItem.quantity}) is already >= required (${flashingLength})`);
         }
       } else {
-        // Add endwall flashing if missing
-        roofAdjustmentLogger.logRuleDecision(ruleLog, 'Endwall flashing not found', 
-          'Adding endwall flashing with quantity = Total Flashing Length');
+        // Check for generic "Endwall flashing" (if it exists in estimates)
+        const genericEndwallItem = this.findLineItem(items, ["Endwall flashing"]);
         
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING,
-            flashingLength,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${items.length + 1}`,
-            `Missing endwall flashing - added based on Total Flashing Length`,
-            'Category A: Endwall Flashing Addition'
-          );
-          items.push(newItem);
-          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
-            flashingLength, 'Added missing endwall flashing');
+        if (genericEndwallItem) {
+          roofAdjustmentLogger.logItemProcessing(ruleLog, "Endwall flashing", 
+            `Found existing endwall flashing with quantity ${genericEndwallItem.quantity}, checking against required ${flashingLength}`);
+          
+          // Set quantity = max(quantity, "Total Flashing Length")
+          const newQuantity = Math.max(genericEndwallItem.quantity, flashingLength);
+          
+          if (newQuantity > genericEndwallItem.quantity) {
+            roofAdjustmentLogger.logAdjustment(ruleLog, "Endwall flashing", 'quantity', 
+              genericEndwallItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
+            
+            const index = items.findIndex(item => item === genericEndwallItem);
+            items[index] = this.adjustQuantity(
+              genericEndwallItem,
+              newQuantity,
+              `Endwall flashing quantity adjusted to max(${genericEndwallItem.quantity}, ${flashingLength}) = ${newQuantity}`,
+              'Category A: Endwall Flashing Before Swap - Generic Quantity Adjustment'
+            );
+            this.adjustmentCounts.endwall_flashing_adjustments++;
+          } else {
+            roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+              `Current quantity (${genericEndwallItem.quantity}) is already >= required (${flashingLength})`);
+          }
         } else {
-          roofAdjustmentLogger.logWarning(ruleLog, `Endwall flashing not found in roof master macro: ${this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING}`);
+          // Add aluminum sidewall/endwall flashing if not found
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'Endwall flashing not found', 
+            'Adding aluminum sidewall/endwall flashing with quantity = Total Flashing Length');
+          
+          const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
+          if (masterItem) {
+            const newItem = this.addLineItem(
+              this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING,
+              flashingLength,
+              masterItem.unit,
+              masterItem.unit_price,
+              `${items.length + 1}`,
+              `Missing aluminum sidewall/endwall flashing - added based on Total Flashing Length`,
+              'Category A: Endwall Flashing Before Swap - Addition'
+            );
+            items.push(newItem);
+            roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
+              flashingLength, 'Added missing aluminum sidewall/endwall flashing');
+            this.adjustmentCounts.endwall_flashing_adjustments++;
+          } else {
+            roofAdjustmentLogger.logWarning(ruleLog, `Aluminum sidewall/endwall flashing not found in roof master macro: ${this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING}`);
+          }
         }
       }
+      
+            // Endwall Flashing Rules — After Swap (to L flashing)
+            // Check for "Flashing - L flashing - galvanized" (exact match from roof master macro)
+            const lFlashingItem = this.findLineItem(items, ["Flashing - L flashing - galvanized"]);
+            
+            if (lFlashingItem) {
+              roofAdjustmentLogger.logItemProcessing(ruleLog, "Flashing - L flashing - galvanized", 
+                `Found existing L flashing galvanized with quantity ${lFlashingItem.quantity}, checking against required ${flashingLength}`);
+              
+              // Set QUANTITY = max(QUANTITY, "Total Flashing Length")
+              const newQuantity = Math.max(lFlashingItem.quantity, flashingLength);
+              
+              if (newQuantity > lFlashingItem.quantity) {
+                roofAdjustmentLogger.logAdjustment(ruleLog, "Flashing - L flashing - galvanized", 'quantity', 
+                  lFlashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
+                
+                const index = items.findIndex(item => item === lFlashingItem);
+                items[index] = this.adjustQuantity(
+                  lFlashingItem,
+                  newQuantity,
+                  `L flashing galvanized quantity adjusted to max(${lFlashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
+                  'Category A: Endwall Flashing After Swap - Quantity Adjustment'
+                );
+                this.adjustmentCounts.endwall_flashing_adjustments++;
+              } else {
+                roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
+                  `Current quantity (${lFlashingItem.quantity}) is already >= required (${flashingLength})`);
+              }
+            } else {
+              // Additional logic for alternate flashing items when L flashing is not present
+              roofAdjustmentLogger.logRuleDecision(ruleLog, 'L flashing galvanized not found', 
+                'Checking alternate flashing items for normalization');
+              
+              // Check for "Counterflashing - Apron flashing" (exact match from roof master macro)
+              const counterflashingItem = this.findLineItem(items, ["Counterflashing - Apron flashing"]);
+              
+              if (counterflashingItem) {
+                const quantityDiff = Math.abs(counterflashingItem.quantity - flashingLength);
+                const tolerance = 0.15 * flashingLength;
+                
+                roofAdjustmentLogger.logItemProcessing(ruleLog, "Counterflashing - Apron flashing", 
+                  `Found counterflashing with quantity ${counterflashingItem.quantity}, diff: ${quantityDiff}, tolerance: ${tolerance}`);
+                
+                if (quantityDiff <= tolerance) {
+                  const newQuantity = Math.max(counterflashingItem.quantity, flashingLength);
+                  
+                  if (newQuantity > counterflashingItem.quantity) {
+                    roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'quantity', 
+                      counterflashingItem.quantity, newQuantity, `Quantity normalized to max(current, Total Flashing Length) within tolerance`);
+                    
+                    const index = items.findIndex(item => item === counterflashingItem);
+                    items[index] = this.adjustQuantity(
+                      counterflashingItem,
+                      newQuantity,
+                      `Counterflashing quantity normalized to max(${counterflashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
+                      'Category A: Endwall Flashing After Swap - Counterflashing Normalization'
+                    );
+                    this.adjustmentCounts.endwall_flashing_adjustments++;
+                  } else {
+                    roofAdjustmentLogger.logRuleDecision(ruleLog, 'No counterflashing adjustment needed', 
+                      `Current quantity (${counterflashingItem.quantity}) is already >= required (${flashingLength})`);
+                  }
+                } else {
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing outside tolerance', 
+                    `Quantity difference (${quantityDiff}) exceeds tolerance (${tolerance})`);
+                }
+              }
+              
+              // If both aluminum flashing and counterflashing are present, normalize only the higher unit cost one
+              if (aluminumFlashingItem && counterflashingItem) {
+                const aluminumUnitCost = aluminumFlashingItem.unit_price || 0;
+                const counterflashingUnitCost = counterflashingItem.unit_price || 0;
+                
+                roofAdjustmentLogger.logRuleDecision(ruleLog, 'Both flashing types present', 
+                  `Aluminum unit cost: $${aluminumUnitCost}, Counterflashing unit cost: $${counterflashingUnitCost}`);
+                
+                if (aluminumUnitCost > counterflashingUnitCost) {
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Normalizing aluminum flashing', 
+                    'Aluminum flashing has higher unit cost, normalizing it only');
+                  
+                  const aluminumQuantityDiff = Math.abs(aluminumFlashingItem.quantity - flashingLength);
+                  const aluminumTolerance = 0.15 * flashingLength;
+                  
+                  if (aluminumQuantityDiff <= aluminumTolerance) {
+                    const newAluminumQuantity = Math.max(aluminumFlashingItem.quantity, flashingLength);
+                    
+                    if (newAluminumQuantity > aluminumFlashingItem.quantity) {
+                      roofAdjustmentLogger.logAdjustment(ruleLog, "Aluminum sidewall/endwall flashing - mill finish", 'quantity', 
+                        aluminumFlashingItem.quantity, newAluminumQuantity, `Higher unit cost item normalized to max(current, Total Flashing Length)`);
+                      
+                      const index = items.findIndex(item => item === aluminumFlashingItem);
+                      items[index] = this.adjustQuantity(
+                        aluminumFlashingItem,
+                        newAluminumQuantity,
+                        `Higher unit cost aluminum flashing normalized to max(${aluminumFlashingItem.quantity}, ${flashingLength}) = ${newAluminumQuantity}`,
+                        'Category A: Endwall Flashing After Swap - Higher Unit Cost Normalization'
+                      );
+                      this.adjustmentCounts.endwall_flashing_adjustments++;
+                    }
+                  }
+                } else {
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Normalizing counterflashing', 
+                    'Counterflashing has higher unit cost, normalizing it only');
+                  
+                  const counterflashingQuantityDiff = Math.abs(counterflashingItem.quantity - flashingLength);
+                  const counterflashingTolerance = 0.15 * flashingLength;
+                  
+                  if (counterflashingQuantityDiff <= counterflashingTolerance) {
+                    const newCounterflashingQuantity = Math.max(counterflashingItem.quantity, flashingLength);
+                    
+                    if (newCounterflashingQuantity > counterflashingItem.quantity) {
+                      roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'quantity', 
+                        counterflashingItem.quantity, newCounterflashingQuantity, `Higher unit cost item normalized to max(current, Total Flashing Length)`);
+                      
+                      const index = items.findIndex(item => item === counterflashingItem);
+                      items[index] = this.adjustQuantity(
+                        counterflashingItem,
+                        newCounterflashingQuantity,
+                        `Higher unit cost counterflashing normalized to max(${counterflashingItem.quantity}, ${flashingLength}) = ${newCounterflashingQuantity}`,
+                        'Category A: Endwall Flashing After Swap - Higher Unit Cost Normalization'
+                      );
+                      this.adjustmentCounts.endwall_flashing_adjustments++;
+                    }
+                  }
+                }
+              }
+              
+              // Note: "Flashing - L flashing - galvanized" is not currently in the roof master macro
+              // This rule is implemented for future use when this item might be added to the macro
+              roofAdjustmentLogger.logWarning(ruleLog, `L flashing galvanized not found in roof master macro: Flashing - L flashing - galvanized`);
+            }
     } else {
       roofAdjustmentLogger.logRuleDecision(ruleLog, 'No endwall flashing needed', 
         'Total Flashing Length is 0, skipping endwall flashing adjustments');
@@ -1573,6 +2017,9 @@ export class RoofAdjustmentEngine {
 
     // Apply all rule categories in order with detailed logging
     console.log('\n🔧 APPLYING COMPREHENSIVE RULE SET...');
+    
+    // Category A: R&R (Remove and Replace) Rules - must run early to replace R&R items
+    adjustedItems = this.applyRRRules(adjustedItems);
     
     // Category A: Shingle Quantity Adjustments (must run FIRST to update descriptions)
     if (wastePercentage !== null && wastePercentage !== undefined) {
