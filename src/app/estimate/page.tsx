@@ -2793,15 +2793,35 @@ function EstimatePageContent() {
   const proceedToNextWorkflowStep = (currentStep: string) => {
     console.log(`🔄 Proceeding from ${currentStep} to next workflow step`);
     
+    // If unified workflow is active, don't interfere with its step numbering
+    // Just handle modal showing/closing without setting currentWorkflowStep
+    if (showUnifiedWorkflow) {
+      console.log('⚠️ Unified workflow is active - skipping step number changes');
+      // Still allow modals to show/close for the old workflow if needed
+      // But don't change currentWorkflowStep as it's managed by unified workflow
+      switch (currentStep) {
+        case 'shingle_adjustments':
+          // Just close the modal, unified workflow handles progression
+          setShowShingleAdjustmentsModal(false);
+          break;
+        default:
+          break; // Do nothing, let unified workflow handle it
+      }
+      return;
+    }
+    
     const updatedItems = ruleResults?.line_items || currentSPCLineItems || extractedLineItems;
     
     switch (currentStep) {
       case 'waste_percentage':
         console.log('→ Next step: Shingle Adjustments');
-        setCurrentWorkflowStep(2);
-        setTimeout(() => {
-          setShowShingleAdjustmentsModal(true);
-        }, 100);
+        // Only set step and show modal if unified workflow is NOT active
+        if (!showUnifiedWorkflow) {
+          setCurrentWorkflowStep(2);
+          setTimeout(() => {
+            setShowShingleAdjustmentsModal(true);
+          }, 100);
+        }
         break;
       case 'shingle_adjustments':
         console.log('→ Next step: Shingle Removal');
@@ -2818,6 +2838,51 @@ function EstimatePageContent() {
             setShowSPCShingleRemovalModal(true);
           }
         }, 100);
+        break;
+      case 'shingle_removal':
+        console.log('→ Next step: Shingle Installation');
+        setCurrentWorkflowStep(4);
+        setTimeout(() => checkInstallationItems(updatedItems), 100);
+        break;
+      case 'shingle_installation':
+        console.log('→ Next step: Hidden Damages');
+        setCurrentWorkflowStep(5);
+        setTimeout(() => setShowSPCHiddenDamagesModal(true), 100);
+        break;
+      case 'hidden_damages':
+        console.log('→ Next step: Roof Access');
+        setCurrentWorkflowStep(6);
+        setTimeout(() => setShowSPCRoofAccessModal(true), 100);
+        break;
+      case 'roof_access':
+        console.log('→ Next step: Chimney Check');
+        setCurrentWorkflowStep(7);
+        setTimeout(() => checkChimneyFlashingItems(updatedItems), 100);
+        break;
+      case 'chimney_check':
+        console.log('→ Next step: Additional Layers');
+        setCurrentWorkflowStep(8);
+        setTimeout(() => checkAdditionalLayersItems(updatedItems), 100);
+        break;
+      case 'additional_layers':
+        console.log('→ Next step: Permit Check');
+        setCurrentWorkflowStep(9);
+        setTimeout(() => checkPermitItems(updatedItems), 100);
+        break;
+      case 'permit_check':
+        console.log('→ Next step: Valley Check');
+        setCurrentWorkflowStep(10);
+        setTimeout(() => checkValleyItems(updatedItems), 100);
+        break;
+      case 'valley_check':
+        console.log('→ Next step: O&P Check');
+        setCurrentWorkflowStep(11);
+        setTimeout(() => checkOPItems(updatedItems), 100);
+        break;
+      case 'op_check':
+        console.log('→ Next step: Final Summary');
+        setCurrentWorkflowStep(12);
+        setTimeout(async () => await checkSPCAddedItems(updatedItems), 100);
         break;
       case 'shingle_removal':
         console.log('→ Next step: Shingle Installation');
@@ -4791,8 +4856,12 @@ function EstimatePageContent() {
     console.log('✅ Added O&P item:', newItem);
     console.log(`O&P calculated: 20% of $${totalRCV.toFixed(2)} = $${opAmount.toFixed(2)}`);
     
-    // Proceed to next workflow step
-    proceedToNextWorkflowStep('op_check');
+    // Proceed to next workflow step - but only if unified workflow is NOT active
+    // If unified workflow is active, it will handle step progression
+    if (!showUnifiedWorkflow) {
+      proceedToNextWorkflowStep('op_check');
+    }
+    // If unified workflow is active, step progression is handled by the Next button click
   };
 
   // Add installation shingle item and continue workflow
@@ -5073,7 +5142,7 @@ function EstimatePageContent() {
     
     // Continue workflow
     if (showUnifiedWorkflow) {
-      setCurrentWorkflowStep(6); // Move to O&P step
+      setCurrentWorkflowStep(5); // Move to O&P step (step 5, not 6)
     }
   };
 
@@ -8593,7 +8662,11 @@ function EstimatePageContent() {
                             <button
                               onClick={() => {
                                 handleAddOP();
-                                setCurrentWorkflowStep(currentWorkflowStep + 1);
+                                // Only advance step if unified workflow, handleAddOP won't call proceedToNextWorkflowStep
+                                if (showUnifiedWorkflow) {
+                                  setCurrentWorkflowStep(currentWorkflowStep + 1);
+                                }
+                                // If not unified workflow, handleAddOP will call proceedToNextWorkflowStep
                               }}
                               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md"
                             >
@@ -8878,30 +8951,93 @@ function EstimatePageContent() {
                     {currentWorkflowStep < workflowData.totalSteps - 1 ? (
                       <button
                         onClick={() => {
-                          // Handle adding items if needed
-                          if (currentWorkflowStep === 0 && !workflowData.shingleRemoval.hasShingleRemoval && selectedShingleRemoval && shingleRemovalQuantity) {
-                            handleAddShingleRemoval();
+                          // Step 0: Shingle Removal
+                          if (currentWorkflowStep === 0) {
+                            // If items already exist, just advance
+                            if (workflowData.shingleRemoval.hasShingleRemoval) {
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              return;
+                            }
+                            // If user has selected items to add, add them
+                            if (selectedShingleRemoval && shingleRemovalQuantity) {
+                              handleAddShingleRemoval();
+                              // Handler will advance step if showUnifiedWorkflow is true, otherwise advance here
+                              if (!showUnifiedWorkflow) {
+                                setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              }
+                              return;
+                            }
+                            // No items and user wants to skip, just advance
+                            setCurrentWorkflowStep(currentWorkflowStep + 1);
                             return;
                           }
-                          if (currentWorkflowStep === 1 && !workflowData.installationShingles.hasInstallationShingles && selectedInstallationShingle && installationShingleQuantity) {
-                            handleAddInstallationShingle();
+                          // Step 1: Installation Shingles
+                          if (currentWorkflowStep === 1) {
+                            // If items already exist, just advance
+                            if (workflowData.installationShingles.hasInstallationShingles) {
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              return;
+                            }
+                            // If user has selected items to add, add them
+                            if (selectedInstallationShingle && installationShingleQuantity) {
+                              handleAddInstallationShingle();
+                              // Handler will advance step if showUnifiedWorkflow is true, otherwise advance here
+                              if (!showUnifiedWorkflow) {
+                                setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              }
+                              return;
+                            }
+                            // No items and user wants to skip, just advance
+                            setCurrentWorkflowStep(currentWorkflowStep + 1);
                             return;
                           }
-                          // Step 2: Step Flashing check - just advance if no step flashing or if user said no gutters
+                          // Step 2: Step Flashing check
                           if (currentWorkflowStep === 2) {
                             const hasStepFlashing = checkStepFlashingPresent(workflowData.lineItems);
-                            if (hasStepFlashing && guttersPresent === null) {
+                            
+                            // If no step flashing, just advance
+                            if (!hasStepFlashing) {
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              return;
+                            }
+                            
+                            // Step flashing exists, check gutters question
+                            if (guttersPresent === null) {
                               // User hasn't answered gutters question yet
                               alert('Please answer whether gutters are present');
                               return;
                             }
-                            if (hasStepFlashing && guttersPresent && !kickoutQuantity) {
-                              // User said gutters present but hasn't entered quantity
+                            
+                            // User said no gutters, advance
+                            if (guttersPresent === false) {
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              return;
+                            }
+                            
+                            // User said yes to gutters, check if kickout diverter already added
+                            const hasKickoutDiverter = workflowData.lineItems.some(
+                              (item: LineItem) => item.description === 'Flashing - kick-out diverter'
+                            );
+                            
+                            if (hasKickoutDiverter) {
+                              // Kickout diverter already added, advance
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              return;
+                            }
+                            
+                            // Gutters present but no kickout diverter added yet
+                            if (!kickoutQuantity) {
                               alert('Please enter the number of kick-out diverters or click "Add Kick-out Diverter"');
                               return;
                             }
+                            
+                            // Has quantity but hasn't clicked "Add" button - they should click the button instead
+                            // But if they click Continue, we can still advance (the item might have been added already)
+                            // Just advance - if they needed to add it, they should have clicked the button
+                            setCurrentWorkflowStep(currentWorkflowStep + 1);
+                            return;
                           }
-                          // Step 3: Shingle Depreciation - validate if user selected yes
+                          // Step 3: Shingle Depreciation
                           if (currentWorkflowStep === 3) {
                             if (contestShingleDepreciation === null) {
                               alert('Please answer whether you want to contest shingle depreciation');
@@ -8914,10 +9050,17 @@ function EstimatePageContent() {
                             // If user wants to contest and has entered age, add the line item
                             if (contestShingleDepreciation && shingleAge) {
                               handleAddDepreciationContest(workflowData.lineItems);
+                              // Handler will advance step if showUnifiedWorkflow is true, otherwise advance here
+                              if (!showUnifiedWorkflow) {
+                                setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              }
                               return;
                             }
+                            // User answered No or wants to skip, just advance
+                            setCurrentWorkflowStep(currentWorkflowStep + 1);
+                            return;
                           }
-                          // Step 4: Valley Metal - validate if user selected valley type when needed
+                          // Step 4: Valley Metal
                           if (currentWorkflowStep === 4) {
                             const hasValleyMetal = checkValleyMetalPresent(workflowData.lineItems);
                             const totalValleysLength = extractedRoofMeasurements["Total Valleys Length"];
@@ -8931,11 +9074,26 @@ function EstimatePageContent() {
                               }
                               // If valley type is selected, add the item
                               handleAddValleyMetal(workflowData.lineItems);
+                              // Handler will advance step if showUnifiedWorkflow is true, otherwise advance here
+                              if (!showUnifiedWorkflow) {
+                                setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              }
                               return;
                             }
+                            // Valleys already exist or no valleys, just advance
+                            setCurrentWorkflowStep(currentWorkflowStep + 1);
+                            return;
                           }
-                          if (currentWorkflowStep === 5 && !workflowData.hasOP) {
-                            handleAddOP();
+                          // Step 5: O&P
+                          if (currentWorkflowStep === 5) {
+                            // If O&P already exists, just advance
+                            if (workflowData.hasOP) {
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                              return;
+                            }
+                            // O&P doesn't exist - user should click "Add O&P?" button instead
+                            // Don't auto-add, just show alert
+                            alert('Please click "Add O&P?" button if you want to add O&P, or click "Skip Step" to skip');
                             return;
                           }
                           // For steps 6-16, just advance to next step
@@ -11403,7 +11561,13 @@ function EstimatePageContent() {
                     onClick={() => {
                       setShowShingleAdjustmentsModal(false);
                       setShingleAdjustmentsStepCompleted(true);
-                      proceedToNextWorkflowStep('shingle_adjustments');
+                      // If unified workflow is active, don't use proceedToNextWorkflowStep
+                      // Just close the modal and let unified workflow handle progression
+                      if (!showUnifiedWorkflow) {
+                        proceedToNextWorkflowStep('shingle_adjustments');
+                      }
+                      // If unified workflow is active, the modal closing is enough
+                      // The unified workflow will handle the next step
                     }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
                   >
