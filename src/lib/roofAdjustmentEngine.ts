@@ -1598,215 +1598,259 @@ export class RoofAdjustmentEngine {
     
     // Only proceed if flashing length > 0
     if (flashingLength > 0) {
-      // Endwall Flashing Rules — Before Swap
-      // Check for "Aluminum sidewall/endwall flashing - mill finish" (exact match from roof master macro)
-      const aluminumFlashingItem = this.findLineItem(items, [this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING]);
+      // Check for L flashing FIRST (preferred item)
+      const lFlashingItem = this.findLineItem(items, ["Flashing - L flashing - galvanized"]);
       
-      if (aluminumFlashingItem) {
-        roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
-          `Found existing aluminum sidewall/endwall flashing with quantity ${aluminumFlashingItem.quantity}, checking against required ${flashingLength}`);
+      if (lFlashingItem) {
+        // L flashing is present - normalize it
+        roofAdjustmentLogger.logItemProcessing(ruleLog, "Flashing - L flashing - galvanized", 
+          `Found existing L flashing galvanized with quantity ${lFlashingItem.quantity}, checking against required ${flashingLength}`);
         
-        // Set QUANTITY = max(QUANTITY, "Total Flashing Length")
-        const newQuantity = Math.max(aluminumFlashingItem.quantity, flashingLength);
+        const newQuantity = Math.max(lFlashingItem.quantity, flashingLength);
         
-        if (newQuantity > aluminumFlashingItem.quantity) {
-          roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'quantity', 
-            aluminumFlashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
+        if (newQuantity > lFlashingItem.quantity) {
+          roofAdjustmentLogger.logAdjustment(ruleLog, "Flashing - L flashing - galvanized", 'quantity', 
+            lFlashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
           
-          const index = items.findIndex(item => item === aluminumFlashingItem);
+          const index = items.findIndex(item => item === lFlashingItem);
           items[index] = this.adjustQuantity(
-            aluminumFlashingItem,
+            lFlashingItem,
             newQuantity,
-            `Aluminum sidewall/endwall flashing quantity adjusted to max(${aluminumFlashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
-            'Category A: Endwall Flashing Before Swap - Quantity Adjustment'
+            `L flashing galvanized quantity adjusted to max(${lFlashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
+            'Category A: L Flashing Normalization'
           );
           this.adjustmentCounts.endwall_flashing_adjustments++;
         } else {
           roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
-            `Current quantity (${aluminumFlashingItem.quantity}) is already >= required (${flashingLength})`);
+            `Current quantity (${lFlashingItem.quantity}) is already >= required (${flashingLength})`);
         }
       } else {
-        // Check for generic "Endwall flashing" (if it exists in estimates)
-        const genericEndwallItem = this.findLineItem(items, ["Endwall flashing"]);
+        // L flashing NOT present - apply normalization rules for alternate items
+        roofAdjustmentLogger.logRuleDecision(ruleLog, 'L flashing galvanized NOT found', 
+          'Applying normalization rules for alternate flashing items');
         
-        if (genericEndwallItem) {
-          roofAdjustmentLogger.logItemProcessing(ruleLog, "Endwall flashing", 
-            `Found existing endwall flashing with quantity ${genericEndwallItem.quantity}, checking against required ${flashingLength}`);
+        // Find both alternate items
+        const aluminumFlashingItemCheck = this.findLineItem(items, [this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING]);
+        const counterflashingItem = this.findLineItem(items, ["Counterflashing - Apron flashing"]);
+        
+        // If both alternate items are present, normalize only the one with higher unit_cost
+        if (aluminumFlashingItemCheck && counterflashingItem) {
+          const aluminumUnitCost = aluminumFlashingItemCheck.unit_price || 0;
+          const counterflashingUnitCost = counterflashingItem.unit_price || 0;
           
-          // Set quantity = max(quantity, "Total Flashing Length")
-          const newQuantity = Math.max(genericEndwallItem.quantity, flashingLength);
-          
-          if (newQuantity > genericEndwallItem.quantity) {
-            roofAdjustmentLogger.logAdjustment(ruleLog, "Endwall flashing", 'quantity', 
-              genericEndwallItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
-            
-            const index = items.findIndex(item => item === genericEndwallItem);
-            items[index] = this.adjustQuantity(
-              genericEndwallItem,
-              newQuantity,
-              `Endwall flashing quantity adjusted to max(${genericEndwallItem.quantity}, ${flashingLength}) = ${newQuantity}`,
-              'Category A: Endwall Flashing Before Swap - Generic Quantity Adjustment'
-            );
-            this.adjustmentCounts.endwall_flashing_adjustments++;
-          } else {
-            roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
-              `Current quantity (${genericEndwallItem.quantity}) is already >= required (${flashingLength})`);
-          }
-        } else {
-          // Add aluminum sidewall/endwall flashing if not found
-          roofAdjustmentLogger.logRuleDecision(ruleLog, 'Endwall flashing not found', 
-            'Adding aluminum sidewall/endwall flashing with quantity = Total Flashing Length');
-          
-          const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
-          if (masterItem) {
-            const newItem = this.addLineItem(
-              this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING,
-              flashingLength,
-              masterItem.unit,
-              masterItem.unit_price,
-              `${items.length + 1}`,
-              `Missing aluminum sidewall/endwall flashing - added based on Total Flashing Length`,
-              'Category A: Endwall Flashing Before Swap - Addition'
-            );
-            items.push(newItem);
-            roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
-              flashingLength, 'Added missing aluminum sidewall/endwall flashing');
-            this.adjustmentCounts.endwall_flashing_adjustments++;
-          } else {
-            roofAdjustmentLogger.logWarning(ruleLog, `Aluminum sidewall/endwall flashing not found in roof master macro: ${this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING}`);
-          }
-        }
-      }
-      
-            // Endwall Flashing Rules — After Swap (to L flashing)
-            // Check for "Flashing - L flashing - galvanized" (exact match from roof master macro)
-            const lFlashingItem = this.findLineItem(items, ["Flashing - L flashing - galvanized"]);
-            
-            if (lFlashingItem) {
-              roofAdjustmentLogger.logItemProcessing(ruleLog, "Flashing - L flashing - galvanized", 
-                `Found existing L flashing galvanized with quantity ${lFlashingItem.quantity}, checking against required ${flashingLength}`);
-              
-              // Set QUANTITY = max(QUANTITY, "Total Flashing Length")
-              const newQuantity = Math.max(lFlashingItem.quantity, flashingLength);
-              
-              if (newQuantity > lFlashingItem.quantity) {
-                roofAdjustmentLogger.logAdjustment(ruleLog, "Flashing - L flashing - galvanized", 'quantity', 
-                  lFlashingItem.quantity, newQuantity, `Quantity increased to max(current, Total Flashing Length)`);
-                
-                const index = items.findIndex(item => item === lFlashingItem);
-                items[index] = this.adjustQuantity(
-                  lFlashingItem,
-                  newQuantity,
-                  `L flashing galvanized quantity adjusted to max(${lFlashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
-                  'Category A: Endwall Flashing After Swap - Quantity Adjustment'
-                );
-                this.adjustmentCounts.endwall_flashing_adjustments++;
-              } else {
-                roofAdjustmentLogger.logRuleDecision(ruleLog, 'No adjustment needed', 
-                  `Current quantity (${lFlashingItem.quantity}) is already >= required (${flashingLength})`);
-              }
-            } else {
-              // Additional logic for alternate flashing items when L flashing is not present
-              roofAdjustmentLogger.logRuleDecision(ruleLog, 'L flashing galvanized not found', 
-                'Checking alternate flashing items for normalization');
-              
-              // Check for "Counterflashing - Apron flashing" (exact match from roof master macro)
-              const counterflashingItem = this.findLineItem(items, ["Counterflashing - Apron flashing"]);
-              
-              if (counterflashingItem) {
-                const quantityDiff = Math.abs(counterflashingItem.quantity - flashingLength);
-                const tolerance = 0.15 * flashingLength;
-                
-                roofAdjustmentLogger.logItemProcessing(ruleLog, "Counterflashing - Apron flashing", 
-                  `Found counterflashing with quantity ${counterflashingItem.quantity}, diff: ${quantityDiff}, tolerance: ${tolerance}`);
-                
-                if (quantityDiff <= tolerance) {
-                  const newQuantity = Math.max(counterflashingItem.quantity, flashingLength);
-                  
-                  if (newQuantity > counterflashingItem.quantity) {
-                    roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'quantity', 
-                      counterflashingItem.quantity, newQuantity, `Quantity normalized to max(current, Total Flashing Length) within tolerance`);
-                    
-                    const index = items.findIndex(item => item === counterflashingItem);
-                    items[index] = this.adjustQuantity(
-                      counterflashingItem,
-                      newQuantity,
-                      `Counterflashing quantity normalized to max(${counterflashingItem.quantity}, ${flashingLength}) = ${newQuantity}`,
-                      'Category A: Endwall Flashing After Swap - Counterflashing Normalization'
-                    );
-                    this.adjustmentCounts.endwall_flashing_adjustments++;
-                  } else {
-                    roofAdjustmentLogger.logRuleDecision(ruleLog, 'No counterflashing adjustment needed', 
-                      `Current quantity (${counterflashingItem.quantity}) is already >= required (${flashingLength})`);
-                  }
-                } else {
-                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing outside tolerance', 
-                    `Quantity difference (${quantityDiff}) exceeds tolerance (${tolerance})`);
-                }
-              }
-              
-              // If both aluminum flashing and counterflashing are present, normalize only the higher unit cost one
-              if (aluminumFlashingItem && counterflashingItem) {
-                const aluminumUnitCost = aluminumFlashingItem.unit_price || 0;
-                const counterflashingUnitCost = counterflashingItem.unit_price || 0;
-                
-                roofAdjustmentLogger.logRuleDecision(ruleLog, 'Both flashing types present', 
+          roofAdjustmentLogger.logRuleDecision(ruleLog, 'Both flashing types present', 
                   `Aluminum unit cost: $${aluminumUnitCost}, Counterflashing unit cost: $${counterflashingUnitCost}`);
                 
                 if (aluminumUnitCost > counterflashingUnitCost) {
                   roofAdjustmentLogger.logRuleDecision(ruleLog, 'Normalizing aluminum flashing', 
                     'Aluminum flashing has higher unit cost, normalizing it only');
                   
-                  const aluminumQuantityDiff = Math.abs(aluminumFlashingItem.quantity - flashingLength);
+                  const aluminumQuantityDiff = Math.abs(aluminumFlashingItemCheck.quantity - flashingLength);
                   const aluminumTolerance = 0.15 * flashingLength;
                   
                   if (aluminumQuantityDiff <= aluminumTolerance) {
-                    const newAluminumQuantity = Math.max(aluminumFlashingItem.quantity, flashingLength);
-                    
-                    if (newAluminumQuantity > aluminumFlashingItem.quantity) {
-                      roofAdjustmentLogger.logAdjustment(ruleLog, "Aluminum sidewall/endwall flashing - mill finish", 'quantity', 
-                        aluminumFlashingItem.quantity, newAluminumQuantity, `Higher unit cost item normalized to max(current, Total Flashing Length)`);
+                    // Swap aluminum flashing to L flashing (preferred item)
+                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
+                    if (lFlashingMasterItem) {
+                      const newLQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
                       
-                      const index = items.findIndex(item => item === aluminumFlashingItem);
-                      items[index] = this.adjustQuantity(
-                        aluminumFlashingItem,
-                        newAluminumQuantity,
-                        `Higher unit cost aluminum flashing normalized to max(${aluminumFlashingItem.quantity}, ${flashingLength}) = ${newAluminumQuantity}`,
-                        'Category A: Endwall Flashing After Swap - Higher Unit Cost Normalization'
+                      roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'replaced', 
+                        aluminumFlashingItemCheck.quantity, newLQuantity, 
+                        `Swapped higher cost aluminum to L flashing (preferred) within tolerance`);
+                      
+                      // Remove aluminum flashing
+                      const aluminumIndex = items.findIndex(item => item === aluminumFlashingItemCheck);
+                      items.splice(aluminumIndex, 1);
+                      
+                      // Add L flashing
+                      const newLItem = this.addLineItem(
+                        "Flashing - L flashing - galvanized",
+                        newLQuantity,
+                        lFlashingMasterItem.unit,
+                        lFlashingMasterItem.unit_price,
+                        `${items.length + 1}`,
+                        `Replaced aluminum flashing with L flashing (higher cost)`,
+                        'Category A: L Flashing Swap from Aluminum'
                       );
+                      items.push(newLItem);
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                        newLQuantity, 'Swapped aluminum flashing to L flashing');
                       this.adjustmentCounts.endwall_flashing_adjustments++;
                     }
                   }
                 } else {
-                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Normalizing counterflashing', 
-                    'Counterflashing has higher unit cost, normalizing it only');
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing has higher cost', 
+                    'Counterflashing has higher unit cost');
                   
                   const counterflashingQuantityDiff = Math.abs(counterflashingItem.quantity - flashingLength);
                   const counterflashingTolerance = 0.15 * flashingLength;
                   
                   if (counterflashingQuantityDiff <= counterflashingTolerance) {
-                    const newCounterflashingQuantity = Math.max(counterflashingItem.quantity, flashingLength);
-                    
-                    if (newCounterflashingQuantity > counterflashingItem.quantity) {
-                      roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'quantity', 
-                        counterflashingItem.quantity, newCounterflashingQuantity, `Higher unit cost item normalized to max(current, Total Flashing Length)`);
+                    // Swap counterflashing to L flashing (preferred item)
+                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
+                    if (lFlashingMasterItem) {
+                      const newLQuantity = Math.max(counterflashingItem.quantity, flashingLength);
                       
-                      const index = items.findIndex(item => item === counterflashingItem);
-                      items[index] = this.adjustQuantity(
-                        counterflashingItem,
-                        newCounterflashingQuantity,
-                        `Higher unit cost counterflashing normalized to max(${counterflashingItem.quantity}, ${flashingLength}) = ${newCounterflashingQuantity}`,
-                        'Category A: Endwall Flashing After Swap - Higher Unit Cost Normalization'
+                      roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'replaced', 
+                        counterflashingItem.quantity, newLQuantity, 
+                        `Swapped higher cost counterflashing to L flashing (preferred) within tolerance`);
+                      
+                      // Remove counterflashing
+                      const counterflashingIndex = items.findIndex(item => item === counterflashingItem);
+                      items.splice(counterflashingIndex, 1);
+                      
+                      // Add L flashing
+                      const newLItem = this.addLineItem(
+                        "Flashing - L flashing - galvanized",
+                        newLQuantity,
+                        lFlashingMasterItem.unit,
+                        lFlashingMasterItem.unit_price,
+                        `${items.length + 1}`,
+                        `Replaced counterflashing with L flashing (higher cost)`,
+                        'Category A: L Flashing Swap from Counterflashing'
                       );
+                      items.push(newLItem);
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                        newLQuantity, 'Swapped counterflashing to L flashing');
                       this.adjustmentCounts.endwall_flashing_adjustments++;
                     }
                   }
                 }
+              } else {
+                // Only one alternate item is present - check and normalize independently
+                
+                // Check "Aluminum sidewall/endwall flashing - mill finish"
+                if (aluminumFlashingItemCheck) {
+                  const aluminumQuantityDiff = Math.abs(aluminumFlashingItemCheck.quantity - flashingLength);
+                  const aluminumTolerance = 0.15 * flashingLength;
+                  
+                  roofAdjustmentLogger.logItemProcessing(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 
+                    `Found aluminum flashing with quantity ${aluminumFlashingItemCheck.quantity}, diff: ${aluminumQuantityDiff}, tolerance: ${aluminumTolerance}`);
+                  
+                  if (aluminumQuantityDiff <= aluminumTolerance) {
+                    // Swap aluminum flashing to L flashing (preferred item)
+                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
+                    if (lFlashingMasterItem) {
+                      const newLQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
+                      
+                      roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'replaced', 
+                        aluminumFlashingItemCheck.quantity, newLQuantity, 
+                        `Swapped to L flashing (preferred) within tolerance`);
+                      
+                      // Remove aluminum flashing
+                      const aluminumIndex = items.findIndex(item => item === aluminumFlashingItemCheck);
+                      items.splice(aluminumIndex, 1);
+                      
+                      // Add L flashing
+                      const newLItem = this.addLineItem(
+                        "Flashing - L flashing - galvanized",
+                        newLQuantity,
+                        lFlashingMasterItem.unit,
+                        lFlashingMasterItem.unit_price,
+                        `${items.length + 1}`,
+                        `Replaced aluminum flashing with L flashing (preferred) - normalized to max(${aluminumFlashingItemCheck.quantity}, ${flashingLength})`,
+                        'Category A: L Flashing Swap from Aluminum'
+                      );
+                      items.push(newLItem);
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                        newLQuantity, 'Swapped aluminum flashing to L flashing (preferred)');
+                      this.adjustmentCounts.endwall_flashing_adjustments++;
+                    } else {
+                      // Fall back to normalizing aluminum if L flashing not in macro
+                      const newAluminumQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
+                      
+                      if (newAluminumQuantity > aluminumFlashingItemCheck.quantity) {
+                        roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'quantity', 
+                          aluminumFlashingItemCheck.quantity, newAluminumQuantity, 
+                          `Normalized to max(quantity, Total Flashing Length) within tolerance (L flashing not in macro)`);
+                        
+                        const index = items.findIndex(item => item === aluminumFlashingItemCheck);
+                        items[index] = this.adjustQuantity(
+                          aluminumFlashingItemCheck,
+                          newAluminumQuantity,
+                          `Aluminum flashing normalized to max(${aluminumFlashingItemCheck.quantity}, ${flashingLength}) = ${newAluminumQuantity}`,
+                          'Category A: L Flashing Normalization - Aluminum Flashing (L flashing not in macro)'
+                        );
+                        this.adjustmentCounts.endwall_flashing_adjustments++;
+                      } else {
+                        roofAdjustmentLogger.logRuleDecision(ruleLog, 'No aluminum adjustment needed', 
+                          `Current quantity (${aluminumFlashingItemCheck.quantity}) is already >= Total Flashing Length (${flashingLength})`);
+                      }
+                    }
+                  } else {
+                    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Aluminum flashing outside tolerance', 
+                      `Quantity difference (${aluminumQuantityDiff}) exceeds tolerance (${aluminumTolerance})`);
+                  }
+                }
+                
+                // Check "Counterflashing - Apron flashing"
+                if (counterflashingItem) {
+                  const counterflashingQuantityDiff = Math.abs(counterflashingItem.quantity - flashingLength);
+                  const counterflashingTolerance = 0.15 * flashingLength;
+                  
+                  roofAdjustmentLogger.logItemProcessing(ruleLog, "Counterflashing - Apron flashing", 
+                    `Found counterflashing with quantity ${counterflashingItem.quantity}, diff: ${counterflashingQuantityDiff}, tolerance: ${counterflashingTolerance}`);
+                  
+                  if (counterflashingQuantityDiff <= counterflashingTolerance) {
+                    // Swap counterflashing to L flashing (preferred item)
+                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
+                    if (lFlashingMasterItem) {
+                      const newLQuantity = Math.max(counterflashingItem.quantity, flashingLength);
+                      
+                      roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'replaced', 
+                        counterflashingItem.quantity, newLQuantity, 
+                        `Swapped higher cost counterflashing to L flashing (preferred) within tolerance`);
+                      
+                      // Remove counterflashing
+                      const counterflashingIndex = items.findIndex(item => item === counterflashingItem);
+                      items.splice(counterflashingIndex, 1);
+                      
+                      // Add L flashing
+                      const newLItem = this.addLineItem(
+                        "Flashing - L flashing - galvanized",
+                        newLQuantity,
+                        lFlashingMasterItem.unit,
+                        lFlashingMasterItem.unit_price,
+                        `${items.length + 1}`,
+                        `Replaced counterflashing with L flashing (higher cost)`,
+                        'Category A: L Flashing Swap from Counterflashing'
+                      );
+                      items.push(newLItem);
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                        newLQuantity, 'Swapped counterflashing to L flashing');
+                      this.adjustmentCounts.endwall_flashing_adjustments++;
+                    }
+                  } else {
+                    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing outside tolerance', 
+                      `Quantity difference (${counterflashingQuantityDiff}) exceeds tolerance (${counterflashingTolerance})`);
+                  }
+                }
+                
+                if (!aluminumFlashingItemCheck && !counterflashingItem) {
+                  // No alternate flashing items found - add L flashing (preferred item)
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'No alternate flashing items found', 
+                    'Adding L flashing (preferred) with quantity = Total Flashing Length');
+                  
+                  const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
+                  if (lFlashingMasterItem) {
+                    const newItem = this.addLineItem(
+                      "Flashing - L flashing - galvanized",
+                      flashingLength,
+                      lFlashingMasterItem.unit,
+                      lFlashingMasterItem.unit_price,
+                      `${items.length + 1}`,
+                      `Missing flashing - added L flashing (preferred) based on Total Flashing Length`,
+                      'Category A: L Flashing Addition'
+                    );
+                    items.push(newItem);
+                    roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                      flashingLength, 'Added missing L flashing (preferred item)');
+                    this.adjustmentCounts.endwall_flashing_adjustments++;
+                  } else {
+                    roofAdjustmentLogger.logWarning(ruleLog, `L flashing not found in roof master macro: Flashing - L flashing - galvanized`);
+                  }
+                }
               }
-              
-              // Note: "Flashing - L flashing - galvanized" is not currently in the roof master macro
-              // This rule is implemented for future use when this item might be added to the macro
-              roofAdjustmentLogger.logWarning(ruleLog, `L flashing galvanized not found in roof master macro: Flashing - L flashing - galvanized`);
             }
     } else {
       roofAdjustmentLogger.logRuleDecision(ruleLog, 'No endwall flashing needed', 
