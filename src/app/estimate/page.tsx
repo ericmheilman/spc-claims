@@ -4436,8 +4436,11 @@ function EstimatePageContent() {
     
     console.log('✅ Added chimney cricket item:', newItem);
     
-    // Proceed to next workflow step
-    proceedToNextWorkflowStep('chimney_check');
+    // Proceed to next workflow step - but only if unified workflow is NOT active
+    // If unified workflow is active, it will handle step progression
+    if (!showUnifiedWorkflow) {
+      proceedToNextWorkflowStep('chimney_check');
+    }
   };
 
   // Add additional layers item based on layer type and coverage
@@ -5181,7 +5184,7 @@ function EstimatePageContent() {
     
     const narrative = `Field Changed: ${changes.join(', ')} |Explanation: ${priceJustification.justification_text}`;
 
-    // Update the line item with new values
+    // Update the line item with new values in BOTH extractedLineItems AND ruleResults
     setExtractedLineItems(prev => prev.map(item => 
       item.line_number === editingPriceItem.line_number 
         ? { 
@@ -5194,6 +5197,25 @@ function EstimatePageContent() {
           }
         : item
     ));
+    
+    // Also update in ruleResults if it exists
+    if (ruleResults) {
+      setRuleResults({
+        ...ruleResults,
+        line_items: ruleResults.line_items.map((item: any) => 
+          item.line_number === editingPriceItem.line_number 
+            ? { 
+                ...item, 
+                unit_price: priceJustification.unit_price,
+                quantity: priceJustification.quantity,
+                RCV: priceJustification.unit_price * priceJustification.quantity,
+                ACV: priceJustification.unit_price * priceJustification.quantity * (1 - (item.dep_percent || 0) / 100),
+                narrative: narrative
+              }
+            : item
+        )
+      });
+    }
     
     setShowPriceEditModal(false);
     setEditingPriceItem(null);
@@ -8690,13 +8712,157 @@ function EstimatePageContent() {
                           Is there a chimney present on this roof?
                         </p>
                         <div className="flex gap-3">
-                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                          <button 
+                            onClick={() => {
+                              setChimneyPresent(true);
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                          >
                             Yes
                           </button>
-                          <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors">
+                          <button 
+                            onClick={() => {
+                              setChimneyPresent(false);
+                              // If no chimney, just advance to next step
+                              setCurrentWorkflowStep(currentWorkflowStep + 1);
+                            }}
+                            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+                          >
                             No
                           </button>
                         </div>
+                        
+                        {/* If chimney is present, show size options */}
+                        {chimneyPresent === true && (
+                          <div className="mt-6 space-y-4">
+                            <p className="font-medium text-gray-700">Chimney size selection:</p>
+                            
+                            {/* Size options */}
+                            <div className="space-y-3">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => setChimneySize('small')}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    chimneySize === 'small'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  Small (24" x 24")
+                                </button>
+                                <button
+                                  onClick={() => setChimneySize('medium')}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    chimneySize === 'medium'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  Medium (32" x 36")
+                                </button>
+                                <button
+                                  onClick={() => setChimneySize('large')}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    chimneySize === 'large'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  Large (32" x 60")
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Custom dimensions */}
+                            <div className="mt-4">
+                              <p className="font-medium text-gray-700 mb-3">Or enter custom dimensions:</p>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm text-gray-600 mb-1">Length (inches)</label>
+                                  <input
+                                    type="number"
+                                    value={chimneyLength}
+                                    onChange={(e) => setChimneyLength(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g., 30"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm text-gray-600 mb-1">Width (inches)</label>
+                                  <input
+                                    type="number"
+                                    value={chimneyWidth}
+                                    onChange={(e) => setChimneyWidth(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g., 36"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Logic preview */}
+                            {(() => {
+                              const length = parseFloat(chimneyLength);
+                              const width = parseFloat(chimneyWidth);
+                              const size = chimneySize;
+                              
+                              if (size === 'small' || length < 30) {
+                                return (
+                                  <div className="mt-4 p-3 bg-gray-100 border border-gray-200 rounded-lg">
+                                    <div className="text-sm text-gray-600">
+                                      <strong>No cricket needed</strong> - chimney is too small
+                                    </div>
+                                  </div>
+                                );
+                              } else if (length > 30) {
+                                const area = length * width;
+                                let cricketType = '';
+                                if (area < (32 * 60)) {
+                                  cricketType = 'Saddle or cricket - up to 25 SF';
+                                } else {
+                                  cricketType = 'Saddle or cricket - 26 to 50 SF';
+                                }
+                                
+                                return (
+                                  <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+                                    <div className="text-sm text-gray-700">
+                                      <strong>Cricket needed:</strong> {cricketType}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      Length: {length}" | Width: {width}" | Area: {area.toFixed(0)} SF
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
+                            
+                            {/* Add Cricket Button */}
+                            <div className="mt-4 flex justify-center">
+                              <button
+                                onClick={() => {
+                                  handleAddChimneyCricket();
+                                  // Advance to next step after adding cricket (or if no cricket needed)
+                                  setCurrentWorkflowStep(currentWorkflowStep + 1);
+                                }}
+                                disabled={!chimneySize && (!chimneyLength || !chimneyWidth || parseFloat(chimneyLength) < 30 || parseFloat(chimneyWidth) < 1)}
+                                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                                  chimneySize === 'small' || (chimneySize === '' && parseFloat(chimneyLength) < 30)
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : chimneySize === 'medium' || chimneySize === 'large' || 
+                                      (parseFloat(chimneyLength) > 30 && parseFloat(chimneyWidth) > 0)
+                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                {chimneySize === 'small' || (chimneySize === '' && parseFloat(chimneyLength) < 30)
+                                  ? 'Continue (No Cricket)'
+                                  : 'Add Cricket & Continue'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
