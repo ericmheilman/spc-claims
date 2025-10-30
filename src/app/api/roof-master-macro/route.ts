@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// Extend global to include roof master macro data
+declare global {
+  var roofMasterMacroData: string | undefined;
+}
+
 interface MacroItem {
   id: string;
   description: string;
@@ -12,8 +17,18 @@ interface MacroItem {
 // Function to read and parse roof master macro CSV
 function readRoofMasterMacro(): MacroItem[] {
   try {
-    const csvPath = path.join(process.cwd(), 'roof_master_macro.csv');
-    const csvContent = fs.readFileSync(csvPath, 'utf-8');
+    let csvContent = '';
+    
+    // Try memory first (for production environments)
+    if (global.roofMasterMacroData) {
+      console.log('📊 Using roof master macro data from memory');
+      csvContent = global.roofMasterMacroData;
+    } else {
+      // Fall back to filesystem (for local development)
+      const csvPath = path.join(process.cwd(), 'roof_master_macro.csv');
+      csvContent = fs.readFileSync(csvPath, 'utf-8');
+      console.log('📊 Using roof master macro data from filesystem:', csvPath);
+    }
     
     const lines = csvContent.split('\n');
     const items: MacroItem[] = [];
@@ -53,7 +68,19 @@ function writeRoofMasterMacro(items: MacroItem[]): boolean {
       csvContent += `${item.description},${item.unit},${item.unit_price},,,,,,,,\n`;
     });
     
-    fs.writeFileSync(csvPath, csvContent, 'utf-8');
+    // Try to write to filesystem (works locally but may fail in production)
+    try {
+      fs.writeFileSync(csvPath, csvContent, 'utf-8');
+      console.log('✅ Saved roof master macro to filesystem:', csvPath);
+    } catch (error) {
+      console.log('⚠️ Could not save to filesystem (read-only):', error);
+    }
+
+    // Always store in memory for production environments with read-only filesystems
+    global.roofMasterMacroData = csvContent;
+    console.log('✅ Stored roof master macro data in memory for production use');
+
+    // Return true since we successfully stored in memory even if filesystem write failed
     return true;
   } catch (error) {
     console.error('Error writing roof master macro:', error);
