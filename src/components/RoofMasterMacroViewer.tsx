@@ -236,7 +236,7 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
                         type="text"
                         value={newItem.description || ''}
                         onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
                         placeholder="Enter description..."
                       />
                     </div>
@@ -246,7 +246,7 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
                         type="text"
                         value={newItem.unit || ''}
                         onChange={(e) => setNewItem(prev => ({ ...prev, unit: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
                         placeholder="SQ, EA, etc."
                       />
                     </div>
@@ -258,7 +258,7 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
                         min="0"
                         value={newItem.unit_price || 0}
                         onChange={(e) => setNewItem(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
                         placeholder="0.00"
                       />
                     </div>
@@ -314,7 +314,7 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
                                 type="text"
                                 value={editValues.description || ''}
                                 onChange={(e) => setEditValues(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                               />
                             ) : (
                               <div className="text-sm font-medium text-gray-900">{item.description}</div>
@@ -326,7 +326,7 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
                                 type="text"
                                 value={editValues.unit || ''}
                                 onChange={(e) => setEditValues(prev => ({ ...prev, unit: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                               />
                             ) : (
                               <div className="text-sm text-gray-900">{item.unit}</div>
@@ -340,7 +340,7 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
                                 min="0"
                                 value={editValues.unit_price || 0}
                                 onChange={(e) => setEditValues(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                               />
                             ) : (
                               <div className="text-sm font-semibold text-green-600">{formatCurrency(item.unit_price)}</div>
