@@ -68,6 +68,9 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
   const saveMacroItems = async () => {
     setSaving(true);
     try {
+      console.log('Saving macro items, count:', items.length);
+      console.log('Items being saved:', items.slice(0, 3).map(i => ({ desc: i.description, unit: i.unit, price: i.unit_price })));
+      
       const response = await fetch('/api/roof-master-macro', {
         method: 'PUT',
         headers: {
@@ -77,9 +80,12 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
       });
       
       const data = await response.json();
+      console.log('Save response:', data);
       
       if (data.success) {
         alert('Roof master macro updated successfully!');
+        // Fetch updated items to ensure consistency
+        await fetchMacroItems();
       } else {
         alert('Failed to update roof master macro: ' + data.error);
       }
@@ -137,6 +143,8 @@ export default function RoofMasterMacroViewer({ onClose }: RoofMasterMacroViewer
     };
 
     const updatedItems = [...items, item];
+    console.log('Adding new item:', item);
+    console.log('Updated items count:', updatedItems.length);
     setItems(updatedItems);
     setNewItem({ description: '', unit: '', unit_price: 0 });
     setShowAddForm(false);
