@@ -97,3 +97,4 @@ structured_output.*
 test_outputs/
 venv/
 .venv/
+.claude/
