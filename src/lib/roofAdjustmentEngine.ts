@@ -19,6 +19,7 @@ interface LineItem {
   category?: string;
   page_number?: number;
   narrative?: string;
+  macro_validated?: boolean;
 }
 
 interface RoofMeasurements {
@@ -59,6 +60,7 @@ interface AdjustmentResults {
       ridge_vent_adjustments: number;
       valley_metal_adjustments: number;
       step_flashing_adjustments: number;
+      endwall_flashing_adjustments: number;
     };
   };
 }
@@ -77,6 +79,7 @@ export class RoofAdjustmentEngine {
     ridge_vent_adjustments: 0,
     valley_metal_adjustments: 0,
     step_flashing_adjustments: 0,
+    endwall_flashing_adjustments: 0,
   };
 
   // Exact line item descriptions from the comprehensive rule set
@@ -117,7 +120,7 @@ export class RoofAdjustmentEngine {
     INSTALL_LAMINATED_PER_SHINGLE: "Install Laminated - comp. shingle rfg (per SHINGLE)",
     
     // Dumpster items
-    DUMPSTER_12_YARD: "Dumpster load - Approx. 12 yards 1-3 tons of debris",
+    DUMPSTER_12_YARD: "Dumpster load - Approx. 12 yards - 1-3 tons of debris",
     
     // Starter courses
     STARTER_UNIVERSAL: "Asphalt starter - universal starter course",
@@ -133,12 +136,12 @@ export class RoofAdjustmentEngine {
     STEEP_12_PLUS: "Additional charge for steep roof greater than 12/12 slope",
     
     // Ridge vents and caps
-    RIDGE_VENT_ALUMINUM: "Continuous ridge vent aluminum",
-    RIDGE_VENT_SHINGLE: "Continuous ridge vent shingle-over style",
+    RIDGE_VENT_ALUMINUM: "Continuous ridge vent - aluminum",
+    RIDGE_VENT_SHINGLE: "Continuous ridge vent - shingle-over style",
     RIDGE_VENT_DETACH_RESET: "Continuous ridge vent - Detach & reset",
-    HIP_RIDGE_HIGH: "Hip/Ridge cap High profile - composition shingles",
-    HIP_RIDGE_STANDARD: "Hip/Ridge cap Standard profile - composition shingles",
-    HIP_RIDGE_CUT_3TAB: "Hip/Ridge cap cut from 3 tab composition shingles",
+    HIP_RIDGE_HIGH: "Hip / Ridge cap - High profile - composition shingles",
+    HIP_RIDGE_STANDARD: "Hip / Ridge cap - Standard profile - composition shingles",
+    HIP_RIDGE_CUT_3TAB: "Hip / Ridge cap - cut from 3 tab - composition shingles",
     
     // Flashing and edges
     DRIP_EDGE: "Drip edge/gutter apron",
@@ -314,12 +317,29 @@ export class RoofAdjustmentEngine {
   private addLineItem(
     description: string,
     quantity: number,
-    unit: string,
-    unitPrice: number,
     lineNumber: string,
     reason: string,
     ruleApplied: string
-  ): LineItem {
+  ): LineItem | null {
+    // Always pull unit and unit_price from the roof master macro
+    const macroItem = this.getRoofMasterItem(description);
+    if (!macroItem) {
+      console.error(`🚫 CANNOT ADD LINE ITEM: "${description}" not found in roof master macro. Item will NOT be added to the claim.`);
+      this.logAudit({
+        line_number: lineNumber,
+        field: 'addition_failed',
+        before: 0,
+        after: 0,
+        explanation: `Failed to add "${description}": not found in roof master macro database`,
+        rule_applied: ruleApplied,
+        timestamp: '',
+      });
+      return null;
+    }
+
+    const unit = macroItem.unit;
+    const unitPrice = macroItem.unit_price;
+
     const newItem: LineItem = {
       line_number: lineNumber,
       description: description,
@@ -668,25 +688,16 @@ export class RoofAdjustmentEngine {
         );
         
         if (!existingDumpster) {
-          const dumpsterItem: LineItem = {
-            line_number: 999, // High number to avoid conflicts
-            description: this.EXACT_DESCRIPTIONS.DUMPSTER_12_YARD,
-            quantity: baseQuantity,
-            unit: 'EA',
-            unit_price: 0, // Will be set by roof master macro
-            RCV: 0,
-            age_life: '',
-            condition: '',
-            dep_percent: 0,
-            depreciation_amount: 0,
-            ACV: 0,
-            location_room: 'Roof',
-            category: 'Roofing',
-            page_number: 999,
-            narrative: `Field Changed: quantity | Explanation: Added dumpster for tear-off without haul-off`
-          };
-          
-          dumpsterItems.push(dumpsterItem);
+          // Add dumpster - pulls unit and price from macro
+          const dumpsterItem = this.addLineItem(
+            this.EXACT_DESCRIPTIONS.DUMPSTER_12_YARD,
+            baseQuantity,
+            '999',
+            `Added dumpster for tear-off without haul-off`,
+            'Category A: Dumpster Addition for No-Haul Tear-Off'
+          );
+
+          if (dumpsterItem) dumpsterItems.push(dumpsterItem);
           roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
             `Added dumpster item with quantity ${baseQuantity}`);
         }
@@ -796,22 +807,19 @@ export class RoofAdjustmentEngine {
       roofAdjustmentLogger.logRuleDecision(ruleLog, 'No starter course found', 
         'Adding universal starter course');
       
-      // Add universal starter course
-      const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL);
-          if (masterItem) {
-        const newLineNumber = `${items.length + 1}`;
-          const newItem = this.addLineItem(
-          this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL,
-          requiredQuantity,
-          masterItem.unit,
-          masterItem.unit_price,
-            newLineNumber,
-          `Missing starter course - added based on eaves + rakes length`,
-          'Category A: Starter Course Addition'
-        );
+      // Add universal starter course - pulls unit and price from macro
+      const newLineNumber = `${items.length + 1}`;
+      const newItem = this.addLineItem(
+        this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL,
+        requiredQuantity,
+        newLineNumber,
+        `Missing starter course - added based on eaves + rakes length`,
+        'Category A: Starter Course Addition'
+      );
+      if (newItem) {
         items.push(newItem);
         this.adjustmentCounts.starter_course_adjustments++;
-        roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL, 
+        roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.STARTER_UNIVERSAL,
           requiredQuantity, 'Added missing starter course');
       }
     } else {
@@ -878,22 +886,17 @@ export class RoofAdjustmentEngine {
           );
         }
       } else {
-        // Add removal steep roof charge
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.REMOVE_STEEP_7_9);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.REMOVE_STEEP_7_9,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Steep roof removal charge added for 7/12-9/12 pitch`,
-            'Category A: Steep Roof Removal Addition (7/12-9/12)'
-          );
-          adjustedItems.push(newItem);
-        }
+        // Add removal steep roof charge - pulls from macro
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.REMOVE_STEEP_7_9,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Steep roof removal charge added for 7/12-9/12 pitch`,
+          'Category A: Steep Roof Removal Addition (7/12-9/12)'
+        );
+        if (newItem) adjustedItems.push(newItem);
       }
-      
+
       // Check for installation steep roof charge
       const steepItem = this.findLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.STEEP_7_9);
       if (steepItem) {
@@ -907,20 +910,15 @@ export class RoofAdjustmentEngine {
           );
         }
       } else {
-        // Add installation steep roof charge
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STEEP_7_9);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.STEEP_7_9,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Steep roof charge added for 7/12-9/12 pitch`,
-            'Category A: Steep Roof Installation Addition (7/12-9/12)'
-          );
-          adjustedItems.push(newItem);
-        }
+        // Add installation steep roof charge - pulls from macro
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.STEEP_7_9,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Steep roof charge added for 7/12-9/12 pitch`,
+          'Category A: Steep Roof Installation Addition (7/12-9/12)'
+        );
+        if (newItem) adjustedItems.push(newItem);
       }
       
       this.adjustmentCounts.steep_roof_adjustments++;
@@ -944,21 +942,16 @@ export class RoofAdjustmentEngine {
           );
         }
       } else {
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.REMOVE_STEEP_10_12);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.REMOVE_STEEP_10_12,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Steep roof removal charge added for 10/12-12/12 pitch`,
-            'Category A: Steep Roof Removal Addition (10/12-12/12)'
-          );
-          adjustedItems.push(newItem);
-        }
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.REMOVE_STEEP_10_12,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Steep roof removal charge added for 10/12-12/12 pitch`,
+          'Category A: Steep Roof Removal Addition (10/12-12/12)'
+        );
+        if (newItem) adjustedItems.push(newItem);
       }
-      
+
       const steepItem = this.findLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.STEEP_10_12);
       if (steepItem) {
         if (steepItem.quantity < requiredQuantity) {
@@ -971,19 +964,14 @@ export class RoofAdjustmentEngine {
           );
         }
       } else {
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STEEP_10_12);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.STEEP_10_12,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Steep roof charge added for 10/12-12/12 pitch`,
-            'Category A: Steep Roof Installation Addition (10/12-12/12)'
-          );
-          adjustedItems.push(newItem);
-        }
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.STEEP_10_12,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Steep roof charge added for 10/12-12/12 pitch`,
+          'Category A: Steep Roof Installation Addition (10/12-12/12)'
+        );
+        if (newItem) adjustedItems.push(newItem);
       }
       
       this.adjustmentCounts.steep_roof_adjustments++;
@@ -1005,21 +993,16 @@ export class RoofAdjustmentEngine {
           );
         }
       } else {
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.REMOVE_STEEP_12_PLUS);
-      if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.REMOVE_STEEP_12_PLUS,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Steep roof removal charge added for 12/12+ pitch`,
-            'Category A: Steep Roof Removal Addition (12/12+)'
-          );
-          adjustedItems.push(newItem);
-        }
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.REMOVE_STEEP_12_PLUS,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Steep roof removal charge added for 12/12+ pitch`,
+          'Category A: Steep Roof Removal Addition (12/12+)'
+        );
+        if (newItem) adjustedItems.push(newItem);
       }
-      
+
       const steepItem = this.findLineItem(adjustedItems, this.EXACT_DESCRIPTIONS.STEEP_12_PLUS);
       if (steepItem) {
         if (steepItem.quantity < requiredQuantity) {
@@ -1032,19 +1015,14 @@ export class RoofAdjustmentEngine {
           );
         }
       } else {
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STEEP_12_PLUS);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.STEEP_12_PLUS,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Steep roof charge added for 12/12+ pitch`,
-            'Category A: Steep Roof Installation Addition (12/12+)'
-          );
-          adjustedItems.push(newItem);
-        }
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.STEEP_12_PLUS,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Steep roof charge added for 12/12+ pitch`,
+          'Category A: Steep Roof Installation Addition (12/12+)'
+        );
+        if (newItem) adjustedItems.push(newItem);
       }
       
       this.adjustmentCounts.steep_roof_adjustments++;
@@ -1118,7 +1096,7 @@ export class RoofAdjustmentEngine {
     const requiredQuantity = eavesLength + rakesLength;
     
     // Check if "Drip edge" (without "gutter apron") is already present
-    const existingDripEdge = this.findLineItem(items, ["Drip edge"]);
+    const existingDripEdge = this.findLineItem(items, "Drip edge");
     
     if (existingDripEdge) {
       console.log('🔍 Found existing "Drip edge" item, skipping "Drip edge/gutter apron" addition');
@@ -1141,18 +1119,15 @@ export class RoofAdjustmentEngine {
         this.adjustmentCounts.drip_edge_adjustments++;
       }
     } else {
-      // Add drip edge/gutter apron if missing and no "Drip edge" exists
-      const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.DRIP_EDGE);
-      if (masterItem) {
-        const newItem = this.addLineItem(
-          this.EXACT_DESCRIPTIONS.DRIP_EDGE,
-          requiredQuantity,
-          masterItem.unit,
-          masterItem.unit_price,
-          `${items.length + 1}`,
-          `Missing drip edge/gutter apron - added based on eaves + rakes length`,
-          'Category A: Drip Edge Addition'
-        );
+      // Add drip edge/gutter apron if missing - pulls from macro
+      const newItem = this.addLineItem(
+        this.EXACT_DESCRIPTIONS.DRIP_EDGE,
+        requiredQuantity,
+        `${items.length + 1}`,
+        `Missing drip edge/gutter apron - added based on eaves + rakes length`,
+        'Category A: Drip Edge Addition'
+      );
+      if (newItem) {
         items.push(newItem);
         this.adjustmentCounts.drip_edge_adjustments++;
       }
@@ -1201,23 +1176,18 @@ export class RoofAdjustmentEngine {
         roofAdjustmentLogger.logRuleDecision(ruleLog, 'Step flashing not found', 
           'Adding step flashing with quantity = Total Step Flashing Length');
         
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.STEP_FLASHING);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.STEP_FLASHING,
-            stepFlashingLength,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${items.length + 1}`,
-            `Missing step flashing - added based on Total Step Flashing Length`,
-            'Category A: Step Flashing Addition'
-          );
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.STEP_FLASHING,
+          stepFlashingLength,
+          `${items.length + 1}`,
+          `Missing step flashing - added based on Total Step Flashing Length`,
+          'Category A: Step Flashing Addition'
+        );
+        if (newItem) {
           items.push(newItem);
           this.adjustmentCounts.step_flashing_adjustments++;
-          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING, 
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.STEP_FLASHING,
             stepFlashingLength, 'Added missing step flashing');
-        } else {
-          roofAdjustmentLogger.logWarning(ruleLog, `Step flashing not found in roof master macro: ${this.EXACT_DESCRIPTIONS.STEP_FLASHING}`);
         }
       }
     } else {
@@ -1535,46 +1505,35 @@ export class RoofAdjustmentEngine {
         roofAdjustmentLogger.logItemProcessing(ruleLog, item.description, 
           `Found R&R item, replacing with Remove + Install items`);
         
-        // Get the remove item from roof master macro
-        const removeMasterItem = this.getRoofMasterItem(rrRule.remove);
-        if (removeMasterItem) {
-          const removeItem = this.addLineItem(
-            rrRule.remove,
-            item.quantity,
-            removeMasterItem.unit,
-            removeMasterItem.unit_price,
-            `${updatedItems.length + 1}`,
-            `R&R replacement: Remove ${item.description}`,
-            'Category A: R&R Rules - Remove Item'
-          );
+        // Add remove item - pulls unit and price from macro
+        const removeItem = this.addLineItem(
+          rrRule.remove,
+          item.quantity,
+          `${updatedItems.length + 1}`,
+          `R&R replacement: Remove ${item.description}`,
+          'Category A: R&R Rules - Remove Item'
+        );
+        if (removeItem) {
           updatedItems.push(removeItem);
-          roofAdjustmentLogger.logAddition(ruleLog, rrRule.remove, 
+          roofAdjustmentLogger.logAddition(ruleLog, rrRule.remove,
             item.quantity, 'Added remove item for R&R replacement');
-        } else {
-          roofAdjustmentLogger.logWarning(ruleLog, `Remove item not found in roof master macro: ${rrRule.remove}`);
         }
-        
-        // Get the install item from roof master macro
-        const installMasterItem = this.getRoofMasterItem(rrRule.install);
-        if (installMasterItem) {
-          const installItem = this.addLineItem(
-            rrRule.install,
-            item.quantity,
-            installMasterItem.unit,
-            installMasterItem.unit_price,
-            `${updatedItems.length + 1}`,
-            `R&R replacement: Install ${item.description}`,
-            'Category A: R&R Rules - Install Item'
-          );
+
+        // Add install item - pulls unit and price from macro
+        const installItem = this.addLineItem(
+          rrRule.install,
+          item.quantity,
+          `${updatedItems.length + 1}`,
+          `R&R replacement: Install ${item.description}`,
+          'Category A: R&R Rules - Install Item'
+        );
+        if (installItem) {
           updatedItems.push(installItem);
-          roofAdjustmentLogger.logAddition(ruleLog, rrRule.install, 
+          roofAdjustmentLogger.logAddition(ruleLog, rrRule.install,
             item.quantity, 'Added install item for R&R replacement');
-        } else {
-          roofAdjustmentLogger.logWarning(ruleLog, `Install item not found in roof master macro: ${rrRule.install}`);
         }
-        
+
         rrReplacements++;
-        this.adjustmentCounts.new_additions += 2; // Count both remove and install as additions
       } else {
         // Keep non-R&R items as-is
         updatedItems.push(item);
@@ -1599,7 +1558,7 @@ export class RoofAdjustmentEngine {
     // Only proceed if flashing length > 0
     if (flashingLength > 0) {
       // Check for L flashing FIRST (preferred item)
-      const lFlashingItem = this.findLineItem(items, ["Flashing - L flashing - galvanized"]);
+      const lFlashingItem = this.findLineItem(items, "Flashing - L flashing - galvanized");
       
       if (lFlashingItem) {
         // L flashing is present - normalize it
@@ -1630,8 +1589,8 @@ export class RoofAdjustmentEngine {
           'Applying normalization rules for alternate flashing items');
         
         // Find both alternate items
-        const aluminumFlashingItemCheck = this.findLineItem(items, [this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING]);
-        const counterflashingItem = this.findLineItem(items, ["Counterflashing - Apron flashing"]);
+        const aluminumFlashingItemCheck = this.findLineItem(items, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING);
+        const counterflashingItem = this.findLineItem(items, "Counterflashing - Apron flashing");
         
         // If both alternate items are present, normalize only the one with higher unit_cost
         if (aluminumFlashingItemCheck && counterflashingItem) {
@@ -1649,68 +1608,60 @@ export class RoofAdjustmentEngine {
                   const aluminumTolerance = 0.15 * flashingLength;
                   
                   if (aluminumQuantityDiff <= aluminumTolerance) {
-                    // Swap aluminum flashing to L flashing (preferred item)
-                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
-                    if (lFlashingMasterItem) {
-                      const newLQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
-                      
-                      roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'replaced', 
-                        aluminumFlashingItemCheck.quantity, newLQuantity, 
-                        `Swapped higher cost aluminum to L flashing (preferred) within tolerance`);
-                      
-                      // Remove aluminum flashing
-                      const aluminumIndex = items.findIndex(item => item === aluminumFlashingItemCheck);
-                      items.splice(aluminumIndex, 1);
-                      
-                      // Add L flashing
-                      const newLItem = this.addLineItem(
-                        "Flashing - L flashing - galvanized",
-                        newLQuantity,
-                        lFlashingMasterItem.unit,
-                        lFlashingMasterItem.unit_price,
-                        `${items.length + 1}`,
-                        `Replaced aluminum flashing with L flashing (higher cost)`,
-                        'Category A: L Flashing Swap from Aluminum'
-                      );
+                    const newLQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
+
+                    roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'replaced',
+                      aluminumFlashingItemCheck.quantity, newLQuantity,
+                      `Swapped higher cost aluminum to L flashing (preferred) within tolerance`);
+
+                    // Remove aluminum flashing
+                    const aluminumIndex = items.findIndex(item => item === aluminumFlashingItemCheck);
+                    items.splice(aluminumIndex, 1);
+
+                    // Add L flashing - pulls from macro
+                    const newLItem = this.addLineItem(
+                      "Flashing - L flashing - galvanized",
+                      newLQuantity,
+                      `${items.length + 1}`,
+                      `Replaced aluminum flashing with L flashing (higher cost)`,
+                      'Category A: L Flashing Swap from Aluminum'
+                    );
+                    if (newLItem) {
                       items.push(newLItem);
-                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized",
                         newLQuantity, 'Swapped aluminum flashing to L flashing');
                       this.adjustmentCounts.endwall_flashing_adjustments++;
                     }
                   }
                 } else {
-                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing has higher cost', 
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing has higher cost',
                     'Counterflashing has higher unit cost');
-                  
+
                   const counterflashingQuantityDiff = Math.abs(counterflashingItem.quantity - flashingLength);
                   const counterflashingTolerance = 0.15 * flashingLength;
-                  
+
                   if (counterflashingQuantityDiff <= counterflashingTolerance) {
-                    // Swap counterflashing to L flashing (preferred item)
-                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
-                    if (lFlashingMasterItem) {
-                      const newLQuantity = Math.max(counterflashingItem.quantity, flashingLength);
-                      
-                      roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'replaced', 
-                        counterflashingItem.quantity, newLQuantity, 
-                        `Swapped higher cost counterflashing to L flashing (preferred) within tolerance`);
-                      
-                      // Remove counterflashing
-                      const counterflashingIndex = items.findIndex(item => item === counterflashingItem);
-                      items.splice(counterflashingIndex, 1);
-                      
-                      // Add L flashing
-                      const newLItem = this.addLineItem(
-                        "Flashing - L flashing - galvanized",
-                        newLQuantity,
-                        lFlashingMasterItem.unit,
-                        lFlashingMasterItem.unit_price,
-                        `${items.length + 1}`,
-                        `Replaced counterflashing with L flashing (higher cost)`,
-                        'Category A: L Flashing Swap from Counterflashing'
-                      );
+                    const newLQuantity = Math.max(counterflashingItem.quantity, flashingLength);
+
+                    roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'replaced',
+                      counterflashingItem.quantity, newLQuantity,
+                      `Swapped higher cost counterflashing to L flashing (preferred) within tolerance`);
+
+                    // Remove counterflashing
+                    const counterflashingIndex = items.findIndex(item => item === counterflashingItem);
+                    items.splice(counterflashingIndex, 1);
+
+                    // Add L flashing - pulls from macro
+                    const newLItem = this.addLineItem(
+                      "Flashing - L flashing - galvanized",
+                      newLQuantity,
+                      `${items.length + 1}`,
+                      `Replaced counterflashing with L flashing (higher cost)`,
+                      'Category A: L Flashing Swap from Counterflashing'
+                    );
+                    if (newLItem) {
                       items.push(newLItem);
-                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized",
                         newLQuantity, 'Swapped counterflashing to L flashing');
                       this.adjustmentCounts.endwall_flashing_adjustments++;
                     }
@@ -1728,42 +1679,38 @@ export class RoofAdjustmentEngine {
                     `Found aluminum flashing with quantity ${aluminumFlashingItemCheck.quantity}, diff: ${aluminumQuantityDiff}, tolerance: ${aluminumTolerance}`);
                   
                   if (aluminumQuantityDiff <= aluminumTolerance) {
-                    // Swap aluminum flashing to L flashing (preferred item)
-                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
-                    if (lFlashingMasterItem) {
-                      const newLQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
-                      
-                      roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'replaced', 
-                        aluminumFlashingItemCheck.quantity, newLQuantity, 
-                        `Swapped to L flashing (preferred) within tolerance`);
-                      
-                      // Remove aluminum flashing
-                      const aluminumIndex = items.findIndex(item => item === aluminumFlashingItemCheck);
-                      items.splice(aluminumIndex, 1);
-                      
-                      // Add L flashing
-                      const newLItem = this.addLineItem(
-                        "Flashing - L flashing - galvanized",
-                        newLQuantity,
-                        lFlashingMasterItem.unit,
-                        lFlashingMasterItem.unit_price,
-                        `${items.length + 1}`,
-                        `Replaced aluminum flashing with L flashing (preferred) - normalized to max(${aluminumFlashingItemCheck.quantity}, ${flashingLength})`,
-                        'Category A: L Flashing Swap from Aluminum'
-                      );
+                    const newLQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
+
+                    roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'replaced',
+                      aluminumFlashingItemCheck.quantity, newLQuantity,
+                      `Swapped to L flashing (preferred) within tolerance`);
+
+                    // Remove aluminum flashing
+                    const aluminumIndex = items.findIndex(item => item === aluminumFlashingItemCheck);
+                    items.splice(aluminumIndex, 1);
+
+                    // Add L flashing - pulls from macro
+                    const newLItem = this.addLineItem(
+                      "Flashing - L flashing - galvanized",
+                      newLQuantity,
+                      `${items.length + 1}`,
+                      `Replaced aluminum flashing with L flashing (preferred) - normalized to max(${aluminumFlashingItemCheck.quantity}, ${flashingLength})`,
+                      'Category A: L Flashing Swap from Aluminum'
+                    );
+                    if (newLItem) {
                       items.push(newLItem);
-                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized",
                         newLQuantity, 'Swapped aluminum flashing to L flashing (preferred)');
                       this.adjustmentCounts.endwall_flashing_adjustments++;
                     } else {
                       // Fall back to normalizing aluminum if L flashing not in macro
                       const newAluminumQuantity = Math.max(aluminumFlashingItemCheck.quantity, flashingLength);
-                      
+
                       if (newAluminumQuantity > aluminumFlashingItemCheck.quantity) {
-                        roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'quantity', 
-                          aluminumFlashingItemCheck.quantity, newAluminumQuantity, 
+                        roofAdjustmentLogger.logAdjustment(ruleLog, this.EXACT_DESCRIPTIONS.ALUMINUM_FLASHING, 'quantity',
+                          aluminumFlashingItemCheck.quantity, newAluminumQuantity,
                           `Normalized to max(quantity, Total Flashing Length) within tolerance (L flashing not in macro)`);
-                        
+
                         const index = items.findIndex(item => item === aluminumFlashingItemCheck);
                         items[index] = this.adjustQuantity(
                           aluminumFlashingItemCheck,
@@ -1773,7 +1720,7 @@ export class RoofAdjustmentEngine {
                         );
                         this.adjustmentCounts.endwall_flashing_adjustments++;
                       } else {
-                        roofAdjustmentLogger.logRuleDecision(ruleLog, 'No aluminum adjustment needed', 
+                        roofAdjustmentLogger.logRuleDecision(ruleLog, 'No aluminum adjustment needed',
                           `Current quantity (${aluminumFlashingItemCheck.quantity}) is already >= Total Flashing Length (${flashingLength})`);
                       }
                     }
@@ -1792,62 +1739,53 @@ export class RoofAdjustmentEngine {
                     `Found counterflashing with quantity ${counterflashingItem.quantity}, diff: ${counterflashingQuantityDiff}, tolerance: ${counterflashingTolerance}`);
                   
                   if (counterflashingQuantityDiff <= counterflashingTolerance) {
-                    // Swap counterflashing to L flashing (preferred item)
-                    const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
-                    if (lFlashingMasterItem) {
-                      const newLQuantity = Math.max(counterflashingItem.quantity, flashingLength);
-                      
-                      roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'replaced', 
-                        counterflashingItem.quantity, newLQuantity, 
-                        `Swapped higher cost counterflashing to L flashing (preferred) within tolerance`);
-                      
-                      // Remove counterflashing
-                      const counterflashingIndex = items.findIndex(item => item === counterflashingItem);
-                      items.splice(counterflashingIndex, 1);
-                      
-                      // Add L flashing
-                      const newLItem = this.addLineItem(
-                        "Flashing - L flashing - galvanized",
-                        newLQuantity,
-                        lFlashingMasterItem.unit,
-                        lFlashingMasterItem.unit_price,
-                        `${items.length + 1}`,
-                        `Replaced counterflashing with L flashing (higher cost)`,
-                        'Category A: L Flashing Swap from Counterflashing'
-                      );
+                    const newLQuantity = Math.max(counterflashingItem.quantity, flashingLength);
+
+                    roofAdjustmentLogger.logAdjustment(ruleLog, "Counterflashing - Apron flashing", 'replaced',
+                      counterflashingItem.quantity, newLQuantity,
+                      `Swapped higher cost counterflashing to L flashing (preferred) within tolerance`);
+
+                    // Remove counterflashing
+                    const counterflashingIndex = items.findIndex(item => item === counterflashingItem);
+                    items.splice(counterflashingIndex, 1);
+
+                    // Add L flashing - pulls from macro
+                    const newLItem = this.addLineItem(
+                      "Flashing - L flashing - galvanized",
+                      newLQuantity,
+                      `${items.length + 1}`,
+                      `Replaced counterflashing with L flashing (higher cost)`,
+                      'Category A: L Flashing Swap from Counterflashing'
+                    );
+                    if (newLItem) {
                       items.push(newLItem);
-                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                      roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized",
                         newLQuantity, 'Swapped counterflashing to L flashing');
                       this.adjustmentCounts.endwall_flashing_adjustments++;
                     }
                   } else {
-                    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing outside tolerance', 
+                    roofAdjustmentLogger.logRuleDecision(ruleLog, 'Counterflashing outside tolerance',
                       `Quantity difference (${counterflashingQuantityDiff}) exceeds tolerance (${counterflashingTolerance})`);
                   }
                 }
-                
+
                 if (!aluminumFlashingItemCheck && !counterflashingItem) {
                   // No alternate flashing items found - add L flashing (preferred item)
-                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'No alternate flashing items found', 
+                  roofAdjustmentLogger.logRuleDecision(ruleLog, 'No alternate flashing items found',
                     'Adding L flashing (preferred) with quantity = Total Flashing Length');
-                  
-                  const lFlashingMasterItem = this.getRoofMasterItem("Flashing - L flashing - galvanized");
-                  if (lFlashingMasterItem) {
-                    const newItem = this.addLineItem(
-                      "Flashing - L flashing - galvanized",
-                      flashingLength,
-                      lFlashingMasterItem.unit,
-                      lFlashingMasterItem.unit_price,
-                      `${items.length + 1}`,
-                      `Missing flashing - added L flashing (preferred) based on Total Flashing Length`,
-                      'Category A: L Flashing Addition'
-                    );
+
+                  const newItem = this.addLineItem(
+                    "Flashing - L flashing - galvanized",
+                    flashingLength,
+                    `${items.length + 1}`,
+                    `Missing flashing - added L flashing (preferred) based on Total Flashing Length`,
+                    'Category A: L Flashing Addition'
+                  );
+                  if (newItem) {
                     items.push(newItem);
-                    roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized", 
+                    roofAdjustmentLogger.logAddition(ruleLog, "Flashing - L flashing - galvanized",
                       flashingLength, 'Added missing L flashing (preferred item)');
                     this.adjustmentCounts.endwall_flashing_adjustments++;
-                  } else {
-                    roofAdjustmentLogger.logWarning(ruleLog, `L flashing not found in roof master macro: Flashing - L flashing - galvanized`);
                   }
                 }
               }
@@ -1911,20 +1849,17 @@ export class RoofAdjustmentEngine {
             `Current quantity (${feltItem.quantity}) is already >= required (${requiredQuantity})`);
         }
       } else {
-        // Add low slope felt if missing
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Low slope felt added for pitches 1/12-4/12`,
-            'Category A: Low Slope Felt Addition (1/12-4/12)'
-          );
+        // Add low slope felt if missing - pulls from macro
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Low slope felt added for pitches 1/12-4/12`,
+          'Category A: Low Slope Felt Addition (1/12-4/12)'
+        );
+        if (newItem) {
           adjustedItems.push(newItem);
-          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE, 
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB_DOUBLE_COVERAGE,
             requiredQuantity, 'Added missing low slope felt');
         }
       }
@@ -1960,20 +1895,17 @@ export class RoofAdjustmentEngine {
             `Current quantity (${feltItem.quantity}) is already >= required (${requiredQuantity})`);
         }
       } else {
-        // Add standard felt if missing
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.FELT_15LB);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.FELT_15LB,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Standard felt added for pitches 5/12-8/12`,
-            'Category A: Standard Felt Addition (5/12-8/12)'
-          );
+        // Add standard felt if missing - pulls from macro
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.FELT_15LB,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Standard felt added for pitches 5/12-8/12`,
+          'Category A: Standard Felt Addition (5/12-8/12)'
+        );
+        if (newItem) {
           adjustedItems.push(newItem);
-          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB, 
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_15LB,
             requiredQuantity, 'Added missing standard felt');
         }
       }
@@ -2009,20 +1941,17 @@ export class RoofAdjustmentEngine {
             `Current quantity (${feltItem.quantity}) is already >= required (${requiredQuantity})`);
         }
       } else {
-        // Add heavy felt if missing
-        const masterItem = this.getRoofMasterItem(this.EXACT_DESCRIPTIONS.FELT_30LB);
-        if (masterItem) {
-          const newItem = this.addLineItem(
-            this.EXACT_DESCRIPTIONS.FELT_30LB,
-            requiredQuantity,
-            masterItem.unit,
-            masterItem.unit_price,
-            `${adjustedItems.length + 1}`,
-            `Heavy felt added for pitches 9/12-12/12+`,
-            'Category A: Heavy Felt Addition (9/12-12/12+)'
-          );
+        // Add heavy felt if missing - pulls from macro
+        const newItem = this.addLineItem(
+          this.EXACT_DESCRIPTIONS.FELT_30LB,
+          requiredQuantity,
+          `${adjustedItems.length + 1}`,
+          `Heavy felt added for pitches 9/12-12/12+`,
+          'Category A: Heavy Felt Addition (9/12-12/12+)'
+        );
+        if (newItem) {
           adjustedItems.push(newItem);
-          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_30LB, 
+          roofAdjustmentLogger.logAddition(ruleLog, this.EXACT_DESCRIPTIONS.FELT_30LB,
             requiredQuantity, 'Added missing heavy felt');
         }
       }
@@ -2086,6 +2015,9 @@ export class RoofAdjustmentEngine {
     adjustedItems = this.applyAluminumFlashingAdjustments(adjustedItems, roofMeasurements);
     adjustedItems = this.applyFeltAdjustments(adjustedItems, roofMeasurements);
 
+    // Validate all output items against the macro database
+    adjustedItems = this.validateAgainstMacro(adjustedItems);
+
     const totalAdjustments = Object.values(this.adjustmentCounts).reduce((sum, count) => sum + count, 0);
 
     console.log('\n✅ Comprehensive Roof Adjustment Engine completed');
@@ -2106,5 +2038,33 @@ export class RoofAdjustmentEngine {
         adjustments_by_type: this.adjustmentCounts,
       },
     };
+  }
+
+  // Validate every item in the adjusted claim against the roof master macro
+  private validateAgainstMacro(items: LineItem[]): LineItem[] {
+    console.log('\n🔍 VALIDATING ALL OUTPUT ITEMS AGAINST ROOF MASTER MACRO...');
+    let validatedCount = 0;
+    let unvalidatedCount = 0;
+
+    return items.map(item => {
+      const macroItem = this.getRoofMasterItem(item.description);
+      if (macroItem) {
+        validatedCount++;
+        return { ...item, macro_validated: true } as LineItem;
+      } else {
+        unvalidatedCount++;
+        console.warn(`⚠️ UNVALIDATED ITEM: "${item.description}" has no matching entry in roof master macro`);
+        this.logAudit({
+          line_number: item.line_number,
+          field: 'macro_validation',
+          before: 'unvalidated',
+          after: 'no macro match',
+          explanation: `Item "${item.description}" does not have a corresponding entry in the roof master macro database`,
+          rule_applied: 'Output Validation',
+          timestamp: '',
+        });
+        return { ...item, macro_validated: false } as LineItem;
+      }
+    });
   }
 }

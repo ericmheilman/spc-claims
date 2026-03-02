@@ -65,36 +65,28 @@ Remove Additional charge for steep roof - 10/12 - 12/12 slope,SQ,25.83`;
       }
     }
     
-    // Simple CSV parsing without external library
+    // Parse CSV - extract first 3 columns (Description, Unit, Unit Price)
+    // Lines may have trailing empty columns; we only need the first 3
     const lines = csvContent.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const records = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-      if (values.length === headers.length) {
-        const record: any = {};
-        headers.forEach((header, index) => {
-          record[header] = values[index];
-        });
-        records.push(record);
-      }
-    }
-
-    // Convert CSV records to the format expected by the engine
     const roofMasterMacroData: Record<string, any> = {};
-    for (const record of records) {
-      // Handle case-insensitive field names
-      const description = record.Description || record.description;
-      const unit = record.Unit || record.unit;
-      const unitPrice = record['Unit Price'] || record['unit_price'] || record.unit_price;
-      
-      if (description && unit && unitPrice) {
-        roofMasterMacroData[description] = {
-          description: description,
-          unit: unit,
-          unit_price: parseFloat(unitPrice),
-        };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const columns = line.split(',');
+      if (columns.length >= 3) {
+        const description = columns[0].trim();
+        const unit = columns[1].trim();
+        const unitPrice = parseFloat(columns[2].trim());
+
+        if (description && unit && !isNaN(unitPrice)) {
+          roofMasterMacroData[description] = {
+            description: description,
+            unit: unit,
+            unit_price: unitPrice,
+          };
+        }
       }
     }
 
